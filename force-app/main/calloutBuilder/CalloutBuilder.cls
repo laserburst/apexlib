@@ -199,7 +199,7 @@ public with sharing class CalloutBuilder {
     }
 
     private void setMockIfTest() {
-        if (Test.isRunningTest()) {
+        if (Test.isRunningTest() && this.mock != null) {
             Test.setMock(HttpCalloutMock.class, this.mock);
         }
     }
