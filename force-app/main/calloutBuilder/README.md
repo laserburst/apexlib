@@ -6,8 +6,8 @@ Establishing unified callout approach with basic response handling backed in.
 
 ## Structure
 
-1. [CalloutBuilder](force-app/main/calloutBuilder/CalloutBuilder.cls) - main class.
-2. [CalloutErrorResponse](force-app/main/calloutBuilder/CalloutErrorResponse.cls) - interface used in CalloutBuilder to enable it extract error message from any error object.
+1. [CalloutBuilder](CalloutBuilder.cls) - main class.
+2. [CalloutErrorResponse](CalloutErrorResponse.cls) - interface used in CalloutBuilder to enable it extract error message from any error object.
 
 ## Example
 
@@ -26,5 +26,5 @@ CalloutBuilder cb = new CalloutBuilder(NC)
 ExampleResponse.DialogToken tokenResponse = (ExampleResponse.DialogToken)cb.getTypedResponseBody();
 ```
 
-[Full Example](force-app/main/calloutBuilder/ExampleApi.cls)
+[Full Example](ExampleApi.cls)
 
