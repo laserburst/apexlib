@@ -27,7 +27,7 @@ public with sharing class CalloutBuilder {
     private Object body;
 
     private System.Type successType;
-    private Integer timeout = 120000; // 120000 is the max timeout 
+    private Integer timeout = 120000; // 120000 is the max timeout
     private Map<String, String> headersMap = new Map<String, String>();
     private Boolean hasBlobBody = false;
 
@@ -35,6 +35,10 @@ public with sharing class CalloutBuilder {
     private HttpResponse response;
     private HttpCalloutMock mock;
     private Boolean isBuilt = false;
+
+    private CalloutRetrier retrier;
+    private Integer maxRetries = 1;
+    private Integer attempt = 0;
 
     // CalloutErrorResponse implementation
     private System.Type errorResponseImplType;
@@ -58,10 +62,10 @@ public with sharing class CalloutBuilder {
     }
 
     /**
-     * @description withMockIfTest sets mock for test context
-     * It has no effect on code out of test context, so it may be used not only in test classes
-     * @param  mock may be any HttpCalloutMock implementation
-     */
+    * @description withMockIfTest sets mock for test context
+    * It has no effect on code out of test context, so it may be used not only in test classes
+    * @param  mock may be any HttpCalloutMock implementation
+    */
     public CalloutBuilder withMockIfTest(HttpCalloutMock mock) {
         this.throwErrorIfBuilt();
         this.mock = mock;
@@ -99,10 +103,22 @@ public with sharing class CalloutBuilder {
         return this;
     }
 
+    public CalloutBuilder withRetrier(CalloutRetrier retrier) {
+        this.throwErrorIfBuilt();
+        this.retrier = retrier;
+        return this;
+    }
+
+    public CalloutBuilder withMaxRetries(Integer maxRetries) {
+        this.throwErrorIfBuilt();
+        this.maxRetries = maxRetries;
+        return this;
+    }
+
     /**
-     * @description It allows to extract error message from any error object
-     * @param  errorType class must implement CalloutErrorResponse interface
-     */
+    * @description It allows to extract error message from any error object
+    * @param  errorType class must implement CalloutErrorResponse interface
+    */
     public CalloutBuilder withErrorType(System.Type errorType) {
         this.throwErrorIfBuilt();
         this.validateErrorType(errorType);
@@ -117,9 +133,9 @@ public with sharing class CalloutBuilder {
     }
 
     /**
-     * @description It finalizes request construction and asserts it can run.
-     * It is required before making callout.
-     */
+    * @description It finalizes request construction and asserts it can run.
+    * It is required before making callout.
+    */
     public CalloutBuilder build() {
         if (String.isBlank(this.ncOrBaseUrl)) {
             throw new CalloutBuilderException('NC or base URL must be provided');
@@ -135,33 +151,38 @@ public with sharing class CalloutBuilder {
     // execution variants
 
     /**
-     * @description It makes a callout, validates response 
-     * and returns HttpResponse as is
-     */
+    * @description It makes a callout, validates response,
+    * retries if needed and returns HttpResponse as is
+    */
     public HttpResponse getHttpResponse() {
         if (!this.isBuilt) {
             throw new CalloutBuilderException('.build() was not used. Cannot bypass validation.');
         }
         this.setMockIfTest();
 
-        this.response = new Http().send(this.request);
+        do {
+            this.attempt++;
+            this.response = new Http().send(this.request);
+        } while (this.canRetry() && this.retrier?.shouldRetry(this.response));
+        this.attempt = 0;
+
         this.validateResponse();
         return this.response;
     }
 
     /**
-     * @description It makes a callout, validates response 
-     * and converts its body JSON into Map<String, Object>
-     */
+    * @description It makes a callout, validates response
+    * and converts its body JSON into Map<String, Object>
+    */
     public Map<String, Object> getResponseBodyMap() {
         this.getHttpResponse();
         return (Map<String, Object>) JSON.deserializeUntyped(this.response.getBody());
     }
 
     /**
-     * @description It makes a callout, validates response 
-     * and converts its body into an object specified in .withSuccessType() method
-     */
+    * @description It makes a callout, validates response
+    * and converts its body into an object specified in .withSuccessType() method
+    */
     public Object getTypedResponseBody() {
         if (this.successType == null) {
             throw new CalloutBuilderException('getTypedResponseBody expects this.successType to be set');
@@ -236,6 +257,10 @@ public with sharing class CalloutBuilder {
                 );
             }
         }
+    }
+
+    private Boolean canRetry() {
+        return this.retrier != null && this.maxRetries >= this.attempt;
     }
 
     public class CalloutBuilderException extends Exception {
