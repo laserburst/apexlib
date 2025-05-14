@@ -11,8 +11,7 @@ private class CalloutBuilder_Test {
                     .withBody('test body')
                     .withTimeout(1000)
                     .withSuccessType(DummyResponse.class)
-                    .withMockIfTest(new SuccessMock())
-                    .build();
+                    .withMockIfTest(new SuccessMock());
 
             DummyResponse res = (DummyResponse) cb.getTypedResponseBody();
         Test.stopTest();
@@ -25,8 +24,7 @@ private class CalloutBuilder_Test {
         Test.startTest();
             CalloutBuilder cb = new CalloutBuilder('callout:Test')
                 .withEndpoint('/test')
-                .withMockIfTest(new SuccessMock())
-                .build();
+                .withMockIfTest(new SuccessMock());
             Map<String, Object> resMap = cb.getResponseBodyMap();
         Test.stopTest();
 
@@ -34,24 +32,10 @@ private class CalloutBuilder_Test {
     }
 
     @IsTest
-    static void testValidationFailsWithoutBuild() {
-        CalloutBuilder cb = new CalloutBuilder('callout:Test');
-
-        try {
-            Test.startTest();
-                cb.getHttpResponse(); // missing .build()
-                Assert.fail('Expected exception not thrown');
-            Test.stopTest();
-        } catch (CalloutBuilder.CalloutBuilderException e) {
-            Assert.isTrue(e.getMessage().contains('.build() was not used'), 'Unexpected error message');
-        }
-    }
-
-    @IsTest
     static void testValidationFailsForMissingNC() {
         try {
             Test.startTest();
-                new CalloutBuilder(null).build();
+                new CalloutBuilder(null).getHttpResponse();
             Test.stopTest();
 
             Assert.fail('Expected exception not thrown');
@@ -68,7 +52,6 @@ private class CalloutBuilder_Test {
                     .withEndpoint('/fail')
                     .withErrorType(DummyErrorResponse.class)
                     .withMockIfTest(new ErrorMock())
-                    .build()
                     .getHttpResponse();
             Test.stopTest();
 
@@ -85,7 +68,6 @@ private class CalloutBuilder_Test {
                 new CalloutBuilder('callout:ErrorTest')
                     .withEndpoint('/fail')
                     .withErrorType(CalloutBuilder_Test.class)
-                    .build()
                     .getHttpResponse();
             Test.stopTest();
 
@@ -105,7 +87,6 @@ private class CalloutBuilder_Test {
                 new CalloutBuilder('callout:ErrorTest')
                     .withEndpoint('/fail')
                     .withErrorType(null)
-                    .build()
                     .getHttpResponse();
             Test.stopTest();
             Assert.fail('Expected error not thrown');
@@ -118,7 +99,7 @@ private class CalloutBuilder_Test {
     static void testNullMethod() {
         try {
             Test.startTest();
-                new CalloutBuilder('callout:ErrorTest').withMethod(null).build().getHttpResponse();
+                new CalloutBuilder('callout:ErrorTest').withMethod(null).getHttpResponse();
             Test.stopTest();
 
             Assert.fail('Expected error not thrown');
@@ -131,7 +112,7 @@ private class CalloutBuilder_Test {
     static void testGetTypedResponseBodyWithNoType() {
         try {
             Test.startTest();
-                new CalloutBuilder('callout:ErrorTest').build().getTypedResponseBody();
+                new CalloutBuilder('callout:ErrorTest').getTypedResponseBody();
             Test.stopTest();
 
             Assert.fail('Expected error not thrown');
@@ -152,8 +133,7 @@ private class CalloutBuilder_Test {
                     .withMethod('POST')
                     .withBlobBody(blobBody)
                     .withSuccessType(DummyResponse.class)
-                    .withMockIfTest(new SuccessMock())
-                    .build();
+                    .withMockIfTest(new SuccessMock());
 
             DummyResponse res = (DummyResponse) cb.getTypedResponseBody();
         Test.stopTest();
@@ -162,18 +142,35 @@ private class CalloutBuilder_Test {
     }
 
     @IsTest
-    static void testModifyAfterBuilt() {
-        try {
-            Test.startTest();
-                new CalloutBuilder('callout:ErrorTest').build().withTimeout(1000);
-            Test.stopTest();
+    static void testBypassResponseValidation() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('callout:Test')
+                    .withEndpoint('/test')
+                    .withBypassResponseValidation(true)
+                    .withMockIfTest(new ErrorMock());
+            Map<String, Object> resMap = cb.getResponseBodyMap();
+        Test.stopTest();
+        Assert.areEqual('Something went wrong', (String) resMap.get('message'), 'Unexpected res.message');
+    }
 
-            Assert.fail('Expected error not thrown');
-        } catch (CalloutBuilder.CalloutBuilderException e) {
-            Assert.isTrue(
-                e.getMessage().contains('Cannot modify CalloutBuilder instance after .build() usage'),
-                'Unexpected error message'
-            );
+    @IsTest
+    static void testRetrier() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('callout:Test')
+                    .withEndpoint('/test')
+                    .withRetrier(new RetrierTest())
+                    .withMaxRetries(2)
+                    .withMockIfTest(new SuccessMock());
+            Map<String, Object> resMap = cb.getResponseBodyMap();
+        Test.stopTest();
+        Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
+    private class RetrierTest implements CalloutRetrier {
+        public Boolean shouldRetry(HttpResponse response) {
+            return response.getStatusCode() == 500;
         }
     }
 

@@ -1,6 +1,5 @@
 /**
 * @description It is to establish unified callout approach.
-* Requires .build() usage before callout. It cannot be modified when built.
 * GET is a default method.
 * It can be used to obtain:
 * 1. Raw HttpResponse
@@ -14,8 +13,7 @@ CalloutBuilder cb = new CalloutBuilder('callout:MyNc')
     .withHeader('Attribute', 'value')
     .withHeader('Attribute2', 'value2')
     .withTimeout(30000)
-    .withSuccessType(MyType.class)
-    .build();
+    .withSuccessType(MyType.class);
 
 MyType response = (MyType)cb.getTypedResponseBody();
 * @team Laserburst
@@ -31,10 +29,9 @@ public with sharing class CalloutBuilder {
     private Map<String, String> headersMap = new Map<String, String>();
     private Boolean hasBlobBody = false;
 
-    private HttpRequest request = new HttpRequest();
+    private HttpRequest request;
     private HttpResponse response;
     private HttpCalloutMock mock;
-    private Boolean isBuilt = false;
 
     private CalloutRetrier retrier;
     private Integer maxRetries = 1;
@@ -43,6 +40,7 @@ public with sharing class CalloutBuilder {
     // CalloutErrorResponse implementation
     private System.Type errorResponseImplType;
     private CalloutErrorResponse error;
+    private Boolean bypassResponseValidation = false;
 
     public CalloutBuilder(String ncOrBaseUrl) {
         this.ncOrBaseUrl = ncOrBaseUrl;
@@ -50,13 +48,11 @@ public with sharing class CalloutBuilder {
 
     // Optional setters
     public CalloutBuilder withEndpoint(String endpoint) {
-        this.throwErrorIfBuilt();
         this.endpoint = endpoint;
         return this;
     }
 
     public CalloutBuilder withMethod(String method) {
-        this.throwErrorIfBuilt();
         this.method = method;
         return this;
     }
@@ -67,51 +63,48 @@ public with sharing class CalloutBuilder {
     * @param  mock may be any HttpCalloutMock implementation
     */
     public CalloutBuilder withMockIfTest(HttpCalloutMock mock) {
-        this.throwErrorIfBuilt();
         this.mock = mock;
         return this;
     }
 
     public CalloutBuilder withHeader(String key, String value) {
-        this.throwErrorIfBuilt();
         this.headersMap.put(key, value);
         return this;
     }
 
     public CalloutBuilder withHeaders(Map<String, String> headers) {
-        this.throwErrorIfBuilt();
         this.headersMap.putAll(headers);
         return this;
     }
 
     public CalloutBuilder withBody(Object body) {
-        this.throwErrorIfBuilt();
         this.body = body;
         return this;
     }
 
     public CalloutBuilder withBlobBody(Object body) {
-        this.throwErrorIfBuilt();
         this.hasBlobBody = true;
         this.withBody(body);
         return this;
     }
 
     public CalloutBuilder withSuccessType(System.Type successType) {
-        this.throwErrorIfBuilt();
         this.successType = successType;
         return this;
     }
 
     public CalloutBuilder withRetrier(CalloutRetrier retrier) {
-        this.throwErrorIfBuilt();
         this.retrier = retrier;
         return this;
     }
 
     public CalloutBuilder withMaxRetries(Integer maxRetries) {
-        this.throwErrorIfBuilt();
         this.maxRetries = maxRetries;
+        return this;
+    }
+
+    public CalloutBuilder withBypassResponseValidation(Boolean bypassResponseValidation) {
+        this.bypassResponseValidation = bypassResponseValidation;
         return this;
     }
 
@@ -120,31 +113,13 @@ public with sharing class CalloutBuilder {
     * @param  errorType class must implement CalloutErrorResponse interface
     */
     public CalloutBuilder withErrorType(System.Type errorType) {
-        this.throwErrorIfBuilt();
         this.validateErrorType(errorType);
         this.errorResponseImplType = errorType;
         return this;
     }
 
     public CalloutBuilder withTimeout(Integer timeout) {
-        this.throwErrorIfBuilt();
         this.timeout = timeout;
-        return this;
-    }
-
-    /**
-    * @description It finalizes request construction and asserts it can run.
-    * It is required before making callout.
-    */
-    public CalloutBuilder build() {
-        if (String.isBlank(this.ncOrBaseUrl)) {
-            throw new CalloutBuilderException('NC or base URL must be provided');
-        }
-        if (String.isBlank(this.method)) {
-            throw new CalloutBuilderException('HTTP method must be provided');
-        }
-        this.constructRequest();
-        this.isBuilt = true;
         return this;
     }
 
@@ -155,9 +130,8 @@ public with sharing class CalloutBuilder {
     * retries if needed and returns HttpResponse as is
     */
     public HttpResponse getHttpResponse() {
-        if (!this.isBuilt) {
-            throw new CalloutBuilderException('.build() was not used. Cannot bypass validation.');
-        }
+        this.validateBeforeCall();
+        this.constructRequest();
         this.setMockIfTest();
 
         do {
@@ -192,9 +166,23 @@ public with sharing class CalloutBuilder {
     }
 
     // implementation details
+
+    /**
+    * @description it checks if required fields are set.
+    */
+    private void validateBeforeCall() {
+        if (String.isBlank(this.ncOrBaseUrl)) {
+            throw new CalloutBuilderException('NC or base URL must be provided');
+        }
+        if (String.isBlank(this.method)) {
+            throw new CalloutBuilderException('HTTP method must be provided');
+        }
+    }
+
     private void constructRequest() {
         String fullEndpoint = this.ncOrBaseUrl + (String.isNotBlank(this.endpoint) ? this.endpoint : '');
 
+        this.request = new HttpRequest();
         this.request.setEndpoint(fullEndpoint);
         this.request.setMethod(this.method);
         this.request.setTimeout(this.timeout);
@@ -225,12 +213,6 @@ public with sharing class CalloutBuilder {
         }
     }
 
-    private void throwErrorIfBuilt() {
-        if (this.isBuilt) {
-            throw new CalloutBuilderException('Cannot modify CalloutBuilder instance after .build() usage');
-        }
-    }
-
     private void validateErrorType(System.Type errorType) {
         if (errorType == null) {
             throw new CalloutBuilderException('Callout error cannot be set to null');
@@ -243,6 +225,9 @@ public with sharing class CalloutBuilder {
     }
 
     private void validateResponse() {
+        if (this.bypassResponseValidation) {
+            return;
+        }
         if (this.response.getStatusCode() >= 400) {
             CalloutErrorResponse errorBody;
             try {

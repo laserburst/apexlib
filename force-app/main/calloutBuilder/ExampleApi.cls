@@ -14,12 +14,26 @@ public with sharing class ExampleApi {
             .withTimeout(30000)
             .withSuccessType(ExampleResponse.DialogToken.class)
             .withErrorType(ExampleResponse.Error.class)
-            .withMockIfTest(new DialogTokenMock())
-            .build();
+            .withRetrier(new ExampleRetrier())
+            .withMaxRetries(2)
+            .withMockIfTest(new DialogTokenMock());
 
         ExampleResponse.DialogToken tokenResponse = (ExampleResponse.DialogToken)cb.getTypedResponseBody();
 
         return tokenResponse.data.dialog_token;
+    }
+
+    public static void asyncExample() {
+        CalloutBuilder cb = new CalloutBuilder(NC).withMockIfTest(new DialogTokenMock());
+
+        // list constructor example
+        CalloutCollection callouts = new CalloutCollection(new List<CalloutBuilder> { cb });
+        CalloutBuilderQueueable.enqueue(callouts);
+
+        // empty constructor example
+        CalloutCollection nextCallouts = new CalloutCollection();
+        nextCallouts.add(cb);
+        CalloutBuilderQueueable.enqueue(nextCallouts);
     }
 
     private class DialogTokenMock implements HttpCalloutMock {
@@ -31,4 +45,26 @@ public with sharing class ExampleApi {
             return res;
         }
     }
+
+    private with sharing class ExampleRetrier implements CalloutRetrier {
+        public Boolean shouldRetry(HttpResponse response) {
+            if (response.getStatusCode() >= 400) {
+                return false;
+            }
+
+            if (response.getBody()?.containsAny('unauthenticated')) {
+                ConnectApiAdapter.refreshToken(
+                    'externalCredential', 
+                    'principalName',
+                    ConnectApi.CredentialPrincipalType.PERUSERPRINCIPAL,
+                    ConnectApi.CredentialAuthenticationProtocol.OAUTH
+                );
+
+                return true;
+            }
+
+            return false;
+        }
+    }
+
 }
