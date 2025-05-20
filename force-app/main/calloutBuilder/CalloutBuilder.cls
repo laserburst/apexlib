@@ -18,6 +18,7 @@ CalloutBuilder cb = new CalloutBuilder('callout:MyNc')
 MyType response = (MyType)cb.getTypedResponseBody();
 * @team Laserburst
 */
+@SuppressWarnings('PMD.CognitiveComplexity, PMD.ExcessivePublicCount, PMD.CyclomaticComplexity, PMD.TooManyFields')
 public with sharing class CalloutBuilder {
     private String ncOrBaseUrl;
     private String endpoint;
@@ -28,10 +29,12 @@ public with sharing class CalloutBuilder {
     private Integer timeout = 120000; // 120000 is the max timeout
     private Map<String, String> headersMap = new Map<String, String>();
     private Boolean hasBlobBody = false;
+    private Map<String, String> queryParameters = new Map<String, String>();
 
     private HttpRequest request;
     private HttpResponse response;
     private HttpCalloutMock mock;
+    private Boolean suppressApexObjectNulls = true;
 
     private CalloutRetrier retrier;
     private Integer maxRetries = 1;
@@ -109,6 +112,40 @@ public with sharing class CalloutBuilder {
     }
 
     /**
+     * @description withSuppressApexObjectNulls affects request body serialization
+     * @param  suppressApexObjectNulls if true (default), null values are not serialized
+     */ 
+    public CalloutBuilder withSuppressApexObjectNulls(Boolean suppressApexObjectNulls) {
+        this.suppressApexObjectNulls = suppressApexObjectNulls;
+        return this;
+    }
+
+    /**
+     * @description withQueryParameter sets query parameter for the callout
+     * Note: If the method is GET, query parameters are added to the URL.
+     * If the method is not GET, query parameters are added to the body 
+     * (if the body is null).
+     */
+    public CalloutBuilder withQueryParameter(String key, String value) {
+        if (String.isBlank(key)) {
+            throw new CalloutBuilderException('Query parameter key must be provided');
+        }
+        this.queryParameters.put(key, value);
+        return this;
+    }
+
+    public CalloutBuilder withQueryParameters(Map<String, String> queryParameters) {
+        for (String key : queryParameters.keySet()) {
+            String value = queryParameters.get(key);
+            if (String.isBlank(key)) {
+                throw new CalloutBuilderException('This query parameter value has empty key: ' + value);
+            }
+            this.withQueryParameter(key, value);
+        }
+        return this;
+    }
+
+    /**
     * @description It allows to extract error message from any error object
     * @param  errorType class must implement CalloutErrorResponse interface
     */
@@ -180,24 +217,61 @@ public with sharing class CalloutBuilder {
     }
 
     private void constructRequest() {
-        String fullEndpoint = this.ncOrBaseUrl + (String.isNotBlank(this.endpoint) ? this.endpoint : '');
-
         this.request = new HttpRequest();
-        this.request.setEndpoint(fullEndpoint);
+        this.request.setEndpoint(this.constructFullEndpoint());
         this.request.setMethod(this.method);
         this.request.setTimeout(this.timeout);
         this.attachBody();
         this.attachHeaders();
     }
 
+    /**
+     * @description constructFullEndpoint returns full URL for the callout
+     * @return   return base URL + endpoint + query parameters (if any and if GET method)
+     */
+    @TestVisible
+    private String constructFullEndpoint() {
+        String fullEndpoint = String.isNotBlank(this.endpoint) ? this.ncOrBaseUrl + this.endpoint : this.ncOrBaseUrl;
+
+        if (this.method == 'GET' && !this.queryParameters.isEmpty()) {
+            fullEndpoint += '?' + this.getEncodedQueryParameters();
+        }
+
+        return fullEndpoint;
+    }
+
+    private final String encoding = 'UTF-8';
+    private String getEncodedQueryParameters() {
+        if (this.queryParameters.isEmpty()) {
+            return '';
+        }
+        List<String> encodedPairs = new List<String>();
+        for (String key : this.queryParameters.keySet()) {
+            String encodedKey = EncodingUtil.urlEncode(key, this.encoding);
+            String encodedValue = EncodingUtil.urlEncode(this.queryParameters.get(key), this.encoding);
+            encodedPairs.add(encodedKey + '=' + encodedValue);
+        }
+        return String.join(encodedPairs, '&');
+    }
+
+    /**
+     * @description attachBody sets body of the request:
+     * 1. blob
+     * 2. query parameters (if any and if method is not GET). 
+     * 3. JSON (default)
+     */
     private void attachBody() {
-        if (this.body != null) {
-            if (this.hasBlobBody) {
-                this.request.setBodyAsBlob((Blob) body);
-            } else {
-                Boolean suppressApexObjectNulls = true;
-                this.request.setBody(JSON.serialize(this.body, suppressApexObjectNulls));
-            }
+        if (this.body == null && this.queryParameters.isEmpty()) {
+            return;
+        }
+
+        if (this.hasBlobBody && this.body != null) {
+            this.request.setBodyAsBlob((Blob) body);
+        } else if (!this.queryParameters.isEmpty() && this.method != 'GET') {
+            String body = this.body != null ? (String) this.body : this.getEncodedQueryParameters();
+            this.request.setBody(body);
+        } else if (this.body != null) {
+            this.request.setBody(JSON.serialize(this.body, this.suppressApexObjectNulls));
         }
     }
 
