@@ -26,7 +26,7 @@ public with sharing class CalloutBuilder {
     private Object body;
 
     private System.Type successType;
-    private Integer timeout = 120000; // 120000 is the max timeout
+    private Integer timeout; // 120000 is the max timeout
     private Map<String, String> headersMap = new Map<String, String>();
     private Boolean hasBlobBody = false;
     private Map<String, String> queryParameters = new Map<String, String>();
@@ -220,7 +220,9 @@ public with sharing class CalloutBuilder {
         this.request = new HttpRequest();
         this.request.setEndpoint(this.constructFullEndpoint());
         this.request.setMethod(this.method);
-        this.request.setTimeout(this.timeout);
+        if (this.timeout != null) {
+            this.request.setTimeout(this.timeout);
+        }
         this.attachBody();
         this.attachHeaders();
     }
