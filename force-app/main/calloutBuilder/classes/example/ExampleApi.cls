@@ -51,19 +51,7 @@ public with sharing class ExampleApi {
             if (response.getStatusCode() >= 400) {
                 return false;
             }
-
-            if (response.getBody()?.containsAny('unauthenticated')) {
-                ConnectApiAdapter.refreshToken(
-                    'externalCredential', 
-                    'principalName',
-                    ConnectApi.CredentialPrincipalType.PERUSERPRINCIPAL,
-                    ConnectApi.CredentialAuthenticationProtocol.OAUTH
-                );
-
-                return true;
-            }
-
-            return false;
+            return response.getBody()?.containsAny('retry');
         }
     }
 
