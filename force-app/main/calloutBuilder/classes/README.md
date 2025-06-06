@@ -33,7 +33,7 @@ CalloutBuilder cb = new CalloutBuilder(NC)
 ExampleResponse.DialogToken tokenResponse = (ExampleResponse.DialogToken)cb.getTypedResponseBody();
 ```
 
-[Full Example](ExampleApi.cls)
+[Full Example](example/ExampleApi.cls)
 
 ### Response Body Map With Query Parameters
 
