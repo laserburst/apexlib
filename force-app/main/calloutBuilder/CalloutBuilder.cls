@@ -34,7 +34,7 @@ public with sharing class CalloutBuilder {
     private HttpRequest request;
     private HttpResponse response;
     private HttpCalloutMock mock;
-    private Boolean suppressApexObjectNulls = true;
+    private Boolean suppressApexObjectNulls = false;
 
     private CalloutRetrier retrier;
     private Integer maxRetries = 1;
