@@ -1,4 +1,3 @@
-@SuppressWarnings('PMD.ApexUnitTestClassShouldHaveRunAs, PMD.ApexDoc')
 @IsTest
 private class CalloutBuilder_Test {
     @IsTest

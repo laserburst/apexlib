@@ -1,4 +1,3 @@
-@SuppressWarnings('PMD.ApexUnitTestClassShouldHaveRunAs, PMD.ApexDoc')
 @isTest
 private with sharing class ConnectApiAdapter_Test {
     @isTest

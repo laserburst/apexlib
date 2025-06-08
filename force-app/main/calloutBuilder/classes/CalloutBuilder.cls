@@ -18,7 +18,6 @@ CalloutBuilder cb = new CalloutBuilder('callout:MyNc')
 MyType response = (MyType)cb.getTypedResponseBody();
 * @team Laserburst
 */
-@SuppressWarnings('PMD.CognitiveComplexity, PMD.ExcessivePublicCount, PMD.CyclomaticComplexity, PMD.TooManyFields')
 public with sharing class CalloutBuilder {
     private String ncOrBaseUrl;
     private String endpoint;

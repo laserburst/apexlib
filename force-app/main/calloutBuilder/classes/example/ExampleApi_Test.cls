@@ -1,4 +1,3 @@
-@SuppressWarnings('PMD.ApexUnitTestClassShouldHaveRunAs, PMD.ApexDoc')
 @isTest
 private with sharing class ExampleApi_Test {
     @IsTest
