@@ -225,7 +225,7 @@ private class CalloutBuilder_Test {
             Test.stopTest();
             Assert.fail('Expected error not thrown');
         } catch (CalloutBuilder.CalloutBuilderException e) {
-            Assert.areEqual('This query parameter value has empty key: value1', e.getMessage(), 'Unexpected error message');
+            Assert.areEqual('Query parameter key must be provided', e.getMessage(), 'Unexpected error message');
         }
     }
 

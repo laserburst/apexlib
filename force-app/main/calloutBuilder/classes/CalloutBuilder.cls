@@ -135,11 +135,7 @@ public with sharing class CalloutBuilder {
 
     public CalloutBuilder withQueryParameters(Map<String, String> queryParameters) {
         for (String key : queryParameters.keySet()) {
-            String value = queryParameters.get(key);
-            if (String.isBlank(key)) {
-                throw new CalloutBuilderException('This query parameter value has empty key: ' + value);
-            }
-            this.withQueryParameter(key, value);
+            this.withQueryParameter(key, queryParameters.get(key));
         }
         return this;
     }
