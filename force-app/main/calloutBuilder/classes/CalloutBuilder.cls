@@ -49,7 +49,20 @@ public with sharing class CalloutBuilder {
     }
 
     // Optional setters
+
+    /**
+     * @description withEndpoint sets the right part of the URL,
+     * but not parameters.
+     * It knows that there is one redundant slash in the URL like this:
+     * https://example.com//test, so the request will be sent to 
+     * https://example.com/test
+     * It won't help when a redundant slash comes from Named Credential.
+     * For the same reason, it won't add any slash to not harm.
+     */
     public CalloutBuilder withEndpoint(String endpoint) {
+        if (endpoint?.startsWith('/') && this.ncOrBaseUrl?.endsWith('/')) {
+            endpoint = endpoint.removeStart('/'); 
+        }
         this.endpoint = endpoint;
         return this;
     }

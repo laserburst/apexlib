@@ -229,6 +229,16 @@ private class CalloutBuilder_Test {
         }
     }
 
+    @isTest
+    static void testWithEndpointManySlashes() {
+        Test.startTest();
+            CalloutBuilder cb = 
+                new CalloutBuilder('https://example.com/')
+                    .withEndpoint('/test');
+        Test.stopTest();
+        Assert.areEqual('https://example.com/test', cb.constructFullEndpoint(), 'Unexpected endpoint');
+    }
+
     private class RetrierTest implements CalloutRetrier {
         public Boolean shouldRetry(HttpResponse response) {
             return response.getStatusCode() == 500;
