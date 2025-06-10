@@ -43,12 +43,26 @@ public class CalloutHexFormBuilder {
         return this;
     }
 
-    public CalloutHexFormBuilder writeParam(String key, String value) {
+    public CalloutHexFormBuilder writeParameter(String key, String value) {
         String body = '--' + BOUNDARY;
         body += '\r\nContent-Disposition: form-data; name="' + key + '";\r\n\r\n' + value + '\r\n';
 
         this.form += EncodingUtil.convertToHex(Blob.valueOf(body));
         return this;
+    }
+
+    public CalloutHexFormBuilder writeParameters(Map<String, String> parameters) {
+        if (parameters == null || parameters?.isEmpty()) {
+            return this;
+        }
+        for (String key : parameters.keySet()) {
+            this.writeParameter(key, parameters.get(key));
+        }
+        return this;
+    }
+
+    public CalloutHexFormBuilder writeFile(String fileName, String fileContent) {
+        return this.writeFile('file', fileName, fileContent);
     }
 
     public CalloutHexFormBuilder writeFile(String key, String fileName, String fileContent) {

@@ -8,9 +8,8 @@ private with sharing class CalloutHexFormBuilder_Test {
         Test.startTest();
         Blob formData =
             CalloutHexFormBuilder.build()
-                .writeParam('id', '123')
-                .writeParam('message', 'second parameter')
-                .writeFile('file', fileName, fileContent)
+                .writeParameters(new Map<String, String>{ 'id' => '123', 'message' => 'second parameter' })
+                .writeFile(fileName, fileContent)
                 .getFormAsBlob();
         Test.stopTest();
 
