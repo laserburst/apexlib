@@ -1,0 +1,5 @@
+# Maximum line width
+max_width = 120
+
+# Indentation size in spaces
+indent_size = 4
