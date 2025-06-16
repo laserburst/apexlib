@@ -11,6 +11,7 @@ Establishing unified callout approach with basic response handling backed in.
 3. [CalloutRetrier](CalloutRetrier.cls) - interface enabling CalloutBuilder to retry a callout and to change something before the new attempt.
 4. [CalloutBuilderQueueable](CalloutBuilderQueueable.cls) - virtual class to run one or many callouts asynchronously, for example, from a trigger.
 5. [CalloutCollection](CalloutCollection.cls) - virtual class which is bundling many CalloutBuilder instances, callout preparation and post processing for [CalloutBuilderQueueable](CalloutCollection.cls).
+6. [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) - a class to build multipart requests to enable sending files. It's used in ```withFile()``` method of the CalloutBuilder, and may be used separately. **NOTE:** It's resource-intensive and may reach heap limit when processing files of more than 2 Mb in size. It's recommended to send files up to 2 Mb.
 
 ## Examples (illustrative)
 
@@ -59,3 +60,13 @@ Map<String, Object> responseBody = cb.getResponseBodyMap();
 #### Request Body Note 
 
 If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters.
+
+### Sending Files _(OpenAI Assistants API Example)_
+
+```Java (Apex)
+HttpResponse response = new CalloutBuilder('callout:OpenAI_NC')
+    .withEndpoint('/files')
+    .withMethod('POST')
+    .withFile(file, 'test.txt', new Map<String, String> { 'purpose' => 'assistants' })
+    .getHttpResponse();
+```

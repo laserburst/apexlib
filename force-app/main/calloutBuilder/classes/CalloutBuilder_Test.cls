@@ -239,6 +239,19 @@ private class CalloutBuilder_Test {
         Assert.areEqual('https://example.com/test', cb.constructFullEndpoint(), 'Unexpected endpoint');
     }
 
+    @isTest
+    static void testWithFile() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withFile(Blob.valueOf('Test file content'), 'file.txt', null)
+                    .withMockIfTest(new SuccessMock());
+            Map<String, Object> resMap = cb.getResponseBodyMap();
+        Test.stopTest();
+        Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
     private class RetrierTest implements CalloutRetrier {
         public Boolean shouldRetry(HttpResponse response) {
             return response.getStatusCode() == 500;

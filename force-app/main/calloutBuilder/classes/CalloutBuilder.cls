@@ -124,6 +124,27 @@ public with sharing class CalloutBuilder {
     }
 
     /**
+     * @description withFile creates multipart request 
+     * with blob body and Content-Type header
+     * @param  fileContent
+     * @param  nameWithExtension like 'test.txt'
+     * @param  parameters        headers for a multipart body
+     * @return  this
+     */
+    public CalloutBuilder withFile(Blob fileContent, String nameWithExtension, Map<String, String> parameters) {
+        return this.withFile(EncodingUtil.base64Encode(fileContent), nameWithExtension, parameters);
+    }
+
+    public CalloutBuilder withFile(String fileContent, String nameWithExtension, Map<String, String> parameters) {
+        Blob formData = CalloutHexFormBuilder.build()
+            .writeParameters(parameters)
+            .writeFile(nameWithExtension, fileContent)
+            .getFormAsBlob();
+        this.withHeader('Content-Type', CalloutHexFormBuilder.getContentType());
+        return this.withBlobBody(formData);
+    }
+
+    /**
      * @description withSuppressApexObjectNulls affects request body serialization
      * @param  suppressApexObjectNulls if true (default), null values are not serialized
      */ 
