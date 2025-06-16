@@ -25,13 +25,15 @@ public with sharing class CalloutBuilder {
     private Object body;
 
     private System.Type successType;
-    private Integer timeout = 120000; // 120000 is the max timeout
+    private Integer timeout; // 120000 is the max timeout
     private Map<String, String> headersMap = new Map<String, String>();
     private Boolean hasBlobBody = false;
+    private Map<String, String> queryParameters = new Map<String, String>();
 
     private HttpRequest request;
     private HttpResponse response;
     private HttpCalloutMock mock;
+    private Boolean suppressApexObjectNulls = false;
 
     private CalloutRetrier retrier;
     private Integer maxRetries = 1;
@@ -47,7 +49,20 @@ public with sharing class CalloutBuilder {
     }
 
     // Optional setters
+
+    /**
+     * @description withEndpoint sets the right part of the URL,
+     * but not parameters.
+     * It knows that there is one redundant slash in the URL like this:
+     * https://example.com//test, so the request will be sent to 
+     * https://example.com/test
+     * It won't help when a redundant slash comes from Named Credential.
+     * For the same reason, it won't add any slash to not harm.
+     */
     public CalloutBuilder withEndpoint(String endpoint) {
+        if (endpoint?.startsWith('/') && this.ncOrBaseUrl?.endsWith('/')) {
+            endpoint = endpoint.removeStart('/'); 
+        }
         this.endpoint = endpoint;
         return this;
     }
@@ -105,6 +120,36 @@ public with sharing class CalloutBuilder {
 
     public CalloutBuilder withBypassResponseValidation(Boolean bypassResponseValidation) {
         this.bypassResponseValidation = bypassResponseValidation;
+        return this;
+    }
+
+    /**
+     * @description withSuppressApexObjectNulls affects request body serialization
+     * @param  suppressApexObjectNulls if true (default), null values are not serialized
+     */ 
+    public CalloutBuilder withSuppressApexObjectNulls(Boolean suppressApexObjectNulls) {
+        this.suppressApexObjectNulls = suppressApexObjectNulls;
+        return this;
+    }
+
+    /**
+     * @description withQueryParameter sets query parameter for the callout
+     * Note: If the method is GET, query parameters are added to the URL.
+     * If the method is not GET, query parameters are added to the body 
+     * (if the body is null).
+     */
+    public CalloutBuilder withQueryParameter(String key, String value) {
+        if (String.isBlank(key)) {
+            throw new CalloutBuilderException('Query parameter key must be provided');
+        }
+        this.queryParameters.put(key, value);
+        return this;
+    }
+
+    public CalloutBuilder withQueryParameters(Map<String, String> queryParameters) {
+        for (String key : queryParameters.keySet()) {
+            this.withQueryParameter(key, queryParameters.get(key));
+        }
         return this;
     }
 
@@ -180,24 +225,63 @@ public with sharing class CalloutBuilder {
     }
 
     private void constructRequest() {
-        String fullEndpoint = this.ncOrBaseUrl + (String.isNotBlank(this.endpoint) ? this.endpoint : '');
-
         this.request = new HttpRequest();
-        this.request.setEndpoint(fullEndpoint);
+        this.request.setEndpoint(this.constructFullEndpoint());
         this.request.setMethod(this.method);
-        this.request.setTimeout(this.timeout);
+        if (this.timeout != null) {
+            this.request.setTimeout(this.timeout);
+        }
         this.attachBody();
         this.attachHeaders();
     }
 
+    /**
+     * @description constructFullEndpoint returns full URL for the callout
+     * @return   return base URL + endpoint + query parameters (if any and if GET method)
+     */
+    @TestVisible
+    private String constructFullEndpoint() {
+        String fullEndpoint = String.isNotBlank(this.endpoint) ? this.ncOrBaseUrl + this.endpoint : this.ncOrBaseUrl;
+
+        if (this.method == 'GET' && !this.queryParameters.isEmpty()) {
+            fullEndpoint += '?' + this.getEncodedQueryParameters();
+        }
+
+        return fullEndpoint;
+    }
+
+    private final String encoding = 'UTF-8';
+    private String getEncodedQueryParameters() {
+        if (this.queryParameters.isEmpty()) {
+            return '';
+        }
+        List<String> encodedPairs = new List<String>();
+        for (String key : this.queryParameters.keySet()) {
+            String encodedKey = EncodingUtil.urlEncode(key, this.encoding);
+            String encodedValue = EncodingUtil.urlEncode(this.queryParameters.get(key), this.encoding);
+            encodedPairs.add(encodedKey + '=' + encodedValue);
+        }
+        return String.join(encodedPairs, '&');
+    }
+
+    /**
+     * @description attachBody sets body of the request:
+     * 1. blob
+     * 2. query parameters (if any and if method is not GET). 
+     * 3. JSON (default)
+     */
     private void attachBody() {
-        if (this.body != null) {
-            if (this.hasBlobBody) {
-                this.request.setBodyAsBlob((Blob) body);
-            } else {
-                Boolean suppressApexObjectNulls = true;
-                this.request.setBody(JSON.serialize(this.body, suppressApexObjectNulls));
-            }
+        if (this.body == null && this.queryParameters.isEmpty()) {
+            return;
+        }
+
+        if (this.hasBlobBody && this.body != null) {
+            this.request.setBodyAsBlob((Blob) body);
+        } else if (!this.queryParameters.isEmpty() && this.method != 'GET') {
+            String body = this.body != null ? (String) this.body : this.getEncodedQueryParameters();
+            this.request.setBody(body);
+        } else if (this.body != null) {
+            this.request.setBody(JSON.serialize(this.body, this.suppressApexObjectNulls));
         }
     }
 

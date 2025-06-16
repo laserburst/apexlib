@@ -10,6 +10,7 @@ private class CalloutBuilder_Test {
                     .withHeaders(new Map<String, String>{ 'key_2' => 'value_2' })
                     .withBody('test body')
                     .withTimeout(1000)
+                    .withSuppressApexObjectNulls(false)
                     .withSuccessType(DummyResponse.class)
                     .withMockIfTest(new SuccessMock());
 
@@ -166,6 +167,76 @@ private class CalloutBuilder_Test {
             Map<String, Object> resMap = cb.getResponseBodyMap();
         Test.stopTest();
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
+    @isTest
+    static void testWithQueryParametersGetSuccess() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withQueryParameters(new Map<String, String>{ 'param1' => 'value1', 'param2' => 'value2' })
+                    .withQueryParameter('param3', 'value3')
+                    .withMockIfTest(new SuccessMock());
+            Map<String, Object> resMap = cb.getResponseBodyMap();
+        Test.stopTest();
+        String expectedUrl = 'https://example.com/test?param1=value1&param2=value2&param3=value3';
+        Assert.areEqual(expectedUrl, cb.constructFullEndpoint(), 'Unexpected endpoint URL');
+        Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
+    @isTest
+    static void testWithQueryParametersPostSuccess() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withMethod('POST')
+                    .withQueryParameters(new Map<String, String>{ 'param1' => 'value1', 'param2' => 'value2' })
+                    .withQueryParameter('param3', 'value3')
+                    .withMockIfTest(new SuccessMock());
+            Map<String, Object> resMap = cb.getResponseBodyMap();
+        Test.stopTest();
+        String expectedUrl = 'https://example.com/test'; // POST requests do not include query parameters in the URL
+        Assert.areEqual(expectedUrl, cb.constructFullEndpoint(), 'Unexpected endpoint URL');
+        Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
+    @isTest
+    static void testWithQueryParameterError() {
+        try {
+            Test.startTest();
+                new CalloutBuilder('callout:ErrorTest')
+                    .withEndpoint('/fail')
+                    .withQueryParameter(null, 'value');
+            Test.stopTest();
+            Assert.fail('Expected error not thrown');
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            Assert.areEqual('Query parameter key must be provided', e.getMessage(), 'Unexpected error message');
+        }
+    }
+
+    @isTest
+    static void testWithQueryParametersError() {
+        try {
+            Test.startTest();
+                new CalloutBuilder('callout:ErrorTest')
+                    .withQueryParameters(new Map<String,String> {'' => 'value1'});
+            Test.stopTest();
+            Assert.fail('Expected error not thrown');
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            Assert.areEqual('Query parameter key must be provided', e.getMessage(), 'Unexpected error message');
+        }
+    }
+
+    @isTest
+    static void testWithEndpointManySlashes() {
+        Test.startTest();
+            CalloutBuilder cb = 
+                new CalloutBuilder('https://example.com/')
+                    .withEndpoint('/test');
+        Test.stopTest();
+        Assert.areEqual('https://example.com/test', cb.constructFullEndpoint(), 'Unexpected endpoint');
     }
 
     private class RetrierTest implements CalloutRetrier {
