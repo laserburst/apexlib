@@ -2,7 +2,7 @@
  * @description It's responsible for mocking you. It's not very vicious, but what did you expect?
  */
 public with sharing virtual class ViciousMockery implements HttpCalloutMock {
-    protected Map<Integer, String> codeToBody = new Map<Integer, String> {
+    public static final Map<Integer, String> CODE_TO_BODY = new Map<Integer, String> {
         100 => 'Please. One more bite and this pie is gonna come back up to say hello. [Mayrina, BG3]', //Continue
         200 => 'I`m on my way to the promised land, woo! I`m on the highway to hell! [AC/DC]', //OK
         201 => 'By doom and dusk, I strike thy name from the archives. Rise! [Withers, BG3]', //Created
@@ -21,13 +21,17 @@ public with sharing virtual class ViciousMockery implements HttpCalloutMock {
         509 => 'Well, apparently there`s a limit. Somewhere between a nice summer`s day and the full, concentrated power of the sun! [Astarion, BG3]' //Bandwidth Limit Exceeded
     };
 
-    protected Integer code;
+    public static final String FALLBACK_BODY = 'I find your lack of faith disturbing [Vader, SW]';
+
+    protected Integer code = 200;
 
     public ViciousMockery() {
     }
 
     public ViciousMockery(Integer code) {
-        this.code = code == null ? 200 : code;
+        if (code != null) {
+            this.code = code;
+        }
     }
 
     public HTTPResponse respond(HttpRequest request) {
@@ -45,6 +49,6 @@ public with sharing virtual class ViciousMockery implements HttpCalloutMock {
 
     // use the template method pattern to change the body
     protected virtual String getBody() {
-        return this.codeToBody.get(this.code) ?? 'I find your lack of faith disturbing [Vader, SW]';
+        return CODE_TO_BODY.get(this.code) ?? FALLBACK_BODY;
     }
 }

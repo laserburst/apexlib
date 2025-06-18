@@ -4,7 +4,7 @@ private with sharing class ViciousMockery_Test {
     @IsTest
     static void testRespondKnownCode() {
         Integer statusCode = 429;
-        String expectedBody = 'I understand that if any more words come pouring out your mouth, I`m gonna have to eat every chicken in this room. [The Hound, GoT]';
+        String expectedBody = ViciousMockery.CODE_TO_BODY.get(statusCode);
 
         ViciousMockery.cast(statusCode);
 
@@ -21,7 +21,6 @@ private with sharing class ViciousMockery_Test {
     @IsTest
     static void testRespondUnknownCode() {
         Integer statusCode = 999;
-        String fallbackBody = 'I find your lack of faith disturbing [Vader, SW]';
 
         ViciousMockery.cast(statusCode);
 
@@ -31,7 +30,7 @@ private with sharing class ViciousMockery_Test {
 
         HttpResponse res = new Http().send(req);
 
-        Assert.areEqual(fallbackBody, res.getBody(), 'Unexpected body');
+        Assert.areEqual(ViciousMockery.FALLBACK_BODY, res.getBody(), 'Unexpected body');
     }
 
     @IsTest
