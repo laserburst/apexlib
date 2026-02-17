@@ -9,27 +9,6 @@ public class CalloutHexFormBuilder {
     private static final String BOUNDARY = '----sf-multi-form';
     private String form = '';
 
-    public static final Map<String, String> IMAGE_EXTENSION_TO_MIME_TYPE =
-        new Map<String, String>{
-            'png' => 'image/png',
-            'jpeg' => 'image/jpg',
-            'jpg' => 'image/jpg',
-            'pgm' => 'image/x-portable-graymap',
-            'ppm' => 'image/x-portable-pixmap'
-        };
-
-    public static final Map<String, String> DOCUMENT_EXTENSION_TO_MIME_TYPE =
-        new Map<String, String>{
-            'pdf' => 'application/pdf',
-            'txt' => 'text/plain',
-            'doc' => 'application/msword',
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'html' => 'text/html',
-            'json' => 'application/json',
-            'md' => 'text/markdown',
-            'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-        };
-
     public static CalloutHexFormBuilder build() {
         return new CalloutHexFormBuilder();
     }
@@ -66,8 +45,6 @@ public class CalloutHexFormBuilder {
     }
 
     public CalloutHexFormBuilder writeFile(String key, String fileName, String fileContent) {
-        String mimeType = resolveMimeType(fileName);
-
         String content = '--' + BOUNDARY;
         content +=
             '\r\nContent-Disposition: form-data; name="'
@@ -75,7 +52,7 @@ public class CalloutHexFormBuilder {
             + '"; filename="'
             + fileName
             + '";\r\nContent-Type: '
-            + mimeType
+            + MimeType.getByFileNameWithExtension(fileName)
             + ';\r\n\r\n';
         content = EncodingUtil.convertToHex(Blob.valueOf(content));
 
@@ -93,20 +70,5 @@ public class CalloutHexFormBuilder {
 
     public Blob getFormAsBlob() {
         return EncodingUtil.convertFromHex(this.getFormAsString());
-    }
-
-    @TestVisible
-    private static String resolveMimeType(String fileName) {
-        String fileExtension = fileName?.subStringAfterLast('.')?.toLowerCase();
-        if (String.isBlank(fileExtension)) {
-            throw new IllegalArgumentException('File name contains no extension: ' + fileName);
-        }
-        if (IMAGE_EXTENSION_TO_MIME_TYPE.containsKey(fileExtension)) {
-            return IMAGE_EXTENSION_TO_MIME_TYPE.get(fileExtension);
-        }
-        if (DOCUMENT_EXTENSION_TO_MIME_TYPE.containsKey(fileExtension)) {
-            return DOCUMENT_EXTENSION_TO_MIME_TYPE.get(fileExtension);
-        }
-        throw new IllegalArgumentException('Not supported file: ' + fileName);
     }
 }
