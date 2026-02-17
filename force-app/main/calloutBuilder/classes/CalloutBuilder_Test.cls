@@ -264,6 +264,24 @@ private class CalloutBuilder_Test {
         Assert.isNotNull(responseBodyBlob, 'responseBodyBlob should not be null');
     }
 
+    @isTest
+    static void testDebugMode() {
+        Exception e;
+        Test.startTest();
+            try {
+                CalloutBuilder cb =
+                    new CalloutBuilder('callout:Test')
+                        .withEndpoint('/test')
+                        .withDebugMode(true)
+                        .withMockIfTest(new SuccessMock());
+                cb.getHttpResponse();
+            } catch (Exception ex) {
+                e = ex;
+            }
+        Test.stopTest();
+        Assert.isNull(e, 'Debug mode enabled should not cause an exception');
+    }
+
     private class RetrierTest implements CalloutRetrier {
         public Boolean shouldRetry(HttpResponse response) {
             return response.getStatusCode() == 500;
