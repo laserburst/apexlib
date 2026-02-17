@@ -252,6 +252,18 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
+    @isTest
+    static void testGetResponseBodyAsBlob() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withMockIfTest(new SuccessMock());
+            Blob responseBodyBlob = cb.getResponseBodyAsBlob();
+        Test.stopTest();
+        Assert.isNotNull(responseBodyBlob, 'responseBodyBlob should not be null');
+    }
+
     private class RetrierTest implements CalloutRetrier {
         public Boolean shouldRetry(HttpResponse response) {
             return response.getStatusCode() == 500;

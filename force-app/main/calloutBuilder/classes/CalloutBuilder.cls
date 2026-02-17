@@ -231,6 +231,15 @@ public with sharing class CalloutBuilder {
         return JSON.deserialize(this.response.getBody(), this.successType);
     }
 
+    /**
+    * @description It makes a callout, validates response
+    * and returns its body as Blob
+    */
+    public Blob getResponseBodyAsBlob() {
+        this.getHttpResponse();
+        return this.response.getBodyAsBlob();
+    }
+
     // implementation details
 
     /**
