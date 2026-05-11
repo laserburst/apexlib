@@ -39,6 +39,29 @@ public class CalloutHexFormBuilder {
         return this;
     }
 
+    public CalloutHexFormBuilder writeJsonParameter(String key, String value) {
+        String body = '--' + BOUNDARY;
+        body += '\r\nContent-Disposition: form-data; name="' + key + '"; filename="blob"';
+        body += '\r\nContent-Type: application/json';
+        body += '\r\n\r\n' + value + '\r\n';
+        this.form += EncodingUtil.convertToHex(Blob.valueOf(body));
+        return this;
+    }
+
+    public CalloutHexFormBuilder writeJsonParameters(Map<String, String> parameters) {
+        if (parameters == null || parameters?.isEmpty()) {
+            return this;
+        }
+        for (String key : parameters.keySet()) {
+            this.writeJsonParameter(key, parameters.get(key));
+        }
+        return this;
+    }
+
+    public CalloutHexFormBuilder writeFile(String fileName, Blob fileContent) {
+        return this.writeFile(fileName, EncodingUtil.base64Encode(fileContent));
+    }
+
     public CalloutHexFormBuilder writeFile(String fileName, String fileContent) {
         return this.writeFile('file', fileName, fileContent);
     }
