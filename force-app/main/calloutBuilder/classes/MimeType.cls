@@ -8,8 +8,8 @@ public with sharing class MimeType {
     public static final Map<String, String> IMAGE_EXTENSION_TO_MIME_TYPE =
         new Map<String, String>{
             'png' => 'image/png',
-            'jpeg' => 'image/jpg',
-            'jpg' => 'image/jpg',
+            'jpeg' => 'image/jpeg',
+            'jpg' => 'image/jpeg',
             'pgm' => 'image/x-portable-graymap',
             'ppm' => 'image/x-portable-pixmap',
             'svg' => 'image/svg+xml',
