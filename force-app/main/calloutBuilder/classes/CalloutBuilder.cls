@@ -341,19 +341,24 @@ public with sharing class CalloutBuilder {
             return;
         }
         if (this.response.getStatusCode() >= 400) {
-            String message = this.response.getBody();
+            String body = this.response.getBody();
+            String message = body;
             if (this.errorResponseImplType != null) {
                 try {
                     CalloutErrorResponse errorBody =
-                        (CalloutErrorResponse) JSON.deserialize(this.response.getBody(), this.errorResponseImplType);
-                    message = errorBody.getErrorMessage();
+                        (CalloutErrorResponse) JSON.deserialize(body, this.errorResponseImplType);
+                    String errorMessage = errorBody.getErrorMessage();
+                    if (String.isNotBlank(errorMessage)) {
+                        message = errorMessage;
+                    }
                 } catch (Exception e) {
                     // deserialization failed — fall back to raw response body
                 }
             }
-            throw new CalloutBuilderException(
-                'Status code ' + this.response.getStatusCode() + ' (' + this.response.getStatus() + ')' + ' with message: ' + message
-            );
+            if (String.isBlank(message)) {
+                message = 'No response body';
+            }
+            throw new CalloutBuilderException(message);
         }
     }
 
