@@ -142,7 +142,7 @@ public with sharing class CalloutBuilder {
 
     /**
      * @description withSuppressApexObjectNulls affects request body serialization
-     * @param  suppressApexObjectNulls if true (default), null values are not serialized
+     * @param  suppressApexObjectNulls if true, null values are omitted from serialization (default: false)
      */ 
     public CalloutBuilder withSuppressApexObjectNulls(Boolean suppressApexObjectNulls) {
         this.suppressApexObjectNulls = suppressApexObjectNulls;
@@ -277,15 +277,15 @@ public with sharing class CalloutBuilder {
         return fullEndpoint;
     }
 
-    private final String encoding = 'UTF-8';
+    private static final String ENCODING = 'UTF-8';
     private String getEncodedQueryParameters() {
         if (this.queryParameters.isEmpty()) {
             return '';
         }
         List<String> encodedPairs = new List<String>();
         for (String key : this.queryParameters.keySet()) {
-            String encodedKey = EncodingUtil.urlEncode(key, this.encoding);
-            String encodedValue = EncodingUtil.urlEncode(this.queryParameters.get(key), this.encoding);
+            String encodedKey = EncodingUtil.urlEncode(key, ENCODING);
+            String encodedValue = EncodingUtil.urlEncode(this.queryParameters.get(key), ENCODING);
             encodedPairs.add(encodedKey + '=' + encodedValue);
         }
         return String.join(encodedPairs, '&');
