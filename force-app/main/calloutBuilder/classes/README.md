@@ -80,9 +80,13 @@ If you set a body using `.withBody()`, it _will not be overwritten_ by query par
 ### Sending Files _(OpenAI Assistants API Example)_
 
 ```Java (Apex)
+CalloutHexFormBuilder formBuilder = CalloutHexFormBuilder.build()
+    .writeParameter('purpose', 'assistants')
+    .writeFile('test.txt', file);
+
 HttpResponse response = new CalloutBuilder('callout:OpenAI_NC')
     .withEndpoint('/files')
     .withMethod('POST')
-    .withFile(file, 'test.txt', new Map<String, String> { 'purpose' => 'assistants' })
+    .withFile(formBuilder)
     .getHttpResponse();
 ```

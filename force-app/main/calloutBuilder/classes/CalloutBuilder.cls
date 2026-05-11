@@ -130,24 +130,14 @@ public with sharing class CalloutBuilder {
     }
 
     /**
-     * @description withFile creates multipart request 
+     * @description withFile creates multipart request
      * with blob body and Content-Type header
-     * @param  fileContent
-     * @param  nameWithExtension like 'test.txt'
-     * @param  parameters        headers for a multipart body
+     * @param  formBuilder  fully configured CalloutHexFormBuilder including file content
      * @return  this
      */
-    public CalloutBuilder withFile(Blob fileContent, String nameWithExtension, Map<String, String> parameters) {
-        return this.withFile(EncodingUtil.base64Encode(fileContent), nameWithExtension, parameters);
-    }
-
-    public CalloutBuilder withFile(String fileContent, String nameWithExtension, Map<String, String> parameters) {
-        Blob formData = CalloutHexFormBuilder.build()
-            .writeParameters(parameters)
-            .writeFile(nameWithExtension, fileContent)
-            .getFormAsBlob();
+    public CalloutBuilder withFile(CalloutHexFormBuilder formBuilder) {
         this.withHeader('Content-Type', CalloutHexFormBuilder.getContentType());
-        return this.withBlobBody(formData);
+        return this.withBlobBody(formBuilder.getFormAsBlob());
     }
 
     /**

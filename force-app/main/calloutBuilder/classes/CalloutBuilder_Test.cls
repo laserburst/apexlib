@@ -245,7 +245,42 @@ private class CalloutBuilder_Test {
             CalloutBuilder cb =
                 new CalloutBuilder('https://example.com')
                     .withEndpoint('/test')
-                    .withFile(Blob.valueOf('Test file content'), 'file.txt', null)
+                    .withFile(CalloutHexFormBuilder.build().writeFile('file.txt', Blob.valueOf('Test file content')))
+                    .withMockIfTest(new SuccessMock());
+            Map<String, Object> resMap = cb.getResponseBodyMap();
+        Test.stopTest();
+        Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
+    @isTest
+    static void testWithFilePlainAndJsonParameters() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withFile(
+                        CalloutHexFormBuilder.build()
+                            .writeParameter('description', 'hello')
+                            .writeJsonParameter('profile', '{"name":"test"}')
+                            .writeFile('file.txt', Blob.valueOf('Test file content'))
+                    )
+                    .withMockIfTest(new SuccessMock());
+            Map<String, Object> resMap = cb.getResponseBodyMap();
+        Test.stopTest();
+        Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
+    @isTest
+    static void testWithFilePlainOnlyParameters() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withFile(
+                        CalloutHexFormBuilder.build()
+                            .writeParameter('label', 'myfile')
+                            .writeFile('file.txt', Blob.valueOf('Test file content'))
+                    )
                     .withMockIfTest(new SuccessMock());
             Map<String, Object> resMap = cb.getResponseBodyMap();
         Test.stopTest();
