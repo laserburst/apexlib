@@ -14,7 +14,7 @@ private with sharing class CalloutHexFormBuilder_Test {
         Test.stopTest();
 
         String expectedFormData =
-            '------sf-multi-form\r\nContent-Disposition: form-data; name="id";\r\n\r\n123\r\n------sf-multi-form\r\nContent-Disposition: form-data; name="message";\r\n\r\nsecond parameter\r\n------sf-multi-form\r\nContent-Disposition: form-data; name="file"; filename="file.png";\r\nContent-Type: image/png;\r\n\r\n\r\n------sf-multi-form--';
+            '------sf-multi-form\r\nContent-Disposition: form-data; name="id"\r\n\r\n123\r\n------sf-multi-form\r\nContent-Disposition: form-data; name="message"\r\n\r\nsecond parameter\r\n------sf-multi-form\r\nContent-Disposition: form-data; name="file"; filename="file.png"\r\nContent-Type: image/png\r\n\r\n\r\n------sf-multi-form--';
         Assert.isTrue(expectedFormData == formData.toString(), 'Unexpected form data');
     }
 }
