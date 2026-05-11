@@ -46,3 +46,4 @@ force-app/main/default/profiles/
 
 #User settings
 config/user/
+.claude/settings.json
