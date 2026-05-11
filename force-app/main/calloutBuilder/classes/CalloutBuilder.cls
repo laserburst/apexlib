@@ -351,18 +351,19 @@ public with sharing class CalloutBuilder {
             return;
         }
         if (this.response.getStatusCode() >= 400) {
-            CalloutErrorResponse errorBody;
-            try {
-                if (this.errorResponseImplType != null) {
-                    errorBody =
+            String message = this.response.getBody();
+            if (this.errorResponseImplType != null) {
+                try {
+                    CalloutErrorResponse errorBody =
                         (CalloutErrorResponse) JSON.deserialize(this.response.getBody(), this.errorResponseImplType);
+                    message = errorBody.getErrorMessage();
+                } catch (Exception e) {
+                    // deserialization failed — fall back to raw response body
                 }
-            } finally {
-                String message = errorBody != null ? errorBody.getErrorMessage() : this.response.getBody();
-                throw new CalloutBuilderException(
-                    'Status code ' + this.response.getStatusCode() + ' ('+ this.response.getStatus() +')' +' with message: ' + message
-                );
             }
+            throw new CalloutBuilderException(
+                'Status code ' + this.response.getStatusCode() + ' (' + this.response.getStatus() + ')' + ' with message: ' + message
+            );
         }
     }
 
@@ -371,7 +372,7 @@ public with sharing class CalloutBuilder {
     }
 
     private void debugRequest() {
-        if (this.debugMode == null || !this.debugMode) {
+        if (!this.debugMode) {
             return;
         }
         debug('-- Request debug start --');
@@ -391,7 +392,7 @@ public with sharing class CalloutBuilder {
     }
     
     private void debugResponse() {
-        if (this.debugMode == null || !this.debugMode) {
+        if (!this.debugMode) {
             return;
         }
         debug('-- Response debug start --');
@@ -419,6 +420,7 @@ public with sharing class CalloutBuilder {
     private final Set<String> debugableContentTypes = new Set<String>{
         'application/json',
         'application/xml',
+        'text/xml',
         'text/plain',
         'text/html'
     };
