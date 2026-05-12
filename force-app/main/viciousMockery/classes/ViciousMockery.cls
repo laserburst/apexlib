@@ -1,7 +1,7 @@
 /**
  * @description It's responsible for mocking you. It's not very vicious, but what did you expect?
  */
-public with sharing virtual class ViciousMockery implements HttpCalloutMock {
+public with sharing virtual class ViciousMockery extends ViciousMockBase {
     public static final Map<Integer, String> CODE_TO_BODY = new Map<Integer, String> {
         100 => 'Please. One more bite and this pie is gonna come back up to say hello. [Mayrina, BG3]', //Continue
         200 => 'I`m on my way to the promised land, woo! I`m on the highway to hell! [AC/DC]', //OK
@@ -23,22 +23,13 @@ public with sharing virtual class ViciousMockery implements HttpCalloutMock {
 
     public static final String FALLBACK_BODY = 'I find your lack of faith disturbing [Vader, SW]';
 
-    protected Integer code = 200;
-
     public ViciousMockery() {
     }
 
     public ViciousMockery(Integer code) {
         if (code != null) {
-            this.code = code;
+            this.statusCode = code;
         }
-    }
-
-    public HTTPResponse respond(HttpRequest request) {
-        HttpResponse response = new HttpResponse();
-        response.setStatusCode(this.code);
-        response.setBody(this.getBody());
-        return response;
     }
 
     public static void cast(Integer code) {
@@ -47,8 +38,7 @@ public with sharing virtual class ViciousMockery implements HttpCalloutMock {
         }
     }
 
-    // use the template method pattern to change the body
-    protected virtual String getBody() {
-        return CODE_TO_BODY.get(this.code) ?? FALLBACK_BODY;
+    public virtual override String constructBody() {
+        return CODE_TO_BODY.get(this.statusCode) ?? FALLBACK_BODY;
     }
 }
