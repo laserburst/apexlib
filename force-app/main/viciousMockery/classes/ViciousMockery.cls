@@ -38,7 +38,7 @@ public with sharing virtual class ViciousMockery extends ViciousMockBase {
         }
     }
 
-    public virtual override String constructBody() {
+    public virtual override String getBodyString() {
         return CODE_TO_BODY.get(this.statusCode) ?? FALLBACK_BODY;
     }
 }
