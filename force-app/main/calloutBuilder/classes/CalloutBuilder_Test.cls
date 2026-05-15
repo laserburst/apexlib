@@ -47,18 +47,20 @@ private class CalloutBuilder_Test {
 
     @IsTest
     static void testErrorDeserialization() {
+        CalloutBuilder builder = new CalloutBuilder('callout:ErrorTest')
+            .withEndpoint('/fail')
+            .withErrorType(DummyErrorResponse.class)
+            .withMockIfTest(new ErrorMock());
         try {
             Test.startTest();
-                new CalloutBuilder('callout:ErrorTest')
-                    .withEndpoint('/fail')
-                    .withErrorType(DummyErrorResponse.class)
-                    .withMockIfTest(new ErrorMock())
-                    .getHttpResponse();
+                builder.getHttpResponse();
             Test.stopTest();
 
             Assert.fail('Expected error not thrown');
         } catch (CalloutBuilder.CalloutBuilderException e) {
             Assert.isTrue(e.getMessage().contains('Something went wrong'), 'Unexpected error message');
+            Assert.isNotNull(builder.getError(), 'Expected deserialized error');
+            Assert.isInstanceOfType(builder.getError(), DummyErrorResponse.class, 'Expected DummyErrorResponse instance');
         }
     }
 
@@ -359,6 +361,24 @@ private class CalloutBuilder_Test {
         }
     }
 
+    @IsTest
+    static void testErrorDeserializationFallsBackOnBadJson() {
+        CalloutBuilder builder = new CalloutBuilder('callout:ErrorTest')
+            .withEndpoint('/fail')
+            .withErrorType(DummyErrorResponse.class)
+            .withMockIfTest(new MalformedErrorMock());
+        try {
+            Test.startTest();
+                builder.getHttpResponse();
+            Test.stopTest();
+
+            Assert.fail('Expected error not thrown');
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            Assert.isTrue(e.getMessage().contains('not valid json'), 'Expected raw body fallback');
+            Assert.isNull(builder.getError(), 'Expected error to be null when deserialization fails');
+        }
+    }
+
     // A mock class to simulate a successful callout
     class SuccessMock implements HttpCalloutMock {
         public HTTPResponse respond(HTTPRequest req) {
@@ -391,6 +411,17 @@ private class CalloutBuilder_Test {
         public String message;
         public String getErrorMessage() {
             return message;
+        }
+    }
+
+    // A mock that returns a 400 with a non-JSON body to trigger deserialization failure
+    class MalformedErrorMock implements HttpCalloutMock {
+        public HTTPResponse respond(HTTPRequest req) {
+            HttpResponse res = new HttpResponse();
+            res.setHeader('Content-Type', 'application/json');
+            res.setBody('not valid json');
+            res.setStatusCode(400);
+            return res;
         }
     }
 }

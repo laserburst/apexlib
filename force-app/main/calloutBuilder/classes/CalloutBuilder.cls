@@ -262,6 +262,11 @@ public with sharing class CalloutBuilder {
         return this.method;
     }
 
+    @SuppressWarnings('PMD.ApexDoc')
+    public CalloutErrorResponse getError() {
+        return this.error;
+    }
+
     // implementation details
 
     /**
@@ -368,20 +373,19 @@ public with sharing class CalloutBuilder {
         if (this.response.getStatusCode() >= 400) {
             String body = this.response.getBody();
             String message = body;
-            if (this.errorResponseImplType != null) {
+            if (String.isBlank(body)) {
+                message = this.response.getStatus();
+            } else if (this.errorResponseImplType != null) {
                 try {
-                    CalloutErrorResponse errorBody =
+                    this.error =
                         (CalloutErrorResponse) JSON.deserialize(body, this.errorResponseImplType);
-                    String errorMessage = errorBody.getErrorMessage();
+                    String errorMessage = this.error.getErrorMessage();
                     if (String.isNotBlank(errorMessage)) {
                         message = errorMessage;
                     }
                 } catch (Exception e) {
-                    // deserialization failed — fall back to raw response body
+                    debug('Could not get error message: ' + e.getMessage());
                 }
-            }
-            if (String.isBlank(message)) {
-                message = 'No response body';
             }
             throw new CalloutBuilderException(message);
         }
