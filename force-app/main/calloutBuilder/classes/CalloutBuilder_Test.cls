@@ -317,6 +317,42 @@ private class CalloutBuilder_Test {
         Assert.isNull(e, 'Debug mode enabled should not cause an exception');
     }
 
+    @IsTest
+    static void testBuilderToMockOverrideAppliesToMatchingScope() {
+        CalloutBuilder keyBuilder = new CalloutBuilder('callout:Test').withEndpoint('/test');
+        CalloutBuilder.BUILDER_TO_MOCK_OVERRIDE.put(keyBuilder, new ErrorMock());
+
+        try {
+            Test.startTest();
+                new CalloutBuilder('callout:Test')
+                    .withEndpoint('/test')
+                    .withErrorType(DummyErrorResponse.class)
+                    .withMockIfTest(new SuccessMock())
+                    .getHttpResponse();
+            Test.stopTest();
+
+            Assert.fail('Expected exception not thrown');
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            Assert.isTrue(e.getMessage().contains('Something went wrong'), 'Unexpected error message');
+        }
+    }
+
+    @IsTest
+    static void testBuilderToMockOverrideIgnoresDifferentScope() {
+        CalloutBuilder keyBuilder = new CalloutBuilder('callout:Test').withEndpoint('/other');
+        CalloutBuilder.BUILDER_TO_MOCK_OVERRIDE.put(keyBuilder, new ErrorMock());
+
+        Test.startTest();
+            DummyResponse res = (DummyResponse) new CalloutBuilder('callout:Test')
+                .withEndpoint('/test')
+                .withSuccessType(DummyResponse.class)
+                .withMockIfTest(new SuccessMock())
+                .getTypedResponseBody();
+        Test.stopTest();
+
+        Assert.areEqual('Success', res.value, 'Default mock should be used for different scope');
+    }
+
     private class RetrierTest implements CalloutRetrier {
         public Boolean shouldRetry(HttpResponse response) {
             return response.getStatusCode() == 500;
