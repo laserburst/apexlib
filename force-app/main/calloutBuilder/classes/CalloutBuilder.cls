@@ -19,6 +19,9 @@ MyType response = (MyType)cb.getTypedResponseBody();
 * @team Laserburst
 */
 public with sharing class CalloutBuilder {
+    @TestVisible
+    private static final Map<CalloutBuilder, HttpCalloutMock> BUILDER_TO_MOCK_OVERRIDE = new Map<CalloutBuilder, HttpCalloutMock>();
+
     private String ncOrBaseUrl;
     private String endpoint;
     private String method = 'GET';
@@ -188,9 +191,10 @@ public with sharing class CalloutBuilder {
     // execution variants
 
     /**
-    * @description It makes a callout, validates response,
-    * retries if needed and returns HttpResponse as is
-    */
+     * @description It makes a callout, validates response,
+     * retries if needed and returns HttpResponse as is
+     * @return plain HttpResponse
+     */
     public HttpResponse getHttpResponse() {
         this.validateBeforeCall();
         this.constructRequest();
@@ -210,6 +214,7 @@ public with sharing class CalloutBuilder {
     /**
     * @description It makes a callout, validates response
     * and converts its body JSON into Map<String, Object>
+    * @return response body as Map<String, Object>
     */
     public Map<String, Object> getResponseBodyMap() {
         this.getHttpResponse();
@@ -217,9 +222,10 @@ public with sharing class CalloutBuilder {
     }
 
     /**
-    * @description It makes a callout, validates response
-    * and converts its body into an object specified in .withSuccessType() method
-    */
+     * @description It makes a callout, validates response
+     * and converts its body into an object specified in .withSuccessType() method
+     * @return success type instance
+     */
     public Object getTypedResponseBody() {
         if (this.successType == null) {
             throw new CalloutBuilderException('getTypedResponseBody expects this.successType to be set');
@@ -230,11 +236,30 @@ public with sharing class CalloutBuilder {
 
     /**
     * @description It makes a callout, validates response
-    * and returns its body as Blob
+    * @return response body as Blob
     */
     public Blob getResponseBodyAsBlob() {
         this.getHttpResponse();
         return this.response.getBodyAsBlob();
+    }
+
+    /**
+     * @description constructFullEndpoint returns full URL for the callout
+     * @return base URL + endpoint + query parameters (if any and if GET method)
+     */
+    public String constructFullEndpoint() {
+        String fullEndpoint = String.isNotBlank(this.endpoint) ? this.ncOrBaseUrl + this.endpoint : this.ncOrBaseUrl;
+
+        if (this.method == 'GET' && !this.queryParameters.isEmpty()) {
+            fullEndpoint += '?' + this.getEncodedQueryParameters();
+        }
+
+        return fullEndpoint;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public String getMethod() {
+        return this.method;
     }
 
     // implementation details
@@ -260,21 +285,6 @@ public with sharing class CalloutBuilder {
         }
         this.attachBody();
         this.attachHeaders();
-    }
-
-    /**
-     * @description constructFullEndpoint returns full URL for the callout
-     * @return   return base URL + endpoint + query parameters (if any and if GET method)
-     */
-    @TestVisible
-    private String constructFullEndpoint() {
-        String fullEndpoint = String.isNotBlank(this.endpoint) ? this.ncOrBaseUrl + this.endpoint : this.ncOrBaseUrl;
-
-        if (this.method == 'GET' && !this.queryParameters.isEmpty()) {
-            fullEndpoint += '?' + this.getEncodedQueryParameters();
-        }
-
-        return fullEndpoint;
     }
 
     private static final String ENCODING = 'UTF-8';
@@ -319,9 +329,24 @@ public with sharing class CalloutBuilder {
     }
 
     private void setMockIfTest() {
-        if (Test.isRunningTest() && this.mock != null) {
-            Test.setMock(HttpCalloutMock.class, this.mock);
+        if (!Test.isRunningTest()) return;
+        HttpCalloutMock effectiveMock = this.getEffectiveMock();
+        if (effectiveMock != null) {
+            Test.setMock(HttpCalloutMock.class, effectiveMock);
         }
+    }
+
+    private HttpCalloutMock getEffectiveMock() {
+        for (CalloutBuilder builder : BUILDER_TO_MOCK_OVERRIDE.keySet()) {
+            if (hasSameScope(builder)) {
+                return BUILDER_TO_MOCK_OVERRIDE.get(builder);
+            }
+        }
+        return this.mock;
+    }
+
+    private Boolean hasSameScope(CalloutBuilder builder) {
+        return builder.constructFullEndpoint() == this.constructFullEndpoint() && builder.getMethod() == this.getMethod();
     }
 
     private void validateErrorType(System.Type errorType) {
