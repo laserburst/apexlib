@@ -17,14 +17,13 @@ public class CalloutHexFormBuilder {
         return 'multipart/form-data; boundary="' + BOUNDARY + '"';
     }
 
-    private CalloutHexFormBuilder writeFooter() {
-        this.form += EncodingUtil.convertToHex(Blob.valueOf('--' + boundary + '--'));
-        return this;
+    private String footer() {
+        return EncodingUtil.convertToHex(Blob.valueOf('--' + BOUNDARY + '--'));
     }
 
     public CalloutHexFormBuilder writeParameter(String key, String value) {
         String body = '--' + BOUNDARY;
-        body += '\r\nContent-Disposition: form-data; name="' + key + '";\r\n\r\n' + value + '\r\n';
+        body += '\r\nContent-Disposition: form-data; name="' + key + '"\r\n\r\n' + value + '\r\n';
 
         this.form += EncodingUtil.convertToHex(Blob.valueOf(body));
         return this;
@@ -40,6 +39,29 @@ public class CalloutHexFormBuilder {
         return this;
     }
 
+    public CalloutHexFormBuilder writeJsonParameter(String key, String value) {
+        String body = '--' + BOUNDARY;
+        body += '\r\nContent-Disposition: form-data; name="' + key + '"; filename="blob"';
+        body += '\r\nContent-Type: application/json';
+        body += '\r\n\r\n' + value + '\r\n';
+        this.form += EncodingUtil.convertToHex(Blob.valueOf(body));
+        return this;
+    }
+
+    public CalloutHexFormBuilder writeJsonParameters(Map<String, String> parameters) {
+        if (parameters == null || parameters?.isEmpty()) {
+            return this;
+        }
+        for (String key : parameters.keySet()) {
+            this.writeJsonParameter(key, parameters.get(key));
+        }
+        return this;
+    }
+
+    public CalloutHexFormBuilder writeFile(String fileName, Blob fileContent) {
+        return this.writeFile(fileName, EncodingUtil.base64Encode(fileContent));
+    }
+
     public CalloutHexFormBuilder writeFile(String fileName, String fileContent) {
         return this.writeFile('file', fileName, fileContent);
     }
@@ -51,9 +73,9 @@ public class CalloutHexFormBuilder {
             + key
             + '"; filename="'
             + fileName
-            + '";\r\nContent-Type: '
+            + '"\r\nContent-Type: '
             + MimeType.getByFileNameWithExtension(fileName)
-            + ';\r\n\r\n';
+            + '\r\n\r\n';
         content = EncodingUtil.convertToHex(Blob.valueOf(content));
 
         content += EncodingUtil.convertToHex(EncodingUtil.base64Decode(fileContent));
@@ -64,8 +86,7 @@ public class CalloutHexFormBuilder {
     }
 
     public String getFormAsString() {
-        this.writeFooter();
-        return this.form;
+        return this.form + this.footer();
     }
 
     public Blob getFormAsBlob() {

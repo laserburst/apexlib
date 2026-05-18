@@ -19,6 +19,9 @@ MyType response = (MyType)cb.getTypedResponseBody();
 * @team Laserburst
 */
 public with sharing class CalloutBuilder {
+    @TestVisible
+    private static final Map<CalloutBuilder, HttpCalloutMock> BUILDER_TO_MOCK_OVERRIDE = new Map<CalloutBuilder, HttpCalloutMock>();
+
     private String ncOrBaseUrl;
     private String endpoint;
     private String method = 'GET';
@@ -130,29 +133,19 @@ public with sharing class CalloutBuilder {
     }
 
     /**
-     * @description withFile creates multipart request 
+     * @description withFile creates multipart request
      * with blob body and Content-Type header
-     * @param  fileContent
-     * @param  nameWithExtension like 'test.txt'
-     * @param  parameters        headers for a multipart body
+     * @param  formBuilder  fully configured CalloutHexFormBuilder including file content
      * @return  this
      */
-    public CalloutBuilder withFile(Blob fileContent, String nameWithExtension, Map<String, String> parameters) {
-        return this.withFile(EncodingUtil.base64Encode(fileContent), nameWithExtension, parameters);
-    }
-
-    public CalloutBuilder withFile(String fileContent, String nameWithExtension, Map<String, String> parameters) {
-        Blob formData = CalloutHexFormBuilder.build()
-            .writeParameters(parameters)
-            .writeFile(nameWithExtension, fileContent)
-            .getFormAsBlob();
+    public CalloutBuilder withFile(CalloutHexFormBuilder formBuilder) {
         this.withHeader('Content-Type', CalloutHexFormBuilder.getContentType());
-        return this.withBlobBody(formData);
+        return this.withBlobBody(formBuilder.getFormAsBlob());
     }
 
     /**
      * @description withSuppressApexObjectNulls affects request body serialization
-     * @param  suppressApexObjectNulls if true (default), null values are not serialized
+     * @param  suppressApexObjectNulls if true, null values are omitted from serialization (default: false)
      */ 
     public CalloutBuilder withSuppressApexObjectNulls(Boolean suppressApexObjectNulls) {
         this.suppressApexObjectNulls = suppressApexObjectNulls;
@@ -198,9 +191,10 @@ public with sharing class CalloutBuilder {
     // execution variants
 
     /**
-    * @description It makes a callout, validates response,
-    * retries if needed and returns HttpResponse as is
-    */
+     * @description It makes a callout, validates response,
+     * retries if needed and returns HttpResponse as is
+     * @return plain HttpResponse
+     */
     public HttpResponse getHttpResponse() {
         this.validateBeforeCall();
         this.constructRequest();
@@ -220,6 +214,7 @@ public with sharing class CalloutBuilder {
     /**
     * @description It makes a callout, validates response
     * and converts its body JSON into Map<String, Object>
+    * @return response body as Map<String, Object>
     */
     public Map<String, Object> getResponseBodyMap() {
         this.getHttpResponse();
@@ -227,9 +222,10 @@ public with sharing class CalloutBuilder {
     }
 
     /**
-    * @description It makes a callout, validates response
-    * and converts its body into an object specified in .withSuccessType() method
-    */
+     * @description It makes a callout, validates response
+     * and converts its body into an object specified in .withSuccessType() method
+     * @return success type instance
+     */
     public Object getTypedResponseBody() {
         if (this.successType == null) {
             throw new CalloutBuilderException('getTypedResponseBody expects this.successType to be set');
@@ -240,11 +236,35 @@ public with sharing class CalloutBuilder {
 
     /**
     * @description It makes a callout, validates response
-    * and returns its body as Blob
+    * @return response body as Blob
     */
     public Blob getResponseBodyAsBlob() {
         this.getHttpResponse();
         return this.response.getBodyAsBlob();
+    }
+
+    /**
+     * @description constructFullEndpoint returns full URL for the callout
+     * @return base URL + endpoint + query parameters (if any and if GET method)
+     */
+    public String constructFullEndpoint() {
+        String fullEndpoint = String.isNotBlank(this.endpoint) ? this.ncOrBaseUrl + this.endpoint : this.ncOrBaseUrl;
+
+        if (this.method == 'GET' && !this.queryParameters.isEmpty()) {
+            fullEndpoint += '?' + this.getEncodedQueryParameters();
+        }
+
+        return fullEndpoint;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public String getMethod() {
+        return this.method;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public CalloutErrorResponse getError() {
+        return this.error;
     }
 
     // implementation details
@@ -272,30 +292,15 @@ public with sharing class CalloutBuilder {
         this.attachHeaders();
     }
 
-    /**
-     * @description constructFullEndpoint returns full URL for the callout
-     * @return   return base URL + endpoint + query parameters (if any and if GET method)
-     */
-    @TestVisible
-    private String constructFullEndpoint() {
-        String fullEndpoint = String.isNotBlank(this.endpoint) ? this.ncOrBaseUrl + this.endpoint : this.ncOrBaseUrl;
-
-        if (this.method == 'GET' && !this.queryParameters.isEmpty()) {
-            fullEndpoint += '?' + this.getEncodedQueryParameters();
-        }
-
-        return fullEndpoint;
-    }
-
-    private final String encoding = 'UTF-8';
+    private static final String ENCODING = 'UTF-8';
     private String getEncodedQueryParameters() {
         if (this.queryParameters.isEmpty()) {
             return '';
         }
         List<String> encodedPairs = new List<String>();
         for (String key : this.queryParameters.keySet()) {
-            String encodedKey = EncodingUtil.urlEncode(key, this.encoding);
-            String encodedValue = EncodingUtil.urlEncode(this.queryParameters.get(key), this.encoding);
+            String encodedKey = EncodingUtil.urlEncode(key, ENCODING);
+            String encodedValue = EncodingUtil.urlEncode(this.queryParameters.get(key), ENCODING);
             encodedPairs.add(encodedKey + '=' + encodedValue);
         }
         return String.join(encodedPairs, '&');
@@ -329,9 +334,24 @@ public with sharing class CalloutBuilder {
     }
 
     private void setMockIfTest() {
-        if (Test.isRunningTest() && this.mock != null) {
-            Test.setMock(HttpCalloutMock.class, this.mock);
+        if (!Test.isRunningTest()) return;
+        HttpCalloutMock effectiveMock = this.getEffectiveMock();
+        if (effectiveMock != null) {
+            Test.setMock(HttpCalloutMock.class, effectiveMock);
         }
+    }
+
+    private HttpCalloutMock getEffectiveMock() {
+        for (CalloutBuilder builder : BUILDER_TO_MOCK_OVERRIDE.keySet()) {
+            if (hasSameScope(builder)) {
+                return BUILDER_TO_MOCK_OVERRIDE.get(builder);
+            }
+        }
+        return this.mock;
+    }
+
+    private Boolean hasSameScope(CalloutBuilder builder) {
+        return builder.constructFullEndpoint() == this.constructFullEndpoint() && builder.getMethod() == this.getMethod();
     }
 
     private void validateErrorType(System.Type errorType) {
@@ -351,18 +371,23 @@ public with sharing class CalloutBuilder {
             return;
         }
         if (this.response.getStatusCode() >= 400) {
-            CalloutErrorResponse errorBody;
-            try {
-                if (this.errorResponseImplType != null) {
-                    errorBody =
-                        (CalloutErrorResponse) JSON.deserialize(this.response.getBody(), this.errorResponseImplType);
+            String body = this.response.getBody();
+            String message = body;
+            if (String.isBlank(body)) {
+                message = this.response.getStatus();
+            } else if (this.errorResponseImplType != null) {
+                try {
+                    this.error =
+                        (CalloutErrorResponse) JSON.deserialize(body, this.errorResponseImplType);
+                    String errorMessage = this.error.getErrorMessage();
+                    if (String.isNotBlank(errorMessage)) {
+                        message = errorMessage;
+                    }
+                } catch (Exception e) {
+                    debug('Could not get error message: ' + e.getMessage());
                 }
-            } finally {
-                String message = errorBody != null ? errorBody.getErrorMessage() : this.response.getBody();
-                throw new CalloutBuilderException(
-                    'Status code ' + this.response.getStatusCode() + ' ('+ this.response.getStatus() +')' +' with message: ' + message
-                );
             }
+            throw new CalloutBuilderException(message);
         }
     }
 
@@ -371,7 +396,7 @@ public with sharing class CalloutBuilder {
     }
 
     private void debugRequest() {
-        if (this.debugMode == null || !this.debugMode) {
+        if (!this.debugMode) {
             return;
         }
         debug('-- Request debug start --');
@@ -391,7 +416,7 @@ public with sharing class CalloutBuilder {
     }
     
     private void debugResponse() {
-        if (this.debugMode == null || !this.debugMode) {
+        if (!this.debugMode) {
             return;
         }
         debug('-- Response debug start --');
@@ -419,6 +444,7 @@ public with sharing class CalloutBuilder {
     private final Set<String> debugableContentTypes = new Set<String>{
         'application/json',
         'application/xml',
+        'text/xml',
         'text/plain',
         'text/html'
     };

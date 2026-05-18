@@ -79,10 +79,60 @@ If you set a body using `.withBody()`, it _will not be overwritten_ by query par
 
 ### Sending Files _(OpenAI Assistants API Example)_
 
+Build the multipart form with `CalloutHexFormBuilder`, then pass it to `.withFile()`:
+
 ```Java (Apex)
+CalloutHexFormBuilder formBuilder = CalloutHexFormBuilder.build()
+    .writeParameter('purpose', 'assistants')
+    .writeFile('test.txt', file); // file can be Blob or base64 String
+
 HttpResponse response = new CalloutBuilder('callout:OpenAI_NC')
     .withEndpoint('/files')
     .withMethod('POST')
-    .withFile(file, 'test.txt', new Map<String, String> { 'purpose' => 'assistants' })
+    .withFile(formBuilder)
     .getHttpResponse();
 ```
+
+#### CalloutHexFormBuilder methods
+
+| Method | Description |
+| --- | --- |
+| `writeParameter(key, value)` | Plain text form field |
+| `writeJsonParameter(key, value)` | JSON form field (`Content-Type: application/json`) |
+| `writeJsonParameters(Map<String,String>)` | Bulk JSON form fields |
+| `writeFile(fileName, content)` | File part — `content` may be `Blob` or base64 `String` |
+
+---
+
+### Error Handling
+
+When the response status is ≥ 400, `CalloutBuilderException` is thrown. If `.withErrorType()` is set and the body is valid JSON, the deserialized error object is also accessible via `builder.getError()` after the exception is caught:
+
+```Java (Apex)
+CalloutBuilder builder = new CalloutBuilder('callout:MyService')
+    .withEndpoint('/resource')
+    .withErrorType(MyErrorResponse.class);
+try {
+    builder.getHttpResponse();
+} catch (CalloutBuilder.CalloutBuilderException e) {
+    MyErrorResponse err = (MyErrorResponse) builder.getError();
+    // err is null when the body is blank or not valid JSON
+}
+```
+
+---
+
+### Mock Overrides
+
+`CalloutBuilder.BUILDER_TO_MOCK_OVERRIDE` lets a test override the mock for a specific endpoint and HTTP method, without touching the production code that creates the builder.
+
+```Java (Apex)
+// In a test — override the mock for POST /payments only
+CalloutBuilder mockTarget = new CalloutBuilder('callout:PaymentsNC').withEndpoint('/payments').withMethod('POST');
+CalloutBuilder.BUILDER_TO_MOCK_OVERRIDE.put(mockTarget, new PaymentErrorMock());
+
+// Any CalloutBuilder targeting the same URL + method picks up PaymentErrorMock,
+// even if it has its own .withMockIfTest() set.
+```
+
+The override is matched by `constructFullEndpoint()` and `getMethod()`. Builders targeting different URLs or methods are unaffected.

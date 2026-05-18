@@ -47,18 +47,20 @@ private class CalloutBuilder_Test {
 
     @IsTest
     static void testErrorDeserialization() {
+        CalloutBuilder builder = new CalloutBuilder('callout:ErrorTest')
+            .withEndpoint('/fail')
+            .withErrorType(DummyErrorResponse.class)
+            .withMockIfTest(new ErrorMock());
         try {
             Test.startTest();
-                new CalloutBuilder('callout:ErrorTest')
-                    .withEndpoint('/fail')
-                    .withErrorType(DummyErrorResponse.class)
-                    .withMockIfTest(new ErrorMock())
-                    .getHttpResponse();
+                builder.getHttpResponse();
             Test.stopTest();
 
             Assert.fail('Expected error not thrown');
         } catch (CalloutBuilder.CalloutBuilderException e) {
             Assert.isTrue(e.getMessage().contains('Something went wrong'), 'Unexpected error message');
+            Assert.isNotNull(builder.getError(), 'Expected deserialized error');
+            Assert.isInstanceOfType(builder.getError(), DummyErrorResponse.class, 'Expected DummyErrorResponse instance');
         }
     }
 
@@ -245,7 +247,42 @@ private class CalloutBuilder_Test {
             CalloutBuilder cb =
                 new CalloutBuilder('https://example.com')
                     .withEndpoint('/test')
-                    .withFile(Blob.valueOf('Test file content'), 'file.txt', null)
+                    .withFile(CalloutHexFormBuilder.build().writeFile('file.txt', Blob.valueOf('Test file content')))
+                    .withMockIfTest(new SuccessMock());
+            Map<String, Object> resMap = cb.getResponseBodyMap();
+        Test.stopTest();
+        Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
+    @isTest
+    static void testWithFilePlainAndJsonParameters() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withFile(
+                        CalloutHexFormBuilder.build()
+                            .writeParameter('description', 'hello')
+                            .writeJsonParameter('profile', '{"name":"test"}')
+                            .writeFile('file.txt', Blob.valueOf('Test file content'))
+                    )
+                    .withMockIfTest(new SuccessMock());
+            Map<String, Object> resMap = cb.getResponseBodyMap();
+        Test.stopTest();
+        Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
+    @isTest
+    static void testWithFilePlainOnlyParameters() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withFile(
+                        CalloutHexFormBuilder.build()
+                            .writeParameter('label', 'myfile')
+                            .writeFile('file.txt', Blob.valueOf('Test file content'))
+                    )
                     .withMockIfTest(new SuccessMock());
             Map<String, Object> resMap = cb.getResponseBodyMap();
         Test.stopTest();
@@ -282,9 +319,63 @@ private class CalloutBuilder_Test {
         Assert.isNull(e, 'Debug mode enabled should not cause an exception');
     }
 
+    @IsTest
+    static void testBuilderToMockOverrideAppliesToMatchingScope() {
+        CalloutBuilder keyBuilder = new CalloutBuilder('callout:Test').withEndpoint('/test');
+        CalloutBuilder.BUILDER_TO_MOCK_OVERRIDE.put(keyBuilder, new ErrorMock());
+
+        try {
+            Test.startTest();
+                new CalloutBuilder('callout:Test')
+                    .withEndpoint('/test')
+                    .withErrorType(DummyErrorResponse.class)
+                    .withMockIfTest(new SuccessMock())
+                    .getHttpResponse();
+            Test.stopTest();
+
+            Assert.fail('Expected exception not thrown');
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            Assert.isTrue(e.getMessage().contains('Something went wrong'), 'Unexpected error message');
+        }
+    }
+
+    @IsTest
+    static void testBuilderToMockOverrideIgnoresDifferentScope() {
+        CalloutBuilder keyBuilder = new CalloutBuilder('callout:Test').withEndpoint('/other');
+        CalloutBuilder.BUILDER_TO_MOCK_OVERRIDE.put(keyBuilder, new ErrorMock());
+
+        Test.startTest();
+            DummyResponse res = (DummyResponse) new CalloutBuilder('callout:Test')
+                .withEndpoint('/test')
+                .withSuccessType(DummyResponse.class)
+                .withMockIfTest(new SuccessMock())
+                .getTypedResponseBody();
+        Test.stopTest();
+
+        Assert.areEqual('Success', res.value, 'Default mock should be used for different scope');
+    }
+
     private class RetrierTest implements CalloutRetrier {
         public Boolean shouldRetry(HttpResponse response) {
             return response.getStatusCode() == 500;
+        }
+    }
+
+    @IsTest
+    static void testErrorDeserializationFallsBackOnBadJson() {
+        CalloutBuilder builder = new CalloutBuilder('callout:ErrorTest')
+            .withEndpoint('/fail')
+            .withErrorType(DummyErrorResponse.class)
+            .withMockIfTest(new MalformedErrorMock());
+        try {
+            Test.startTest();
+                builder.getHttpResponse();
+            Test.stopTest();
+
+            Assert.fail('Expected error not thrown');
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            Assert.isTrue(e.getMessage().contains('not valid json'), 'Expected raw body fallback');
+            Assert.isNull(builder.getError(), 'Expected error to be null when deserialization fails');
         }
     }
 
@@ -320,6 +411,17 @@ private class CalloutBuilder_Test {
         public String message;
         public String getErrorMessage() {
             return message;
+        }
+    }
+
+    // A mock that returns a 400 with a non-JSON body to trigger deserialization failure
+    class MalformedErrorMock implements HttpCalloutMock {
+        public HTTPResponse respond(HTTPRequest req) {
+            HttpResponse res = new HttpResponse();
+            res.setHeader('Content-Type', 'application/json');
+            res.setBody('not valid json');
+            res.setStatusCode(400);
+            return res;
         }
     }
 }

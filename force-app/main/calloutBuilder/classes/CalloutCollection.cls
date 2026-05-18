@@ -23,7 +23,7 @@ public with sharing virtual class CalloutCollection {
     }
 
     public Boolean isEmpty() {
-        return this.calloutBuilders == null || this.calloutBuilders?.isEmpty();
+        return this.calloutBuilders == null || this.calloutBuilders.isEmpty();
     }
 
     public void executeNext() {
