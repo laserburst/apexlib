@@ -468,7 +468,7 @@ public with sharing class CalloutBuilder {
             this.setMessage(this.extractMessage(response, errorType));
         }
 
-        public CalloutErrorResponse getParsedError() {
+        private CalloutErrorResponse getParsedError() {
             return this.error;
         }
 
