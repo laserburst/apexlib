@@ -371,23 +371,9 @@ public with sharing class CalloutBuilder {
             return;
         }
         if (this.response.getStatusCode() >= 400) {
-            String body = this.response.getBody();
-            String message = body;
-            if (String.isBlank(body)) {
-                message = this.response.getStatus();
-            } else if (this.errorResponseImplType != null) {
-                try {
-                    this.error =
-                        (CalloutErrorResponse) JSON.deserialize(body, this.errorResponseImplType);
-                    String errorMessage = this.error.getErrorMessage();
-                    if (String.isNotBlank(errorMessage)) {
-                        message = errorMessage;
-                    }
-                } catch (Exception e) {
-                    debug('Could not get error message: ' + e.getMessage());
-                }
-            }
-            throw new CalloutBuilderException(message, this.response);
+            CalloutBuilderException ex = new CalloutBuilderException(this.response, this.errorResponseImplType);
+            this.error = ex.getParsedError();
+            throw ex;
         }
     }
 
@@ -469,15 +455,45 @@ public with sharing class CalloutBuilder {
         System.debug(LoggingLevel.DEBUG, log);
     }
 
+    @SuppressWarnings('PMD.ApexDoc')
     public class CalloutBuilderException extends Exception {
         // null when the exception is not caused by an HTTP response
         public final Integer code;
         public final String status;
+        private CalloutErrorResponse error;
 
-        public CalloutBuilderException(String message, HttpResponse response) {
-            this.setMessage(message);
+        public CalloutBuilderException(HttpResponse response, System.Type errorType) {
             this.code = response.getStatusCode();
             this.status = response.getStatus();
+            this.setMessage(this.extractMessage(response, errorType));
+        }
+
+        public CalloutErrorResponse getParsedError() {
+            return this.error;
+        }
+
+        /**
+         * @description message is the error body by default;
+         * a blank body falls back to the HTTP status text,
+         * a parsed error object overrides it when getErrorMessage() is non-blank
+         */
+        private String extractMessage(HttpResponse response, System.Type errorType) {
+            String body = response.getBody();
+            if (String.isBlank(body)) {
+                return response.getStatus();
+            }
+            if (errorType != null) {
+                try {
+                    this.error = (CalloutErrorResponse) JSON.deserialize(body, errorType);
+                    String errorMessage = this.error.getErrorMessage();
+                    if (String.isNotBlank(errorMessage)) {
+                        return errorMessage;
+                    }
+                } catch (Exception e) {
+                    System.debug(LoggingLevel.DEBUG, 'CalloutBuilder: Could not get error message: ' + e.getMessage());
+                }
+            }
+            return body;
         }
     }
 }
