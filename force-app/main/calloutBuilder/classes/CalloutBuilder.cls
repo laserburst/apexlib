@@ -58,14 +58,14 @@ public with sharing class CalloutBuilder {
      * @description withEndpoint sets the right part of the URL,
      * but not parameters.
      * It knows that there is one redundant slash in the URL like this:
-     * https://example.com//test, so the request will be sent to 
+     * https://example.com//test, so the request will be sent to
      * https://example.com/test
      * It won't help when a redundant slash comes from Named Credential.
      * For the same reason, it won't add any slash to not harm.
      */
     public CalloutBuilder withEndpoint(String endpoint) {
         if (endpoint?.startsWith('/') && this.ncOrBaseUrl?.endsWith('/')) {
-            endpoint = endpoint.removeStart('/'); 
+            endpoint = endpoint.removeStart('/');
         }
         this.endpoint = endpoint;
         return this;
@@ -146,7 +146,7 @@ public with sharing class CalloutBuilder {
     /**
      * @description withSuppressApexObjectNulls affects request body serialization
      * @param  suppressApexObjectNulls if true, null values are omitted from serialization (default: false)
-     */ 
+     */
     public CalloutBuilder withSuppressApexObjectNulls(Boolean suppressApexObjectNulls) {
         this.suppressApexObjectNulls = suppressApexObjectNulls;
         return this;
@@ -155,7 +155,7 @@ public with sharing class CalloutBuilder {
     /**
      * @description withQueryParameter sets query parameter for the callout
      * Note: If the method is GET, query parameters are added to the URL.
-     * If the method is not GET, query parameters are added to the body 
+     * If the method is not GET, query parameters are added to the body
      * (if the body is null).
      */
     public CalloutBuilder withQueryParameter(String key, String value) {
@@ -309,7 +309,7 @@ public with sharing class CalloutBuilder {
     /**
      * @description attachBody sets body of the request:
      * 1. blob
-     * 2. query parameters (if any and if method is not GET). 
+     * 2. query parameters (if any and if method is not GET).
      * 3. JSON (default)
      */
     private void attachBody() {
@@ -387,7 +387,7 @@ public with sharing class CalloutBuilder {
                     debug('Could not get error message: ' + e.getMessage());
                 }
             }
-            throw new CalloutBuilderException(message);
+            throw new CalloutBuilderException(message, this.response);
         }
     }
 
@@ -414,7 +414,7 @@ public with sharing class CalloutBuilder {
         }
         debug('-- Request debug end --');
     }
-    
+
     private void debugResponse() {
         if (!this.debugMode) {
             return;
@@ -422,7 +422,7 @@ public with sharing class CalloutBuilder {
         debug('-- Response debug start --');
         debug('Response status code: ' + this.response.getStatusCode());
         debug('Response status: ' + this.response.getStatus());
-        
+
         if (this.isDebugableBody(this.response.getHeader('Content-Type'))) {
             debug('Response body: \n' + this.response.getBody());
         } else {
@@ -457,7 +457,7 @@ public with sharing class CalloutBuilder {
             return true;
         }
         for (String debugableContentType : debugableContentTypes) {
-            if (contentType.toLowerCase().contains(debugableContentType)) { 
+            if (contentType.toLowerCase().contains(debugableContentType)) {
                 return true;
             }
         }
@@ -470,5 +470,14 @@ public with sharing class CalloutBuilder {
     }
 
     public class CalloutBuilderException extends Exception {
+        // null when the exception is not caused by an HTTP response
+        public final Integer code;
+        public final String status;
+
+        public CalloutBuilderException(String message, HttpResponse response) {
+            this.setMessage(message);
+            this.code = response.getStatusCode();
+            this.status = response.getStatus();
+        }
     }
 }

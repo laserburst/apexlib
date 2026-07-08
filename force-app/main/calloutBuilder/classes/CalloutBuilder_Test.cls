@@ -234,7 +234,7 @@ private class CalloutBuilder_Test {
     @isTest
     static void testWithEndpointManySlashes() {
         Test.startTest();
-            CalloutBuilder cb = 
+            CalloutBuilder cb =
                 new CalloutBuilder('https://example.com/')
                     .withEndpoint('/test');
         Test.stopTest();
@@ -377,6 +377,25 @@ private class CalloutBuilder_Test {
             Assert.isTrue(e.getMessage().contains('not valid json'), 'Expected raw body fallback');
             Assert.isNull(builder.getError(), 'Expected error to be null when deserialization fails');
         }
+    }
+
+    @IsTest
+    static void testExceptionCarriesStatusCode() {
+        CalloutBuilder.CalloutBuilderException caught;
+
+        Test.startTest();
+            try {
+                new CalloutBuilder('callout:ErrorTest')
+                    .withEndpoint('/fail')
+                    .withMockIfTest(new ErrorMock())
+                    .getHttpResponse();
+            } catch (CalloutBuilder.CalloutBuilderException e) {
+                caught = e;
+            }
+        Test.stopTest();
+
+        Assert.isNotNull(caught, 'A >=400 response should throw');
+        Assert.areEqual(400, caught.code, 'The exception should carry the HTTP status code');
     }
 
     // A mock class to simulate a successful callout

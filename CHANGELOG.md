@@ -1,5 +1,11 @@
 # Changelog
 
+## July 2026
+
+### Added
+
+- **`CalloutBuilderException` HTTP context** — the exception thrown on a failed response now carries `code` (HTTP status code) and `status` (HTTP status text) fields, so catch blocks no longer need a reference to the builder to branch on the status code; both fields are null when the exception is thrown before a callout, e.g. during builder validation ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+
 ## May 2026
 
 ### Added
@@ -14,7 +20,6 @@
 - **`validateResponse()`** — expanded validation logic with improved error messaging; tests updated to cover new cases ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **ViciousMockBase naming** — improved method and variable names across `ViciousMockery`
 - **MIME type** `image/jpg` replaced with `image/jpeg` ([MimeType.cls](force-app/main/calloutBuilder/classes/MimeType.cls))
-
 
 ### Documentation
 

@@ -125,11 +125,13 @@ try {
     MyResponse result = (MyResponse) builder.getTypedResponseBody();
 } catch (CalloutBuilder.CalloutBuilderException e) {
     MyErrorResponse err = (MyErrorResponse) builder.getError();
-    // Handle the error
+    // e.code and e.status hold the HTTP status code and status text
 }
 ```
 
 `getError()` is only populated after an exception is thrown. The `getErrorMessage()` return value is included in the exception message automatically — implement it to surface the API's human-readable error.
+
+The exception also carries `code` (HTTP status code) and `status` (HTTP status text); both are null when the exception is thrown before a callout is made, e.g. a builder configuration error.
 
 Use `.withBypassResponseValidation(true)` only when you genuinely need to inspect error responses programmatically without an exception. This is rare — the `withErrorType` + `getError()` covers most cases.
 

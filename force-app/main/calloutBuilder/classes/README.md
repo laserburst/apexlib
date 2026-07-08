@@ -106,7 +106,7 @@ HttpResponse response = new CalloutBuilder('callout:OpenAI_NC')
 
 ### Error Handling
 
-When the response status is ≥ 400, `CalloutBuilderException` is thrown. If `.withErrorType()` is set and the body is valid JSON, the deserialized error object is also accessible via `builder.getError()` after the exception is caught:
+When the response status is ≥ 400, `CalloutBuilderException` is thrown. The exception carries the HTTP context of the failed response — `code` (status code, e.g. `404`) and `status` (status text, e.g. `'Not Found'`). If `.withErrorType()` is set and the body is valid JSON, the deserialized error object is also accessible via `builder.getError()` after the exception is caught:
 
 ```Java (Apex)
 CalloutBuilder builder = new CalloutBuilder('callout:MyService')
@@ -115,10 +115,15 @@ CalloutBuilder builder = new CalloutBuilder('callout:MyService')
 try {
     builder.getHttpResponse();
 } catch (CalloutBuilder.CalloutBuilderException e) {
+    if (e.code == 429) {
+        // e.g. schedule a later retry instead of failing
+    }
     MyErrorResponse err = (MyErrorResponse) builder.getError();
     // err is null when the body is blank or not valid JSON
 }
 ```
+
+Both `code` and `status` are null when the exception is thrown before a callout is made — e.g. a validation error during builder configuration.
 
 ---
 
