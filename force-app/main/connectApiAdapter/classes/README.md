@@ -17,4 +17,11 @@ Simplifying work with ConnectApi namespace.
         ConnectApi.CredentialPrincipalType.PERUSERPRINCIPAL,
         ConnectApi.CredentialAuthenticationProtocol.OAUTH
     );
+
+    // URL the user visits to authorize a credential (OAuth flow)
+    String authUrl = ConnectApiAdapter.getCredentialAuthenticationUrl(
+        'externalCredential',
+        'principalName',
+        ConnectApi.CredentialPrincipalType.PERUSERPRINCIPAL
+    );
 ```

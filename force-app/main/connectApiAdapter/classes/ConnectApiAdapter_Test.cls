@@ -29,10 +29,42 @@ private with sharing class ConnectApiAdapter_Test {
 
     @isTest
     static void testIsCredentialConfigured() {
+        Boolean isConfigured;
         Test.startTest();
-            ConnectApiAdapter.isCredentialConfigured(null, null, null);
+            isConfigured = ConnectApiAdapter.isCredentialConfigured(null, null, null);
         Test.stopTest();
 
-        // nothing to assert
+        Assert.isTrue(isConfigured, 'Should return true');
+    }
+
+    @isTest
+    static void testGetNamedCredential() {
+        Test.startTest();
+            ConnectApi.NamedCredential result = ConnectApiAdapter.getNamedCredential('test');
+        Test.stopTest();
+
+        Assert.isNull(result, 'Should be null as ConnectApi is not testable');
+    }
+
+    @isTest
+    static void testGetExternalCredential() {
+        Test.startTest();
+            ConnectApi.ExternalCredential result = ConnectApiAdapter.getExternalCredential('test');
+        Test.stopTest();
+
+        Assert.isNull(result, 'Should be null as ConnectApi is not testable');
+    }
+
+    @isTest
+    static void testGetCredentialAuthenticationUrl() {
+        Test.startTest();
+            String result = ConnectApiAdapter.getCredentialAuthenticationUrl(
+                'test',
+                'test',
+                ConnectApi.CredentialPrincipalType.PerUserPrincipal
+            );
+        Test.stopTest();
+
+        Assert.isNull(result, 'Should be null as ConnectApi is not testable');
     }
 }
