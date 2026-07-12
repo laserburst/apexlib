@@ -3,7 +3,7 @@
 > Reusable Apex
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
-![API Version](https://img.shields.io/badge/API-65.0-lightgrey.svg)
+![API Version](https://img.shields.io/badge/API-67.0-lightgrey.svg)
 
 ## Components
 
