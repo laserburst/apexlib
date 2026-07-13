@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Named Credentials MCP** — new module exposing three Salesforce-hosted MCP tools, `listCredentials` (which credentials exist and whether each is authenticated), `describe` (how to call one credential), and `sendRequest` (guarded HTTP request), so AI agents (and Flows/Agentforce) can make callouts through the org's Named Credentials without ever handling a token. The core is `ncMcp_GuardedCalloutBuilder`, a decorator that mirrors the CalloutBuilder API and enforces a guardrail chain (authentication, allowed methods, endpoint patterns, and pluggable custom guardrails) configured per Named Credential via the `Named_Credentials_Configuration__mdt` custom metadata type ([namedCredentialsMcp](force-app/main/namedCredentialsMcp/README.md))
 - **`CalloutBuilderException` HTTP context** — the exception thrown on a failed response now carries `code` (HTTP status code) and `status` (HTTP status text) fields, so catch blocks no longer need a reference to the builder to branch on the status code; both fields are null when the exception is thrown before a callout, e.g. during builder validation ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **ConnectApiAdapter credential methods** — `getCredentialAuthenticationUrl()` returns the URL a user visits to authorize a credential (OAuth flow); `getNamedCredential()` and `getExternalCredential()` expose full Named/External Credential details ([ConnectApiAdapter.cls](force-app/main/connectApiAdapter/classes/ConnectApiAdapter.cls))
 
