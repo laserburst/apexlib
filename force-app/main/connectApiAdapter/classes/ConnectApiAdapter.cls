@@ -2,7 +2,7 @@
 **@description It simplifies work with ConnectApi namespace.
 * @team Laserburst
 */
-public with sharing class ConnectApiAdapter {
+public inherited sharing class ConnectApiAdapter {
     /**
     * @description getCalloutUrl returns base URL.
     * It may be helpful for building links.
@@ -15,7 +15,7 @@ public with sharing class ConnectApiAdapter {
             //ConnectApi is not testable
             nc = null;
         } else {
-            nc = ConnectApi.NamedCredentials.getNamedCredential(namedCredentialApiName);
+            nc = getNamedCredential(namedCredentialApiName);
             return nc.calloutUrl;
         }
         return null;
@@ -90,5 +90,60 @@ public with sharing class ConnectApiAdapter {
         ConnectApi.Credential cred =
             ConnectApi.NamedCredentials.getCredential(externalCredential, principalName, principalType);
         return cred.authenticationStatus == ConnectApi.CredentialAuthenticationStatus.Configured;
+    }
+
+    /**
+     * @description getCredentialAuthenticationUrl
+     * @return authentication URL for OAuth flow
+     */
+    public static String getCredentialAuthenticationUrl(
+        String externalCredential,
+        String principalName,
+        ConnectApi.CredentialPrincipalType principalType
+    ) {
+        ConnectApi.OAuthCredentialAuthUrlInput input = new ConnectApi.OAuthCredentialAuthUrlInput();
+
+        input.externalCredential = externalCredential;
+        input.principalName = principalName;
+        input.principalType = principalType;
+
+        if (Test.isRunningTest()) {
+            return null;
+        }
+
+        ConnectApi.OAuthCredentialAuthUrl output = ConnectApi.NamedCredentials.getOAuthCredentialAuthUrl(input);
+        return output.authenticationUrl;
+    }
+
+    /**
+    * @description getNamedCredential returns the full Named Credential
+    * including its callout URL and associated external credentials.
+    * @param  namedCredentialApiName
+    * @return Named Credential details or null when it cannot be retrieved
+    */
+    public static ConnectApi.NamedCredential getNamedCredential(String namedCredentialApiName) {
+        if (Test.isRunningTest()) {
+            //ConnectApi is not testable
+            return null;
+        }
+        try {
+            return ConnectApi.NamedCredentials.getNamedCredential(namedCredentialApiName);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+    * @description getExternalCredential returns External Credential details
+    * including its principals and their authentication status.
+    * @param  externalCredentialApiName
+    * @return External Credential details
+    */
+    public static ConnectApi.ExternalCredential getExternalCredential(String externalCredentialApiName) {
+        if (Test.isRunningTest()) {
+            //ConnectApi is not testable
+            return null;
+        }
+        return ConnectApi.NamedCredentials.getExternalCredential(externalCredentialApiName);
     }
 }
