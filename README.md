@@ -26,7 +26,7 @@ ExampleResponse.DialogToken token = (ExampleResponse.DialogToken)
 HTTP mock template. `ViciousMockBase` lets you define mock families using instance initializer blocks; `ViciousMockery` is a drop-in mock for any status code.
 
 ```java
-Test.setMock(HttpCalloutMock.class, ViciousMockery.cast(200));
+ViciousMockery.cast(200);
 ```
 
 ### [ConnectApiAdapter](force-app/main/connectApiAdapter/classes/README.md)
