@@ -23,15 +23,15 @@ global with sharing class ncMcp_DescribeTool {
 
     private static ncMcp_DescribeResult.Api buildApi(String namedCredential) {
         if (String.isBlank(namedCredential)) {
-            throw new ncMcp_Exception(
+            throw new GuardedCalloutException(
                 'Field "namedCredential" is required. Call the listCredentials tool to list available credentials.'
             );
         }
-        ncMcp_Config config = ncMcp_Config.forName(namedCredential);
-        ncMcp_AuthenticationGuardrail.Status status = ncMcp_AuthenticationGuardrail.getStatus(namedCredential);
+        GuardedCalloutConfig config = loadConfig(namedCredential);
+        CalloutAuthenticationGuardrail.Status status = CalloutAuthenticationGuardrail.getStatus(namedCredential);
         if (!status.isAuthenticated) {
-            throw new ncMcp_Exception(
-                ncMcp_AuthenticationGuardrail.notAuthenticatedMessage(namedCredential) +
+            throw new GuardedCalloutException(
+                CalloutAuthenticationGuardrail.notAuthenticatedMessage(namedCredential) +
                     ' Call the listCredentials tool to check credential status.'
             );
         }
@@ -44,6 +44,21 @@ global with sharing class ncMcp_DescribeTool {
         api.allowedMethods = config.allowedMethods;
         api.allowedEndpointPatterns = config.allowedEndpointPatterns;
         return api;
+    }
+
+    // GuardedCalloutConfig.forName throws module-neutral messages; re-add the MCP
+    // discovery hint when the credential simply has no active configuration.
+    private static GuardedCalloutConfig loadConfig(String namedCredential) {
+        try {
+            return GuardedCalloutConfig.forName(namedCredential);
+        } catch (GuardedCalloutException e) {
+            if (e.getMessage().contains('No active configuration')) {
+                throw new GuardedCalloutException(
+                    e.getMessage() + ' Call the listCredentials tool to list available credentials.'
+                );
+            }
+            throw e;
+        }
     }
 
     global class Request {

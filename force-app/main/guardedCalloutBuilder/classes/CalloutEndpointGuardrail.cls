@@ -7,15 +7,15 @@
  * the server would resolve them outside the allowed URL space.
  * @team Laserburst
  */
-public with sharing class ncMcp_EndpointGuardrail implements ncMcp_Guardrail {
-    public void enforce(ncMcp_GuardedCalloutBuilder builder) {
+public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
+    public void enforce(GuardedCalloutBuilder builder) {
         String path = builder.getPath();
         Integer queryStart = path.indexOf('?');
         if (queryStart >= 0) {
             path = path.substring(0, queryStart);
         }
         if (containsDotSegment(path)) {
-            throw new ncMcp_Exception(
+            throw new GuardedCalloutException(
                 'Path "' + path + '" contains a ".." segment, which is not allowed.'
             );
         }
@@ -26,7 +26,7 @@ public with sharing class ncMcp_EndpointGuardrail implements ncMcp_Guardrail {
                 return;
             }
         }
-        throw new ncMcp_Exception(
+        throw new GuardedCalloutException(
             'Path "' +
                 path +
                 '" does not match any allowed endpoint pattern for "' +

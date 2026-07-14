@@ -1,18 +1,18 @@
 @IsTest
-private class ncMcp_Guardrails_Test {
-    private static ncMcp_GuardedCalloutBuilder buildGuarded(
+private class CalloutGuardrails_Test {
+    private static GuardedCalloutBuilder buildGuarded(
         String method,
         String path,
         List<String> allowedMethods,
         List<String> patterns
     ) {
-        ncMcp_Config config = new ncMcp_Config();
-        config.namedCredential = 'ncMcpTest_Full';
+        GuardedCalloutConfig config = new GuardedCalloutConfig();
+        config.namedCredential = 'GuardedTest_Full';
         config.allowedMethods = allowedMethods;
         config.allowedEndpointPatterns = patterns;
         config.guardrails = new List<String>();
 
-        ncMcp_GuardedCalloutBuilder guarded = new ncMcp_GuardedCalloutBuilder('ncMcpTest_Full')
+        GuardedCalloutBuilder guarded = new GuardedCalloutBuilder('GuardedTest_Full')
             .withEndpoint(path)
             .withMethod(method);
         guarded.config = config;
@@ -23,18 +23,18 @@ private class ncMcp_Guardrails_Test {
 
     @IsTest
     static void methodGuardrailAllowsListedMethod() {
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET', 'POST' }, new List<String>{ '*' });
-        new ncMcp_MethodGuardrail().enforce(guarded);
+        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET', 'POST' }, new List<String>{ '*' });
+        new CalloutMethodGuardrail().enforce(guarded);
         // no exception = pass
     }
 
     @IsTest
     static void methodGuardrailBlocksUnlistedMethod() {
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded('DELETE', '/v1/x', new List<String>{ 'GET', 'POST' }, new List<String>{ '*' });
+        GuardedCalloutBuilder guarded = buildGuarded('DELETE', '/v1/x', new List<String>{ 'GET', 'POST' }, new List<String>{ '*' });
         try {
-            new ncMcp_MethodGuardrail().enforce(guarded);
+            new CalloutMethodGuardrail().enforce(guarded);
             Assert.fail('Expected block');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('is not allowed'), 'Unexpected: ' + e.getMessage());
             Assert.isTrue(e.getMessage().contains('GET, POST'), 'Should list allowed methods');
         }
@@ -67,11 +67,11 @@ private class ncMcp_Guardrails_Test {
     }
 
     private static void assertPath(String pattern, String path, Boolean expectedAllowed) {
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded('GET', path, new List<String>{ 'GET' }, new List<String>{ pattern });
+        GuardedCalloutBuilder guarded = buildGuarded('GET', path, new List<String>{ 'GET' }, new List<String>{ pattern });
         Boolean allowed = true;
         try {
-            new ncMcp_EndpointGuardrail().enforce(guarded);
-        } catch (ncMcp_Exception e) {
+            new CalloutEndpointGuardrail().enforce(guarded);
+        } catch (GuardedCalloutException e) {
             allowed = false;
         }
         Assert.areEqual(expectedAllowed, allowed, 'Pattern "' + pattern + '" vs path "' + path + '"');
@@ -79,23 +79,23 @@ private class ncMcp_Guardrails_Test {
 
     @IsTest
     static void endpointGuardrailIgnoresQueryString() {
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded(
+        GuardedCalloutBuilder guarded = buildGuarded(
             'GET',
             '/v1/models?limit=10',
             new List<String>{ 'GET' },
             new List<String>{ '/v1/models' }
         );
-        new ncMcp_EndpointGuardrail().enforce(guarded);
+        new CalloutEndpointGuardrail().enforce(guarded);
         // no exception = pass; query string is excluded from matching
     }
 
     @IsTest
     static void endpointGuardrailBlockMessage() {
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded('GET', '/admin/users', new List<String>{ 'GET' }, new List<String>{ '/v1/*' });
+        GuardedCalloutBuilder guarded = buildGuarded('GET', '/admin/users', new List<String>{ 'GET' }, new List<String>{ '/v1/*' });
         try {
-            new ncMcp_EndpointGuardrail().enforce(guarded);
+            new CalloutEndpointGuardrail().enforce(guarded);
             Assert.fail('Expected block');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('does not match'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -104,34 +104,34 @@ private class ncMcp_Guardrails_Test {
 
     @IsTest
     static void authGuardrailPassesWhenConfigured() {
-        ncMcp_AuthenticationGuardrail.stubAuthenticated('ncMcpTest_Full', null, null);
+        CalloutAuthenticationGuardrail.stubAuthenticated('GuardedTest_Full', null, null);
 
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
-        new ncMcp_AuthenticationGuardrail().enforce(guarded);
+        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
+        new CalloutAuthenticationGuardrail().enforce(guarded);
         // no exception = pass
     }
 
     @IsTest
     static void authGuardrailBlocksWhenNotConfigured() {
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
+        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
         try {
-            new ncMcp_AuthenticationGuardrail().enforce(guarded);
+            new CalloutAuthenticationGuardrail().enforce(guarded);
             Assert.fail('Expected block');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('not authenticated'), 'Unexpected: ' + e.getMessage());
         }
     }
 
     @IsTest
     static void authStatusDefaultsToUnauthenticated() {
-        ncMcp_AuthenticationGuardrail.Status status = ncMcp_AuthenticationGuardrail.getStatus('unknown_nc');
+        CalloutAuthenticationGuardrail.Status status = CalloutAuthenticationGuardrail.getStatus('unknown_nc');
         Assert.isFalse(status.isAuthenticated, 'Unknown NC should be unauthenticated by default');
     }
 
     @IsTest
     static void evaluateHandlesNullNamedCredential() {
         // ConnectApi returned null (missing/untestable NC) -> unauthenticated
-        Assert.isFalse(ncMcp_AuthenticationGuardrail.evaluate(null).isAuthenticated, 'Null NC should be unauthenticated');
+        Assert.isFalse(CalloutAuthenticationGuardrail.evaluate(null).isAuthenticated, 'Null NC should be unauthenticated');
     }
 
     @IsTest
@@ -143,7 +143,7 @@ private class ncMcp_Guardrails_Test {
         nc.externalCredentials = new List<ConnectApi.ExternalCredential>{ ec };
 
         // ConnectApiAdapter.getExternalCredential returns null in test, so no principal is configured
-        ncMcp_AuthenticationGuardrail.Status status = ncMcp_AuthenticationGuardrail.evaluate(nc);
+        CalloutAuthenticationGuardrail.Status status = CalloutAuthenticationGuardrail.evaluate(nc);
         Assert.areEqual('https://x.example.com', status.baseUrl, 'Base URL should be captured from the Named Credential');
         Assert.isFalse(status.isAuthenticated, 'No configured principal is reachable in test context');
         Assert.isNull(status.principalType, 'No principal details are reachable in test context');
@@ -154,7 +154,7 @@ private class ncMcp_Guardrails_Test {
         ConnectApi.NamedCredential nc = new ConnectApi.NamedCredential();
         nc.calloutUrl = 'https://y.example.com';
         // externalCredentials left null
-        Assert.isFalse(ncMcp_AuthenticationGuardrail.evaluate(nc).isAuthenticated, 'No external credentials -> unauthenticated');
+        Assert.isFalse(CalloutAuthenticationGuardrail.evaluate(nc).isAuthenticated, 'No external credentials -> unauthenticated');
     }
 
     @IsTest
@@ -169,7 +169,7 @@ private class ncMcp_Guardrails_Test {
         ConnectApi.ExternalCredential ec = new ConnectApi.ExternalCredential();
         ec.principals = new List<ConnectApi.ExternalCredentialPrincipal>{ notConfigured, configured };
 
-        ConnectApi.ExternalCredentialPrincipal found = ncMcp_AuthenticationGuardrail.configuredPrincipal(ec);
+        ConnectApi.ExternalCredentialPrincipal found = CalloutAuthenticationGuardrail.configuredPrincipal(ec);
         Assert.isNotNull(found, 'Should find the configured principal');
         Assert.areEqual(
             ConnectApi.CredentialAuthenticationStatus.Configured,
@@ -180,11 +180,11 @@ private class ncMcp_Guardrails_Test {
 
     @IsTest
     static void configuredPrincipalReturnsNullWhenNoneConfigured() {
-        Assert.isNull(ncMcp_AuthenticationGuardrail.configuredPrincipal(null), 'Null external credential -> null');
+        Assert.isNull(CalloutAuthenticationGuardrail.configuredPrincipal(null), 'Null external credential -> null');
 
         ConnectApi.ExternalCredential ec = new ConnectApi.ExternalCredential();
         // principals left null
-        Assert.isNull(ncMcp_AuthenticationGuardrail.configuredPrincipal(ec), 'No principals -> null');
+        Assert.isNull(CalloutAuthenticationGuardrail.configuredPrincipal(ec), 'No principals -> null');
     }
 
     @IsTest
@@ -198,47 +198,47 @@ private class ncMcp_Guardrails_Test {
 
         Assert.areEqual(
             'PerUserPrincipal',
-            ncMcp_AuthenticationGuardrail.firstPrincipalType(ec),
+            CalloutAuthenticationGuardrail.firstPrincipalType(ec),
             'An unconfigured principal should still report its type'
         );
     }
 
     @IsTest
     static void firstPrincipalTypeHandlesMissingData() {
-        Assert.isNull(ncMcp_AuthenticationGuardrail.firstPrincipalType(null), 'Null external credential -> null');
+        Assert.isNull(CalloutAuthenticationGuardrail.firstPrincipalType(null), 'Null external credential -> null');
 
         ConnectApi.ExternalCredential ec = new ConnectApi.ExternalCredential();
-        Assert.isNull(ncMcp_AuthenticationGuardrail.firstPrincipalType(ec), 'No principals -> null');
+        Assert.isNull(CalloutAuthenticationGuardrail.firstPrincipalType(ec), 'No principals -> null');
 
         ec.principals = new List<ConnectApi.ExternalCredentialPrincipal>();
-        Assert.isNull(ncMcp_AuthenticationGuardrail.firstPrincipalType(ec), 'Empty principals -> null');
+        Assert.isNull(CalloutAuthenticationGuardrail.firstPrincipalType(ec), 'Empty principals -> null');
 
         ec.principals = new List<ConnectApi.ExternalCredentialPrincipal>{ new ConnectApi.ExternalCredentialPrincipal() };
-        Assert.isNull(ncMcp_AuthenticationGuardrail.firstPrincipalType(ec), 'Principal without a type -> null');
+        Assert.isNull(CalloutAuthenticationGuardrail.firstPrincipalType(ec), 'Principal without a type -> null');
     }
 
     // --- Example (custom) guardrail ---
 
     @IsTest
     static void exampleGuardrailBlocksSensitiveBody() {
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' })
+        GuardedCalloutBuilder guarded = buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' })
             .withBody('{"user":"a","password":"hunter2"}');
         try {
-            new ncMcp_ExampleGuardrail().enforce(guarded);
+            new CalloutExampleGuardrail().enforce(guarded);
             Assert.fail('Expected block');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('credential'), 'Unexpected: ' + e.getMessage());
         }
     }
 
     @IsTest
     static void exampleGuardrailAllowsCleanAndBlankBody() {
-        ncMcp_GuardedCalloutBuilder withCleanBody = buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' })
+        GuardedCalloutBuilder withCleanBody = buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' })
             .withBody('{"name":"widget"}');
-        new ncMcp_ExampleGuardrail().enforce(withCleanBody);
+        new CalloutExampleGuardrail().enforce(withCleanBody);
 
-        ncMcp_GuardedCalloutBuilder withoutBody = buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' });
-        new ncMcp_ExampleGuardrail().enforce(withoutBody);
+        GuardedCalloutBuilder withoutBody = buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' });
+        new CalloutExampleGuardrail().enforce(withoutBody);
         // no exception = pass
     }
 
@@ -246,38 +246,38 @@ private class ncMcp_Guardrails_Test {
 
     @IsTest
     static void resolveGuardrailsIncludesBuiltInsThenCustom() {
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
-        guarded.config.guardrails = new List<String>{ 'ncMcp_ExampleGuardrail' };
+        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
+        guarded.config.guardrails = new List<String>{ 'CalloutExampleGuardrail' };
 
-        List<ncMcp_Guardrail> guardrails = guarded.resolveGuardrails();
+        List<CalloutGuardrail> guardrails = guarded.resolveGuardrails();
 
         Assert.areEqual(4, guardrails.size(), 'Three built-ins plus one custom');
-        Assert.isInstanceOfType(guardrails[3], ncMcp_ExampleGuardrail.class, 'Custom guardrail should run last');
+        Assert.isInstanceOfType(guardrails[3], CalloutExampleGuardrail.class, 'Custom guardrail should run last');
     }
 
     @IsTest
     static void resolveGuardrailsThrowsForUnknownClass() {
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
+        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
         guarded.config.guardrails = new List<String>{ 'ThisClassDoesNotExist_12345' };
 
         try {
             guarded.resolveGuardrails();
             Assert.fail('Expected exception');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('was not found'), 'Unexpected: ' + e.getMessage());
         }
     }
 
     @IsTest
     static void resolveGuardrailsThrowsForWrongType() {
-        ncMcp_GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
-        guarded.config.guardrails = new List<String>{ 'ncMcp_Config' }; // a real class that is not a guardrail
+        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
+        guarded.config.guardrails = new List<String>{ 'GuardedCalloutConfig' }; // a real class that is not a guardrail
 
         try {
             guarded.resolveGuardrails();
             Assert.fail('Expected exception');
-        } catch (ncMcp_Exception e) {
-            Assert.isTrue(e.getMessage().contains('must implement ncMcp_Guardrail'), 'Unexpected: ' + e.getMessage());
+        } catch (GuardedCalloutException e) {
+            Assert.isTrue(e.getMessage().contains('must implement CalloutGuardrail'), 'Unexpected: ' + e.getMessage());
         }
     }
 }

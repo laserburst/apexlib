@@ -21,12 +21,12 @@ global with sharing class ncMcp_ListCredentialsTool {
     }
 
     private static List<ncMcp_ListCredentialsResult.Credential> buildCredentials() {
-        List<String> names = new List<String>(ncMcp_Config.getActive().keySet());
+        List<String> names = new List<String>(GuardedCalloutConfig.getActive().keySet());
         names.sort();
 
         List<ncMcp_ListCredentialsResult.Credential> credentials = new List<ncMcp_ListCredentialsResult.Credential>();
         for (String name : names) {
-            ncMcp_AuthenticationGuardrail.Status status = ncMcp_AuthenticationGuardrail.getStatus(name);
+            CalloutAuthenticationGuardrail.Status status = CalloutAuthenticationGuardrail.getStatus(name);
             ncMcp_ListCredentialsResult.Credential credential = new ncMcp_ListCredentialsResult.Credential();
             credential.name = name;
             credential.isConfigured = status.isAuthenticated;

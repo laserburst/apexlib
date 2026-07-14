@@ -2,7 +2,7 @@
  * @description MCP tool "sendRequest": sends a guarded HTTP request through a
  * Named Credential. Exposed as an invocable action so it is also usable from
  * Flows and Agentforce. Parses the string-typed tool inputs and drives
- * ncMcp_GuardedCalloutBuilder, which enforces the guardrail chain and performs
+ * GuardedCalloutBuilder, which enforces the guardrail chain and performs
  * the callout.
  * @team Laserburst
  */
@@ -24,22 +24,22 @@ global with sharing class ncMcp_SendRequestTool {
                 }
                 // The exception message is only the response body; prepend the
                 // status so the tool keeps its promise to report both
-                throw new ncMcp_Exception('HTTP ' + e.code + ' ' + e.status + ': ' + e.getMessage());
+                throw new GuardedCalloutException('HTTP ' + e.code + ' ' + e.status + ': ' + e.getMessage());
             }
         }
         return responses;
     }
 
-    private static ncMcp_GuardedCalloutBuilder toGuardedBuilder(Request input) {
+    private static GuardedCalloutBuilder toGuardedBuilder(Request input) {
         if (String.isBlank(input.namedCredential)) {
-            throw new ncMcp_Exception(
+            throw new GuardedCalloutException(
                 'Field "namedCredential" is required. Call the listCredentials tool to list available credentials.'
             );
         }
         if (String.isBlank(input.path)) {
-            throw new ncMcp_Exception('Field "path" is required, e.g. "/v1/resource".');
+            throw new GuardedCalloutException('Field "path" is required, e.g. "/v1/resource".');
         }
-        ncMcp_GuardedCalloutBuilder guarded = new ncMcp_GuardedCalloutBuilder(input.namedCredential)
+        GuardedCalloutBuilder guarded = new GuardedCalloutBuilder(input.namedCredential)
             .withEndpoint(input.path)
             .withMethod(input.method)
             .withHeaders(parseStringMap(input.headers, 'headers'))
@@ -60,7 +60,7 @@ global with sharing class ncMcp_SendRequestTool {
         try {
             parsed = (Map<String, Object>) JSON.deserializeUntyped(jsonObject);
         } catch (Exception e) {
-            throw new ncMcp_Exception(
+            throw new GuardedCalloutException(
                 'Field "' + fieldName + '" must be a JSON object string, e.g. {"Header-Name":"value"}.'
             );
         }

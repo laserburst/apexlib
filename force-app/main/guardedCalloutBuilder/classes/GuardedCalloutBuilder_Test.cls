@@ -1,5 +1,5 @@
 @IsTest
-private class ncMcp_GuardedCalloutBuilder_Test {
+private class GuardedCalloutBuilder_Test {
     private class CapturingMock implements HttpCalloutMock {
         public HttpRequest capturedRequest;
         public Integer statusCode = 200;
@@ -21,8 +21,8 @@ private class ncMcp_GuardedCalloutBuilder_Test {
      * @description Referenced by name from recursionIsBlocked's injected config;
      * proves a custom guardrail cannot execute the callout it is guarding.
      */
-    public class RecursiveGuardrail implements ncMcp_Guardrail {
-        public void enforce(ncMcp_GuardedCalloutBuilder builder) {
+    public class RecursiveGuardrail implements CalloutGuardrail {
+        public void enforce(GuardedCalloutBuilder builder) {
             builder.getHttpResponse();
         }
     }
@@ -32,21 +32,21 @@ private class ncMcp_GuardedCalloutBuilder_Test {
     }
 
     private static void authenticate(String namedCredential, String baseUrl) {
-        ncMcp_AuthenticationGuardrail.stubAuthenticated(namedCredential, baseUrl, 'NamedPrincipal');
+        CalloutAuthenticationGuardrail.stubAuthenticated(namedCredential, baseUrl, 'NamedPrincipal');
     }
 
     private static void mockScope(String endpoint, String method, HttpCalloutMock mock) {
-        CalloutBuilder scope = new CalloutBuilder('callout:ncMcpTest_Full').withEndpoint(endpoint).withMethod(method);
+        CalloutBuilder scope = new CalloutBuilder('callout:GuardedTest_Full').withEndpoint(endpoint).withMethod(method);
         CalloutBuilder.BUILDER_TO_MOCK_OVERRIDE.put(scope, mock);
     }
 
-    private static ncMcp_GuardedCalloutBuilder guarded(String path, String method) {
-        return new ncMcp_GuardedCalloutBuilder('ncMcpTest_Full').withEndpoint(path).withMethod(method);
+    private static GuardedCalloutBuilder guarded(String path, String method) {
+        return new GuardedCalloutBuilder('GuardedTest_Full').withEndpoint(path).withMethod(method);
     }
 
     @IsTest
     static void getHttpResponseRunsChainAndDelegates() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
+        authenticate('GuardedTest_Full', 'https://example.com');
         mockScope('/v1/data', 'GET', new CapturingMock());
 
         Test.startTest();
@@ -59,7 +59,7 @@ private class ncMcp_GuardedCalloutBuilder_Test {
 
     @IsTest
     static void appendsEncodedQueryParametersForEveryMethod() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
+        authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
         mockScope('/v1/data?q=a+b', 'POST', mock);
 
@@ -68,7 +68,7 @@ private class ncMcp_GuardedCalloutBuilder_Test {
         Test.stopTest();
 
         Assert.areEqual(
-            'callout:ncMcpTest_Full/v1/data?q=a+b',
+            'callout:GuardedTest_Full/v1/data?q=a+b',
             mock.capturedRequest.getEndpoint(),
             'Query string should be URL-encoded and appended to the path even for POST'
         );
@@ -76,11 +76,11 @@ private class ncMcp_GuardedCalloutBuilder_Test {
 
     @IsTest
     static void passesBodyVerbatimAndDefaultsContentType() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
+        authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
         mockScope('/v1/data', 'POST', mock);
 
-        ncMcp_GuardedCalloutBuilder builder = guarded('/v1/data', 'POST')
+        GuardedCalloutBuilder builder = guarded('/v1/data', 'POST')
             .withBody('{"name":"widget"}');
 
         Test.startTest();
@@ -94,7 +94,7 @@ private class ncMcp_GuardedCalloutBuilder_Test {
 
     @IsTest
     static void keepsExplicitContentType() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
+        authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
         mockScope('/v1/data', 'POST', mock);
 
@@ -110,7 +110,7 @@ private class ncMcp_GuardedCalloutBuilder_Test {
 
     @IsTest
     static void normalizesPathAndMethod() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
+        authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
         mockScope('/v1/data', 'GET', mock);
 
@@ -118,13 +118,13 @@ private class ncMcp_GuardedCalloutBuilder_Test {
             guarded('v1/data', 'get').getHttpResponse(); // no leading slash, lowercase method
         Test.stopTest();
 
-        Assert.areEqual('callout:ncMcpTest_Full/v1/data', mock.capturedRequest.getEndpoint(), 'Leading slash should be added');
+        Assert.areEqual('callout:GuardedTest_Full/v1/data', mock.capturedRequest.getEndpoint(), 'Leading slash should be added');
         Assert.areEqual('GET', mock.capturedRequest.getMethod(), 'Method should be uppercased');
     }
 
     @IsTest
     static void clampsOutOfRangeTimeout() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
+        authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
         mockScope('/v1/data', 'GET', mock);
 
@@ -139,9 +139,9 @@ private class ncMcp_GuardedCalloutBuilder_Test {
     @IsTest
     static void throwsForBlankNamedCredential() {
         try {
-            new ncMcp_GuardedCalloutBuilder(' ');
+            new GuardedCalloutBuilder(' ');
             Assert.fail('Expected exception');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('Named Credential'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -149,9 +149,9 @@ private class ncMcp_GuardedCalloutBuilder_Test {
     @IsTest
     static void throwsForMissingEndpoint() {
         try {
-            new ncMcp_GuardedCalloutBuilder('ncMcpTest_Full').getHttpResponse();
+            new GuardedCalloutBuilder('GuardedTest_Full').getHttpResponse();
             Assert.fail('Expected exception');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('endpoint path'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -161,7 +161,7 @@ private class ncMcp_GuardedCalloutBuilder_Test {
         try {
             guarded('/v1/x', 'FETCH');
             Assert.fail('Expected exception');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('not a valid method'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -169,22 +169,22 @@ private class ncMcp_GuardedCalloutBuilder_Test {
     @IsTest
     static void throwsForMissingConfig() {
         try {
-            new ncMcp_GuardedCalloutBuilder('ncMcpTest_Nonexistent').withEndpoint('/v1/x').getHttpResponse();
+            new GuardedCalloutBuilder('GuardedTest_Nonexistent').withEndpoint('/v1/x').getHttpResponse();
             Assert.fail('Expected exception');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('No active configuration found'), 'Unexpected: ' + e.getMessage());
         }
     }
 
     @IsTest
     static void blocksMethodNotAllowedByConfig() {
-        authenticate('ncMcpTest_Full', 'https://example.com'); // Full allows GET, POST only
+        authenticate('GuardedTest_Full', 'https://example.com'); // Full allows GET, POST only
         try {
             Test.startTest();
                 guarded('/v1/data', 'DELETE').getHttpResponse();
             Test.stopTest();
             Assert.fail('Expected exception');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('is not allowed'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -197,14 +197,14 @@ private class ncMcp_GuardedCalloutBuilder_Test {
                 guarded('/v1/data', 'GET').getHttpResponse();
             Test.stopTest();
             Assert.fail('Expected exception');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('not authenticated'), 'Unexpected: ' + e.getMessage());
         }
     }
 
     @IsTest
     static void httpErrorThrowsCalloutBuilderException() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
+        authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
         mock.statusCode = 404;
         mock.statusText = 'Not Found';
@@ -224,7 +224,7 @@ private class ncMcp_GuardedCalloutBuilder_Test {
 
     @IsTest
     static void getResponseBodyMapIsGuardedAndDelegates() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
+        authenticate('GuardedTest_Full', 'https://example.com');
         mockScope('/v1/data', 'GET', new CapturingMock());
 
         Test.startTest();
@@ -232,7 +232,7 @@ private class ncMcp_GuardedCalloutBuilder_Test {
             try {
                 guarded('/v1/data', 'DELETE').getResponseBodyMap();
                 Assert.fail('Expected the guardrail chain to run for getResponseBodyMap');
-            } catch (ncMcp_Exception e) {
+            } catch (GuardedCalloutException e) {
                 Assert.isTrue(e.getMessage().contains('is not allowed'), 'Unexpected: ' + e.getMessage());
             }
         Test.stopTest();
@@ -242,7 +242,7 @@ private class ncMcp_GuardedCalloutBuilder_Test {
 
     @IsTest
     static void getTypedResponseBodyIsGuardedAndDelegates() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
+        authenticate('GuardedTest_Full', 'https://example.com');
         mockScope('/v1/data', 'GET', new CapturingMock());
 
         Test.startTest();
@@ -254,14 +254,14 @@ private class ncMcp_GuardedCalloutBuilder_Test {
 
     @IsTest
     static void accessorsReflectRecordedState() {
-        ncMcp_GuardedCalloutBuilder builder = new ncMcp_GuardedCalloutBuilder('ncMcpTest_Full')
+        GuardedCalloutBuilder builder = new GuardedCalloutBuilder('GuardedTest_Full')
             .withEndpoint('v1/data')
             .withMethod('post')
             .withHeader('Accept', 'application/json')
             .withQueryParameter('limit', '10')
             .withBody('{"name":"widget"}');
 
-        Assert.areEqual('ncMcpTest_Full', builder.getNamedCredential(), 'Unexpected named credential');
+        Assert.areEqual('GuardedTest_Full', builder.getNamedCredential(), 'Unexpected named credential');
         Assert.areEqual('/v1/data', builder.getPath(), 'Path should be normalized with a leading slash');
         Assert.areEqual('POST', builder.getMethod(), 'Method should be read back from the wrapped builder');
         Assert.areEqual('application/json', builder.getHeaders().get('Accept'), 'Headers should be readable');
@@ -273,19 +273,19 @@ private class ncMcp_GuardedCalloutBuilder_Test {
     @IsTest
     static void constructFullEndpointBakesQueryString() {
         String fullEndpoint = guarded('/v1/data', 'GET').withQueryParameter('limit', '10').constructFullEndpoint();
-        Assert.areEqual('callout:ncMcpTest_Full/v1/data?limit=10', fullEndpoint, 'Unexpected full endpoint');
+        Assert.areEqual('callout:GuardedTest_Full/v1/data?limit=10', fullEndpoint, 'Unexpected full endpoint');
     }
 
     @IsTest
     static void recursionFromCustomGuardrailIsBlocked() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
-        ncMcp_Config config = new ncMcp_Config();
-        config.namedCredential = 'ncMcpTest_Full';
+        authenticate('GuardedTest_Full', 'https://example.com');
+        GuardedCalloutConfig config = new GuardedCalloutConfig();
+        config.namedCredential = 'GuardedTest_Full';
         config.allowedMethods = new List<String>{ 'GET' };
         config.allowedEndpointPatterns = new List<String>{ '*' };
-        config.guardrails = new List<String>{ 'ncMcp_GuardedCalloutBuilder_Test.RecursiveGuardrail' };
+        config.guardrails = new List<String>{ 'GuardedCalloutBuilder_Test.RecursiveGuardrail' };
 
-        ncMcp_GuardedCalloutBuilder builder = guarded('/v1/data', 'GET');
+        GuardedCalloutBuilder builder = guarded('/v1/data', 'GET');
         builder.config = config;
 
         try {
@@ -293,7 +293,7 @@ private class ncMcp_GuardedCalloutBuilder_Test {
                 builder.getHttpResponse();
             Test.stopTest();
             Assert.fail('Expected exception');
-        } catch (ncMcp_Exception e) {
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('must not execute'), 'Unexpected: ' + e.getMessage());
         }
     }

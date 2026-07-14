@@ -33,15 +33,19 @@ ViciousMockery.cast(200);
 
 Thin wrapper around the most-used `ConnectApi` methods prepared for use.
 
-### [Named Credentials MCP](force-app/main/namedCredentialsMcp/README.md)
+### [GuardedCalloutBuilder](force-app/main/guardedCalloutBuilder/classes/README.md)
 
-Three Salesforce-hosted MCP tools that let an AI agent make HTTP callouts through the org's Named Credentials — the token never reaches the AI. `listCredentials` shows which credentials exist and whether each is ready to use; `describe` explains how to call one; `sendRequest` sends a guarded request. Guardrails (allowed methods, endpoint patterns, custom strategies) are configured per Named Credential in custom metadata. The tools are invocable actions, so they also work in Flows and Agentforce, and the core — a guardrail-enforcing decorator that mirrors the CalloutBuilder API — is usable from any Apex:
+A guardrail-enforcing decorator that mirrors the CalloutBuilder API. Before any request leaves the org it loads a per-Named-Credential configuration and runs a chain of guardrails — authentication, allowed methods, endpoint patterns, and custom strategies — configured in custom metadata. Nothing is callable until an admin activates a configuration, and the defaults are conservative (GET only). Any Apex callout can opt in by swapping the class name:
 
 ```java
-HttpResponse response = new ncMcp_GuardedCalloutBuilder('OpenAI_NC')
+HttpResponse response = new GuardedCalloutBuilder('OpenAI_NC')
     .withEndpoint('/v1/models')
     .getHttpResponse();
 ```
+
+### [Named Credentials MCP](force-app/main/namedCredentialsMcp/README.md)
+
+Three Salesforce-hosted MCP tools that let an AI agent make HTTP callouts through the org's Named Credentials — the token never reaches the AI. `listCredentials` shows which credentials exist and whether each is ready to use; `describe` explains how to call one; `sendRequest` sends a guarded request through [GuardedCalloutBuilder](force-app/main/guardedCalloutBuilder/classes/README.md). The tools are invocable actions, so they also work in Flows and Agentforce.
 
 ## Claude Code
 

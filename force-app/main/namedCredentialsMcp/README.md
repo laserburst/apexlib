@@ -14,7 +14,7 @@ An agent works through three tools, in this order:
 
 ## Request lifecycle
 
-Everything converges on one class: `ncMcp_GuardedCalloutBuilder`, a decorator around the [CalloutBuilder](../calloutBuilder/classes/CalloutBuilder.cls) library. It mirrors CalloutBuilder's public API and adds what ncMCP needs — configuration loading, input normalization, and the guardrail chain — before delegating the actual callout.
+Everything converges on one class: `GuardedCalloutBuilder`, a decorator around the [CalloutBuilder](../calloutBuilder/classes/CalloutBuilder.cls) library. It lives in its own MCP-independent [module](../guardedCalloutBuilder/classes/README.md): it mirrors CalloutBuilder's public API and adds configuration loading, input normalization, and the guardrail chain before delegating the actual callout.
 
 ```mermaid
 sequenceDiagram
@@ -22,7 +22,7 @@ sequenceDiagram
     actor Agent as AI agent (MCP client)
     participant Server as Salesforce MCP server
     participant Tool as ncMcp_SendRequestTool
-    participant Guarded as ncMcp_GuardedCalloutBuilder
+    participant Guarded as GuardedCalloutBuilder
     participant Builder as CalloutBuilder
     participant API as External API
 
@@ -46,14 +46,14 @@ A blocked request never reaches the network: any guardrail may throw, and the er
 - **Conservative defaults.** With no explicit configuration, only `GET` is allowed.
 - **Authentication is checked per running context.** A per-user credential counts only when the current user has authorized it; a named principal counts when an administrator has configured it. `listCredentials` reveals existence and status of every exposed credential; `describe` and `sendRequest` refuse unauthenticated ones.
 - **Built-in chain, fixed order:** authentication → allowed HTTP method → allowed endpoint pattern → custom guardrails.
-- **Custom guardrails are strategies.** A configuration can name Apex classes implementing `ncMcp_Guardrail`; they run after the built-ins and can inspect the whole request (method, path, headers, body) — rules the declarative config cannot express. They are referenced by admins in protected metadata, so they sit inside the same trust boundary as any admin-authored automation.
+- **Custom guardrails are strategies.** A configuration can name Apex classes implementing `CalloutGuardrail`; they run after the built-ins and can inspect the whole request (method, path, headers, body) — rules the declarative config cannot express. They are referenced by admins in protected metadata, so they sit inside the same trust boundary as any admin-authored automation.
 
 ## Beyond MCP
 
-The tools are plain invocable actions, so the same three operations are available to Flows and Agentforce without extra code. From Apex, the decorator *is* the API — any callout can opt into guardrail enforcement:
+The tools are plain invocable actions, so the same three operations are available to Flows and Agentforce without extra code. From Apex, the [GuardedCalloutBuilder](../guardedCalloutBuilder/classes/README.md) decorator *is* the API — any callout can opt into guardrail enforcement:
 
 ```apex
-HttpResponse response = new ncMcp_GuardedCalloutBuilder('OpenAI_NC')
+HttpResponse response = new GuardedCalloutBuilder('OpenAI_NC')
     .withEndpoint('/v1/models')
     .getHttpResponse();
 ```
@@ -62,4 +62,4 @@ It mirrors the full CalloutBuilder API (`withHeader`, `withTimeout`, `withSucces
 
 ## Configuration and setup
 
-The configuration record format, the custom guardrail how-to, and the org setup checklist live in the [module reference](classes/README.md).
+The org setup checklist lives in the [module reference](classes/README.md). The guardrail engine — the configuration record format, the custom-guardrail how-to, and direct Apex usage — lives in the separate [GuardedCalloutBuilder](../guardedCalloutBuilder/classes/README.md) module.

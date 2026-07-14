@@ -22,7 +22,7 @@ private class ncMcp_SendRequestTool_Test {
     }
 
     private static void authenticate(String namedCredential) {
-        ncMcp_AuthenticationGuardrail.stubAuthenticated(namedCredential, null, null);
+        CalloutAuthenticationGuardrail.stubAuthenticated(namedCredential, null, null);
     }
 
     private static void mockScope(String namedCredential, String endpoint, String method, HttpCalloutMock mock) {
@@ -44,11 +44,11 @@ private class ncMcp_SendRequestTool_Test {
 
     @IsTest
     static void happyPathParsesHeadersAndQuery() {
-        authenticate('ncMcpTest_Full');
+        authenticate('GuardedTest_Full');
         StubMock mock = new StubMock(200, '{"ok":true}');
-        mockScope('ncMcpTest_Full', '/v1/data?q=apex', 'GET', mock);
+        mockScope('GuardedTest_Full', '/v1/data?q=apex', 'GET', mock);
 
-        ncMcp_SendRequestTool.Request request = input('ncMcpTest_Full', '/v1/data', 'GET');
+        ncMcp_SendRequestTool.Request request = input('GuardedTest_Full', '/v1/data', 'GET');
         request.headers = '{"Accept":"application/json"}';
         request.queryParameters = '{"q":"apex"}';
 
@@ -63,15 +63,15 @@ private class ncMcp_SendRequestTool_Test {
 
     @IsTest
     static void throwsWithStatusAndBodyOnHttpError() {
-        authenticate('ncMcpTest_Full');
-        mockScope('ncMcpTest_Full', '/v1/missing', 'GET', new StubMock(404, '{"error":"not found here"}'));
+        authenticate('GuardedTest_Full');
+        mockScope('GuardedTest_Full', '/v1/missing', 'GET', new StubMock(404, '{"error":"not found here"}'));
 
         try {
             Test.startTest();
-                send(input('ncMcpTest_Full', '/v1/missing', 'GET'));
+                send(input('GuardedTest_Full', '/v1/missing', 'GET'));
             Test.stopTest();
-            Assert.fail('Expected ncMcp_Exception');
-        } catch (ncMcp_Exception e) {
+            Assert.fail('Expected GuardedCalloutException');
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('HTTP 404'), 'HTTP status should be in the message: ' + e.getMessage());
             Assert.isTrue(e.getMessage().contains('not found here'), 'Error body should be in the message: ' + e.getMessage());
         }
@@ -79,13 +79,13 @@ private class ncMcp_SendRequestTool_Test {
 
     @IsTest
     static void blocksDisallowedMethod() {
-        authenticate('ncMcpTest_Full'); // Full allows GET, POST only
+        authenticate('GuardedTest_Full'); // Full allows GET, POST only
         try {
             Test.startTest();
-                send(input('ncMcpTest_Full', '/v1/data', 'DELETE'));
+                send(input('GuardedTest_Full', '/v1/data', 'DELETE'));
             Test.stopTest();
-            Assert.fail('Expected ncMcp_Exception');
-        } catch (ncMcp_Exception e) {
+            Assert.fail('Expected GuardedCalloutException');
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('is not allowed'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -95,37 +95,37 @@ private class ncMcp_SendRequestTool_Test {
         // no authenticate() call -> auth guardrail blocks
         try {
             Test.startTest();
-                send(input('ncMcpTest_Full', '/v1/data', 'GET'));
+                send(input('GuardedTest_Full', '/v1/data', 'GET'));
             Test.stopTest();
-            Assert.fail('Expected ncMcp_Exception');
-        } catch (ncMcp_Exception e) {
+            Assert.fail('Expected GuardedCalloutException');
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('not authenticated'), 'Unexpected: ' + e.getMessage());
         }
     }
 
     @IsTest
     static void rejectsMalformedHeaders() {
-        authenticate('ncMcpTest_Full');
-        ncMcp_SendRequestTool.Request request = input('ncMcpTest_Full', '/v1/data', 'GET');
+        authenticate('GuardedTest_Full');
+        ncMcp_SendRequestTool.Request request = input('GuardedTest_Full', '/v1/data', 'GET');
         request.headers = '[1,2]'; // valid JSON, wrong shape
 
         try {
             Test.startTest();
                 send(request);
             Test.stopTest();
-            Assert.fail('Expected ncMcp_Exception');
-        } catch (ncMcp_Exception e) {
+            Assert.fail('Expected GuardedCalloutException');
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('must be a JSON object string'), 'Unexpected: ' + e.getMessage());
         }
     }
 
     @IsTest
     static void toleratesNullHeadersAndValues() {
-        authenticate('ncMcpTest_Full');
+        authenticate('GuardedTest_Full');
         StubMock mock = new StubMock(200, '{"ok":true}');
-        mockScope('ncMcpTest_Full', '/v1/data', 'GET', mock);
+        mockScope('GuardedTest_Full', '/v1/data', 'GET', mock);
 
-        ncMcp_SendRequestTool.Request request = input('ncMcpTest_Full', '/v1/data', 'GET');
+        ncMcp_SendRequestTool.Request request = input('GuardedTest_Full', '/v1/data', 'GET');
         request.headers = '{"Accept":"application/json","X-Trace-Id":null}';
         request.queryParameters = 'null'; // the JSON literal, not an object
 
@@ -139,8 +139,8 @@ private class ncMcp_SendRequestTool_Test {
 
     @IsTest
     static void runsCustomGuardrailFromConfig() {
-        authenticate('ncMcpTest_Guarded');
-        ncMcp_SendRequestTool.Request request = input('ncMcpTest_Guarded', '/v1/login', 'POST');
+        authenticate('GuardedTest_Guarded');
+        ncMcp_SendRequestTool.Request request = input('GuardedTest_Guarded', '/v1/login', 'POST');
         request.body = '{"password":"hunter2"}';
 
         try {
@@ -148,8 +148,8 @@ private class ncMcp_SendRequestTool_Test {
                 send(request);
             Test.stopTest();
             Assert.fail('Expected the custom guardrail to block the request');
-        } catch (ncMcp_Exception e) {
-            Assert.isTrue(e.getMessage().contains('ncMcp_ExampleGuardrail'), 'Unexpected: ' + e.getMessage());
+        } catch (GuardedCalloutException e) {
+            Assert.isTrue(e.getMessage().contains('CalloutExampleGuardrail'), 'Unexpected: ' + e.getMessage());
         }
     }
 
@@ -157,8 +157,8 @@ private class ncMcp_SendRequestTool_Test {
     static void rejectsBlankNamedCredential() {
         try {
             send(input(null, '/v1/data', 'GET'));
-            Assert.fail('Expected ncMcp_Exception');
-        } catch (ncMcp_Exception e) {
+            Assert.fail('Expected GuardedCalloutException');
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('"namedCredential" is required'), 'Unexpected: ' + e.getMessage());
             Assert.isTrue(e.getMessage().contains('listCredentials'), 'Should point the agent to the listCredentials tool');
         }
@@ -167,25 +167,25 @@ private class ncMcp_SendRequestTool_Test {
     @IsTest
     static void rejectsBlankPath() {
         try {
-            send(input('ncMcpTest_Full', null, 'GET'));
-            Assert.fail('Expected ncMcp_Exception');
-        } catch (ncMcp_Exception e) {
+            send(input('GuardedTest_Full', null, 'GET'));
+            Assert.fail('Expected GuardedCalloutException');
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('"path" is required'), 'Unexpected: ' + e.getMessage());
         }
     }
 
     @IsTest
     static void processesRequestsInBulk() {
-        authenticate('ncMcpTest_Full');
+        authenticate('GuardedTest_Full');
         StubMock mock = new StubMock(200, '{"ok":true}');
-        mockScope('ncMcpTest_Full', '/v1/a', 'GET', mock);
-        mockScope('ncMcpTest_Full', '/v1/b', 'GET', mock);
+        mockScope('GuardedTest_Full', '/v1/a', 'GET', mock);
+        mockScope('GuardedTest_Full', '/v1/b', 'GET', mock);
 
         Test.startTest();
             List<ncMcp_HttpResponseFacade> responses = ncMcp_SendRequestTool.sendRequest(
                 new List<ncMcp_SendRequestTool.Request>{
-                    input('ncMcpTest_Full', '/v1/a', 'GET'),
-                    input('ncMcpTest_Full', '/v1/b', 'GET')
+                    input('GuardedTest_Full', '/v1/a', 'GET'),
+                    input('GuardedTest_Full', '/v1/b', 'GET')
                 }
             );
         Test.stopTest();

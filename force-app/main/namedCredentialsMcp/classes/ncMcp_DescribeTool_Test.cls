@@ -1,7 +1,7 @@
 @IsTest
 private class ncMcp_DescribeTool_Test {
     private static void authenticate(String namedCredential, String baseUrl) {
-        ncMcp_AuthenticationGuardrail.stubAuthenticated(namedCredential, baseUrl, null);
+        CalloutAuthenticationGuardrail.stubAuthenticated(namedCredential, baseUrl, null);
     }
 
     private static List<ncMcp_DescribeResult> describe(String namedCredential) {
@@ -12,15 +12,15 @@ private class ncMcp_DescribeTool_Test {
 
     @IsTest
     static void describeReturnsSingleApiAsJsonObject() {
-        authenticate('ncMcpTest_Full', 'https://example.com');
+        authenticate('GuardedTest_Full', 'https://example.com');
 
         Test.startTest();
-            List<ncMcp_DescribeResult> results = describe('ncMcpTest_Full');
+            List<ncMcp_DescribeResult> results = describe('GuardedTest_Full');
         Test.stopTest();
 
         Assert.areEqual(1, results.size(), 'One result per input request');
         Map<String, Object> api = (Map<String, Object>) JSON.deserializeUntyped(results[0].api);
-        Assert.areEqual('ncMcpTest_Full', api.get('name'), 'Unexpected API name');
+        Assert.areEqual('GuardedTest_Full', api.get('name'), 'Unexpected API name');
         Assert.areEqual('https://example.com', api.get('baseUrl'), 'Unexpected base URL');
         Assert.areEqual(new List<Object>{ 'GET', 'POST' }, (List<Object>) api.get('allowedMethods'), 'Unexpected methods');
         Assert.isNotNull(api.get('allowedEndpointPatterns'), 'Endpoint patterns should be included');
@@ -30,9 +30,9 @@ private class ncMcp_DescribeTool_Test {
     static void describeThrowsWhenNotAuthenticated() {
         // no authenticate() call -> the credential exists but is not usable
         try {
-            describe('ncMcpTest_Full');
-            Assert.fail('Expected ncMcp_Exception');
-        } catch (ncMcp_Exception e) {
+            describe('GuardedTest_Full');
+            Assert.fail('Expected GuardedCalloutException');
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('not authenticated'), 'Unexpected: ' + e.getMessage());
             Assert.isTrue(e.getMessage().contains('listCredentials'), 'Should point the agent to the listCredentials tool');
         }
@@ -41,9 +41,9 @@ private class ncMcp_DescribeTool_Test {
     @IsTest
     static void describeThrowsWhenNoActiveConfig() {
         try {
-            describe('ncMcpTest_Inactive');
-            Assert.fail('Expected ncMcp_Exception');
-        } catch (ncMcp_Exception e) {
+            describe('GuardedTest_Inactive');
+            Assert.fail('Expected GuardedCalloutException');
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('No active configuration found'), 'Unexpected: ' + e.getMessage());
             Assert.isTrue(e.getMessage().contains('listCredentials'), 'Should point the agent to the listCredentials tool');
         }
@@ -52,9 +52,9 @@ private class ncMcp_DescribeTool_Test {
     @IsTest
     static void describeThrowsWhenConfigIsMalformed() {
         try {
-            describe('ncMcpTest_BadJson');
-            Assert.fail('Expected ncMcp_Exception');
-        } catch (ncMcp_Exception e) {
+            describe('GuardedTest_BadJson');
+            Assert.fail('Expected GuardedCalloutException');
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('not valid JSON'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -63,8 +63,8 @@ private class ncMcp_DescribeTool_Test {
     static void describeThrowsWhenNameIsBlank() {
         try {
             describe(null);
-            Assert.fail('Expected ncMcp_Exception');
-        } catch (ncMcp_Exception e) {
+            Assert.fail('Expected GuardedCalloutException');
+        } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('"namedCredential" is required'), 'Unexpected: ' + e.getMessage());
         }
     }

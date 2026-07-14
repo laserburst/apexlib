@@ -2,8 +2,8 @@
  * @description Built-in guardrail: only allows requests to a Named Credential
  * that is authenticated for the running context — a per-user principal the
  * current user has authorized, or a named principal an administrator has
- * configured. It also exposes getStatus() so the listCredentials and describe
- * tools can report whether each credential is ready to use.
+ * configured. It also exposes getStatus() so callers (such as discovery tools)
+ * can report whether each credential is ready to use.
  *
  * ConnectApi lookups are not executable in test context, so getStatus() reads
  * from the @TestVisible testStatuses map during tests; seed it to simulate auth
@@ -11,7 +11,7 @@
  * objects (which can be constructed inside a test) so the logic stays covered.
  * @team Laserburst
  */
-public with sharing class ncMcp_AuthenticationGuardrail implements ncMcp_Guardrail {
+public with sharing class CalloutAuthenticationGuardrail implements CalloutGuardrail {
     /**
      * @description Authentication outcome for one Named Credential. principalType
      * is populated even when not authenticated (from the first principal found),
@@ -35,16 +35,16 @@ public with sharing class ncMcp_AuthenticationGuardrail implements ncMcp_Guardra
         testStatuses.put(namedCredential, status);
     }
 
-    public void enforce(ncMcp_GuardedCalloutBuilder builder) {
+    public void enforce(GuardedCalloutBuilder builder) {
         Status status = getStatus(builder.getNamedCredential());
         if (!status.isAuthenticated) {
-            throw new ncMcp_Exception(notAuthenticatedMessage(builder.getNamedCredential()));
+            throw new GuardedCalloutException(notAuthenticatedMessage(builder.getNamedCredential()));
         }
     }
 
     /**
-     * @description Shared agent-facing explanation of a failed authentication
-     * check; ncMcp_DescribeTool reuses it so the guidance never diverges.
+     * @description Shared explanation of a failed authentication check; callers
+     * can reuse it so the guidance never diverges.
      * @param namedCredential developer name of the Named Credential
      * @return the explanation, without a trailing space
      */
