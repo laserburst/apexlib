@@ -1,13 +1,13 @@
 @IsTest
-private class ncMcp_Describe_Test {
+private class ncMcp_DescribeTool_Test {
     private static void authenticate(String namedCredential, String baseUrl) {
         ncMcp_AuthenticationGuardrail.stubAuthenticated(namedCredential, baseUrl, null);
     }
 
     private static List<ncMcp_DescribeResult> describe(String namedCredential) {
-        ncMcp_Describe.Request request = new ncMcp_Describe.Request();
+        ncMcp_DescribeTool.Request request = new ncMcp_DescribeTool.Request();
         request.namedCredential = namedCredential;
-        return ncMcp_Describe.describe(new List<ncMcp_Describe.Request>{ request });
+        return ncMcp_DescribeTool.describe(new List<ncMcp_DescribeTool.Request>{ request });
     }
 
     @IsTest

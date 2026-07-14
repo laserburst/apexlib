@@ -44,7 +44,7 @@ public with sharing class ncMcp_AuthenticationGuardrail implements ncMcp_Guardra
 
     /**
      * @description Shared agent-facing explanation of a failed authentication
-     * check; ncMcp_Describe reuses it so the guidance never diverges.
+     * check; ncMcp_DescribeTool reuses it so the guidance never diverges.
      * @param namedCredential developer name of the Named Credential
      * @return the explanation, without a trailing space
      */

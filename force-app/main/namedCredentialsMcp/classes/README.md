@@ -8,9 +8,9 @@ Because the tools are Apex invocable actions, they are equally usable from Flows
 
 | Tool | Class | Purpose |
 | --- | --- | --- |
-| `listCredentials` | [ncMcp_ListCredentials](ncMcp_ListCredentials.cls) | Lists the exposed credentials and whether each is ready to use (name, `isConfigured`, base URL, principal type). Unauthenticated credentials are included, so an agent can tell the user what is missing. |
-| `describe` | [ncMcp_Describe](ncMcp_Describe.cls) | Returns how to use **one** credential: purpose, docs URL, base URL, allowed methods and endpoint patterns. Errors when the credential is unknown or not authenticated. |
-| `sendRequest` | [ncMcp_SendRequest](ncMcp_SendRequest.cls) | Sends a guarded HTTP request through a Named Credential and returns the response. |
+| `listCredentials` | [ncMcp_ListCredentialsTool](ncMcp_ListCredentialsTool.cls) | Lists the exposed credentials and whether each is ready to use (name, `isConfigured`, base URL, principal type). Unauthenticated credentials are included, so an agent can tell the user what is missing. |
+| `describe` | [ncMcp_DescribeTool](ncMcp_DescribeTool.cls) | Returns how to use **one** credential: purpose, docs URL, base URL, allowed methods and endpoint patterns. Errors when the credential is unknown or not authenticated. |
+| `sendRequest` | [ncMcp_SendRequestTool](ncMcp_SendRequestTool.cls) | Sends a guarded HTTP request through a Named Credential and returns the response. |
 
 All three are thin invocable wrappers; the callout path runs through [ncMcp_GuardedCalloutBuilder](ncMcp_GuardedCalloutBuilder.cls), a decorator that mirrors the [CalloutBuilder](../../calloutBuilder/classes/CalloutBuilder.cls) API and enforces the guardrail chain.
 
@@ -95,7 +95,7 @@ public with sharing class NoBulkDeleteGuardrail implements ncMcp_Guardrail {
 2. Assign the **Named Credentials MCP User** permission set (grants the three tool classes) to the connecting users, and grant them the relevant Named Credential's external-credential principal access.
 3. Create the Named Credential and External Credential as usual; authorize the per-user principal or configure the named principal.
 4. Add an active Named Credentials Configuration record (above).
-5. Register and activate the MCP server that surfaces `ncMcp_ListCredentials`, `ncMcp_Describe`, and `ncMcp_SendRequest`, then connect your MCP client. *(Server registration is handled separately from this module.)*
+5. Register and activate the MCP server that surfaces `ncMcp_ListCredentialsTool`, `ncMcp_DescribeTool`, and `ncMcp_SendRequestTool`, then connect your MCP client. *(Server registration is handled separately from this module.)*
 
 ## Direct Apex usage
 

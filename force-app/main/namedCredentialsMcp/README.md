@@ -21,7 +21,7 @@ sequenceDiagram
     autonumber
     actor Agent as AI agent (MCP client)
     participant Server as Salesforce MCP server
-    participant Tool as ncMcp_SendRequest
+    participant Tool as ncMcp_SendRequestTool
     participant Guarded as ncMcp_GuardedCalloutBuilder
     participant Builder as CalloutBuilder
     participant API as External API

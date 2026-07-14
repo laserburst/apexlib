@@ -1,5 +1,5 @@
 @IsTest
-private class ncMcp_SendRequest_Test {
+private class ncMcp_SendRequestTool_Test {
     private class StubMock implements HttpCalloutMock {
         public HttpRequest capturedRequest;
         public Integer statusCode;
@@ -30,16 +30,16 @@ private class ncMcp_SendRequest_Test {
         CalloutBuilder.BUILDER_TO_MOCK_OVERRIDE.put(scope, mock);
     }
 
-    private static ncMcp_SendRequest.Request input(String namedCredential, String path, String method) {
-        ncMcp_SendRequest.Request request = new ncMcp_SendRequest.Request();
+    private static ncMcp_SendRequestTool.Request input(String namedCredential, String path, String method) {
+        ncMcp_SendRequestTool.Request request = new ncMcp_SendRequestTool.Request();
         request.namedCredential = namedCredential;
         request.path = path;
         request.method = method;
         return request;
     }
 
-    private static List<ncMcp_HttpResponseFacade> send(ncMcp_SendRequest.Request request) {
-        return ncMcp_SendRequest.sendRequest(new List<ncMcp_SendRequest.Request>{ request });
+    private static List<ncMcp_HttpResponseFacade> send(ncMcp_SendRequestTool.Request request) {
+        return ncMcp_SendRequestTool.sendRequest(new List<ncMcp_SendRequestTool.Request>{ request });
     }
 
     @IsTest
@@ -48,7 +48,7 @@ private class ncMcp_SendRequest_Test {
         StubMock mock = new StubMock(200, '{"ok":true}');
         mockScope('ncMcpTest_Full', '/v1/data?q=apex', 'GET', mock);
 
-        ncMcp_SendRequest.Request request = input('ncMcpTest_Full', '/v1/data', 'GET');
+        ncMcp_SendRequestTool.Request request = input('ncMcpTest_Full', '/v1/data', 'GET');
         request.headers = '{"Accept":"application/json"}';
         request.queryParameters = '{"q":"apex"}';
 
@@ -106,7 +106,7 @@ private class ncMcp_SendRequest_Test {
     @IsTest
     static void rejectsMalformedHeaders() {
         authenticate('ncMcpTest_Full');
-        ncMcp_SendRequest.Request request = input('ncMcpTest_Full', '/v1/data', 'GET');
+        ncMcp_SendRequestTool.Request request = input('ncMcpTest_Full', '/v1/data', 'GET');
         request.headers = '[1,2]'; // valid JSON, wrong shape
 
         try {
@@ -125,7 +125,7 @@ private class ncMcp_SendRequest_Test {
         StubMock mock = new StubMock(200, '{"ok":true}');
         mockScope('ncMcpTest_Full', '/v1/data', 'GET', mock);
 
-        ncMcp_SendRequest.Request request = input('ncMcpTest_Full', '/v1/data', 'GET');
+        ncMcp_SendRequestTool.Request request = input('ncMcpTest_Full', '/v1/data', 'GET');
         request.headers = '{"Accept":"application/json","X-Trace-Id":null}';
         request.queryParameters = 'null'; // the JSON literal, not an object
 
@@ -140,7 +140,7 @@ private class ncMcp_SendRequest_Test {
     @IsTest
     static void runsCustomGuardrailFromConfig() {
         authenticate('ncMcpTest_Guarded');
-        ncMcp_SendRequest.Request request = input('ncMcpTest_Guarded', '/v1/login', 'POST');
+        ncMcp_SendRequestTool.Request request = input('ncMcpTest_Guarded', '/v1/login', 'POST');
         request.body = '{"password":"hunter2"}';
 
         try {
@@ -182,8 +182,8 @@ private class ncMcp_SendRequest_Test {
         mockScope('ncMcpTest_Full', '/v1/b', 'GET', mock);
 
         Test.startTest();
-            List<ncMcp_HttpResponseFacade> responses = ncMcp_SendRequest.sendRequest(
-                new List<ncMcp_SendRequest.Request>{
+            List<ncMcp_HttpResponseFacade> responses = ncMcp_SendRequestTool.sendRequest(
+                new List<ncMcp_SendRequestTool.Request>{
                     input('ncMcpTest_Full', '/v1/a', 'GET'),
                     input('ncMcpTest_Full', '/v1/b', 'GET')
                 }

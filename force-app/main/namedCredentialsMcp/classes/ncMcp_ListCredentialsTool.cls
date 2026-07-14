@@ -7,7 +7,7 @@
  * Exposed as an invocable action so it is also usable from Flows and Agentforce.
  * @team Laserburst
  */
-global with sharing class ncMcp_ListCredentials {
+global with sharing class ncMcp_ListCredentialsTool {
     @InvocableMethod(
         label='List Named Credentials'
         description='Lists the Named Credentials exposed through this server and whether each is ready to use. Each entry has the credential\'s name, isConfigured (true when it is authenticated for the current context), its base URL, and its principal type. Call this first to discover credentials; it does not include usage details — call the describe tool on one credential to learn how to call it.'

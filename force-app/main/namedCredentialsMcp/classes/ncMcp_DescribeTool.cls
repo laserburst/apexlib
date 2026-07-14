@@ -6,7 +6,7 @@
  * Exposed as an invocable action so it is also usable from Flows and Agentforce.
  * @team Laserburst
  */
-global with sharing class ncMcp_Describe {
+global with sharing class ncMcp_DescribeTool {
     @InvocableMethod(
         label='Describe a Named Credential API'
         description='Returns how to use one Named Credential API: its purpose, base URL, reference documentation URL, allowed HTTP methods, and allowed endpoint path patterns. Call listCredentials first to discover credentials, and call this before sendRequest. Fails with an error when the credential is unknown or not authenticated.'

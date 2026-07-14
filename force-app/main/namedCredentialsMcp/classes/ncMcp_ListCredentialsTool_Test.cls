@@ -1,12 +1,12 @@
 @IsTest
-private class ncMcp_ListCredentials_Test {
+private class ncMcp_ListCredentialsTool_Test {
     @IsTest
     static void listsUnauthenticatedCredentialsToo() {
         ncMcp_AuthenticationGuardrail.stubAuthenticated('ncMcpTest_Full', 'https://example.com', 'PerUserPrincipal');
         // ncMcpTest_Defaults and ncMcpTest_Guarded are intentionally left unauthenticated
 
         Test.startTest();
-            List<ncMcp_ListCredentialsResult> results = ncMcp_ListCredentials.listCredentials();
+            List<ncMcp_ListCredentialsResult> results = ncMcp_ListCredentialsTool.listCredentials();
         Test.stopTest();
 
         Assert.areEqual(1, results.size(), 'The tool returns a single result');

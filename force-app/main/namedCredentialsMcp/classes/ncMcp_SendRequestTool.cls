@@ -6,7 +6,7 @@
  * the callout.
  * @team Laserburst
  */
-global with sharing class ncMcp_SendRequest {
+global with sharing class ncMcp_SendRequestTool {
     @InvocableMethod(
         label='Send HTTP Request via Named Credential'
         description='Sends an HTTP request to an external API through one of the org\'s Named Credentials. Salesforce injects authentication; credentials and tokens are never exposed. Only credentials returned by the listCredentials tool can be called; the describe tool shows how to call each one. Fails with an error on guardrail violations and on HTTP 4xx/5xx responses (the error message contains the HTTP status and response body).'
