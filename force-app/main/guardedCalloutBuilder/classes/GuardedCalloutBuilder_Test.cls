@@ -18,9 +18,9 @@ private class GuardedCalloutBuilder_Test {
     }
 
     /**
-     * @description Referenced by name from recursionIsBlocked's injected config;
-     * proves a custom guardrail cannot execute the callout it is guarding.
-     */
+    * @description Referenced by name from recursionIsBlocked's injected config;
+    * proves a custom guardrail cannot execute the callout it is guarding.
+    */
     public class RecursiveGuardrail implements CalloutGuardrail {
         public void enforce(GuardedCalloutBuilder builder) {
             builder.getHttpResponse();
@@ -50,7 +50,7 @@ private class GuardedCalloutBuilder_Test {
         mockScope('/v1/data', 'GET', new CapturingMock());
 
         Test.startTest();
-            HttpResponse response = guarded('/v1/data', 'GET').getHttpResponse();
+        HttpResponse response = guarded('/v1/data', 'GET').getHttpResponse();
         Test.stopTest();
 
         Assert.areEqual(200, response.getStatusCode(), 'Unexpected status code');
@@ -64,7 +64,7 @@ private class GuardedCalloutBuilder_Test {
         mockScope('/v1/data?q=a+b', 'POST', mock);
 
         Test.startTest();
-            guarded('/v1/data', 'POST').withQueryParameter('q', 'a b').getHttpResponse();
+        guarded('/v1/data', 'POST').withQueryParameter('q', 'a b').getHttpResponse();
         Test.stopTest();
 
         Assert.areEqual(
@@ -80,16 +80,23 @@ private class GuardedCalloutBuilder_Test {
         CapturingMock mock = new CapturingMock();
         mockScope('/v1/data', 'POST', mock);
 
-        GuardedCalloutBuilder builder = guarded('/v1/data', 'POST')
-            .withBody('{"name":"widget"}');
+        GuardedCalloutBuilder builder = guarded('/v1/data', 'POST').withBody('{"name":"widget"}');
 
         Test.startTest();
-            builder.getHttpResponse();
+        builder.getHttpResponse();
         Test.stopTest();
 
-        Assert.areEqual('{"name":"widget"}', mock.capturedRequest.getBody(), 'String body should be sent verbatim (no double-encoding)');
+        Assert.areEqual(
+            '{"name":"widget"}',
+            mock.capturedRequest.getBody(),
+            'String body should be sent verbatim (no double-encoding)'
+        );
         Assert.areEqual('{"name":"widget"}', builder.getBody(), 'Body should be readable as a string by guardrails');
-        Assert.areEqual('application/json', mock.capturedRequest.getHeader('Content-Type'), 'Content-Type should default to JSON');
+        Assert.areEqual(
+            'application/json',
+            mock.capturedRequest.getHeader('Content-Type'),
+            'Content-Type should default to JSON'
+        );
     }
 
     @IsTest
@@ -99,13 +106,17 @@ private class GuardedCalloutBuilder_Test {
         mockScope('/v1/data', 'POST', mock);
 
         Test.startTest();
-            guarded('/v1/data', 'POST')
-                .withHeader('Content-Type', 'text/plain')
-                .withBlobBody(Blob.valueOf('plain text'))
-                .getHttpResponse();
+        guarded('/v1/data', 'POST')
+            .withHeader('Content-Type', 'text/plain')
+            .withBlobBody(Blob.valueOf('plain text'))
+            .getHttpResponse();
         Test.stopTest();
 
-        Assert.areEqual('text/plain', mock.capturedRequest.getHeader('Content-Type'), 'Explicit Content-Type should not be overridden');
+        Assert.areEqual(
+            'text/plain',
+            mock.capturedRequest.getHeader('Content-Type'),
+            'Explicit Content-Type should not be overridden'
+        );
     }
 
     @IsTest
@@ -115,10 +126,14 @@ private class GuardedCalloutBuilder_Test {
         mockScope('/v1/data', 'GET', mock);
 
         Test.startTest();
-            guarded('v1/data', 'get').getHttpResponse(); // no leading slash, lowercase method
+        guarded('v1/data', 'get').getHttpResponse(); // no leading slash, lowercase method
         Test.stopTest();
 
-        Assert.areEqual('callout:GuardedTest_Full/v1/data', mock.capturedRequest.getEndpoint(), 'Leading slash should be added');
+        Assert.areEqual(
+            'callout:GuardedTest_Full/v1/data',
+            mock.capturedRequest.getEndpoint(),
+            'Leading slash should be added'
+        );
         Assert.areEqual('GET', mock.capturedRequest.getMethod(), 'Method should be uppercased');
     }
 
@@ -129,7 +144,7 @@ private class GuardedCalloutBuilder_Test {
         mockScope('/v1/data', 'GET', mock);
 
         Test.startTest();
-            guarded('/v1/data', 'GET').withTimeout(999999).getHttpResponse(); // over the 120000 platform max
+        guarded('/v1/data', 'GET').withTimeout(999999).getHttpResponse(); // over the 120000 platform max
         Test.stopTest();
 
         // If the timeout were not clamped, HttpRequest.setTimeout would reject it and no callout would occur
@@ -181,7 +196,7 @@ private class GuardedCalloutBuilder_Test {
         authenticate('GuardedTest_Full', 'https://example.com'); // Full allows GET, POST only
         try {
             Test.startTest();
-                guarded('/v1/data', 'DELETE').getHttpResponse();
+            guarded('/v1/data', 'DELETE').getHttpResponse();
             Test.stopTest();
             Assert.fail('Expected exception');
         } catch (GuardedCalloutException e) {
@@ -194,7 +209,7 @@ private class GuardedCalloutBuilder_Test {
         // no authenticate() call -> auth guardrail blocks
         try {
             Test.startTest();
-                guarded('/v1/data', 'GET').getHttpResponse();
+            guarded('/v1/data', 'GET').getHttpResponse();
             Test.stopTest();
             Assert.fail('Expected exception');
         } catch (GuardedCalloutException e) {
@@ -213,7 +228,7 @@ private class GuardedCalloutBuilder_Test {
 
         try {
             Test.startTest();
-                guarded('/v1/missing', 'GET').getHttpResponse();
+            guarded('/v1/missing', 'GET').getHttpResponse();
             Test.stopTest();
             Assert.fail('Expected CalloutBuilderException');
         } catch (CalloutBuilder.CalloutBuilderException e) {
@@ -228,13 +243,13 @@ private class GuardedCalloutBuilder_Test {
         mockScope('/v1/data', 'GET', new CapturingMock());
 
         Test.startTest();
-            Map<String, Object> parsed = guarded('/v1/data', 'GET').getResponseBodyMap();
-            try {
-                guarded('/v1/data', 'DELETE').getResponseBodyMap();
-                Assert.fail('Expected the guardrail chain to run for getResponseBodyMap');
-            } catch (GuardedCalloutException e) {
-                Assert.isTrue(e.getMessage().contains('is not allowed'), 'Unexpected: ' + e.getMessage());
-            }
+        Map<String, Object> parsed = guarded('/v1/data', 'GET').getResponseBodyMap();
+        try {
+            guarded('/v1/data', 'DELETE').getResponseBodyMap();
+            Assert.fail('Expected the guardrail chain to run for getResponseBodyMap');
+        } catch (GuardedCalloutException e) {
+            Assert.isTrue(e.getMessage().contains('is not allowed'), 'Unexpected: ' + e.getMessage());
+        }
         Test.stopTest();
 
         Assert.areEqual(true, parsed.get('ok'), 'Response body should be parsed into a map');
@@ -246,7 +261,7 @@ private class GuardedCalloutBuilder_Test {
         mockScope('/v1/data', 'GET', new CapturingMock());
 
         Test.startTest();
-            OkDto parsed = (OkDto) guarded('/v1/data', 'GET').withSuccessType(OkDto.class).getTypedResponseBody();
+        OkDto parsed = (OkDto) guarded('/v1/data', 'GET').withSuccessType(OkDto.class).getTypedResponseBody();
         Test.stopTest();
 
         Assert.areEqual(true, parsed.ok, 'Response body should be deserialized into the success type');
@@ -254,12 +269,13 @@ private class GuardedCalloutBuilder_Test {
 
     @IsTest
     static void accessorsReflectRecordedState() {
-        GuardedCalloutBuilder builder = new GuardedCalloutBuilder('GuardedTest_Full')
-            .withEndpoint('v1/data')
-            .withMethod('post')
-            .withHeader('Accept', 'application/json')
-            .withQueryParameter('limit', '10')
-            .withBody('{"name":"widget"}');
+        GuardedCalloutBuilder builder =
+            new GuardedCalloutBuilder('GuardedTest_Full')
+                .withEndpoint('v1/data')
+                .withMethod('post')
+                .withHeader('Accept', 'application/json')
+                .withQueryParameter('limit', '10')
+                .withBody('{"name":"widget"}');
 
         Assert.areEqual('GuardedTest_Full', builder.getNamedCredential(), 'Unexpected named credential');
         Assert.areEqual('/v1/data', builder.getPath(), 'Path should be normalized with a leading slash');
@@ -290,7 +306,7 @@ private class GuardedCalloutBuilder_Test {
 
         try {
             Test.startTest();
-                builder.getHttpResponse();
+            builder.getHttpResponse();
             Test.stopTest();
             Assert.fail('Expected exception');
         } catch (GuardedCalloutException e) {

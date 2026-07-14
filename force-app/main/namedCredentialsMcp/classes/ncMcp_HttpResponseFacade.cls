@@ -1,9 +1,9 @@
 /**
- * @description Facade over HttpResponse. It flattens the parts of a response an
- * agent needs into serializable fields, and is the output type of the sendRequest
- * MCP tool (so its @InvocableVariable descriptions become the tool's output schema).
- * @team Laserburst
- */
+* @description Facade over HttpResponse. It flattens the parts of a response an
+* agent needs into serializable fields, and is the output type of the sendRequest
+* MCP tool (so its @InvocableVariable descriptions become the tool's output schema).
+* @team Laserburst
+*/
 global with sharing class ncMcp_HttpResponseFacade {
     @InvocableVariable(
         description='HTTP status code of the response (2xx/3xx only; 4xx and 5xx raise an error instead of returning).'

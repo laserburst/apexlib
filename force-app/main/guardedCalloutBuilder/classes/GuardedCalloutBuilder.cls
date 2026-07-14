@@ -1,32 +1,25 @@
 /**
- * @description A decorator around CalloutBuilder (composition — CalloutBuilder is
- * not extendable) that mirrors its public API and enforces a guardrail chain
- * before any callout leaves the org. The chain is: authentication, allowed
- * method, allowed endpoint, then any custom guardrails named in the
- * configuration (in listed order). Any guardrail may throw
- * GuardedCalloutException to block the call; guardrails receive this decorator
- * and inspect the request through its read accessors.
- *
- * Differences from a bare CalloutBuilder, beyond guardrail enforcement:
- * query parameters are URL-encoded and appended to the endpoint for every
- * HTTP method (CalloutBuilder does that only for GET), String bodies are sent
- * verbatim (CalloutBuilder would JSON-serialize them a second time), the
- * timeout defaults to 30 seconds and is clamped to platform bounds, and
- * Content-Type defaults to application/json when a body is present.
- * @team Laserburst
- */
+* @description A decorator around CalloutBuilder (composition — CalloutBuilder is
+* not extendable) that mirrors its public API and enforces a guardrail chain
+* before any callout leaves the org. The chain is: authentication, allowed
+* method, allowed endpoint, then any custom guardrails named in the
+* configuration (in listed order). Any guardrail may throw
+* GuardedCalloutException to block the call; guardrails receive this decorator
+* and inspect the request through its read accessors.
+*
+* Differences from a bare CalloutBuilder, beyond guardrail enforcement:
+* query parameters are URL-encoded and appended to the endpoint for every
+* HTTP method (CalloutBuilder does that only for GET), String bodies are sent
+* verbatim (CalloutBuilder would JSON-serialize them a second time), the
+* timeout defaults to 30 seconds and is clamped to platform bounds, and
+* Content-Type defaults to application/json when a body is present.
+* @team Laserburst
+*/
 public with sharing class GuardedCalloutBuilder {
     private static final Integer DEFAULT_TIMEOUT = 30000;
     private static final Integer MIN_TIMEOUT = 1000;
     private static final Integer MAX_TIMEOUT = 120000;
-    private static final Set<String> VALID_METHODS = new Set<String>{
-        'GET',
-        'POST',
-        'PUT',
-        'PATCH',
-        'DELETE',
-        'HEAD'
-    };
+    private static final Set<String> VALID_METHODS = new Set<String>{ 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD' };
 
     private final CalloutBuilder builder;
     private final String namedCredential;
@@ -42,7 +35,9 @@ public with sharing class GuardedCalloutBuilder {
 
     public GuardedCalloutBuilder(String namedCredential) {
         if (String.isBlank(namedCredential)) {
-            throw new GuardedCalloutException('A Named Credential developer name is required to build a guarded callout.');
+            throw new GuardedCalloutException(
+                'A Named Credential developer name is required to build a guarded callout.'
+            );
         }
         this.namedCredential = namedCredential;
         this.builder = new CalloutBuilder('callout:' + namedCredential);
@@ -320,11 +315,12 @@ public with sharing class GuardedCalloutBuilder {
 
     @TestVisible
     private List<CalloutGuardrail> resolveGuardrails() {
-        List<CalloutGuardrail> guardrails = new List<CalloutGuardrail>{
-            new CalloutAuthenticationGuardrail(),
-            new CalloutMethodGuardrail(),
-            new CalloutEndpointGuardrail()
-        };
+        List<CalloutGuardrail> guardrails =
+            new List<CalloutGuardrail>{
+                new CalloutAuthenticationGuardrail(),
+                new CalloutMethodGuardrail(),
+                new CalloutEndpointGuardrail()
+            };
         for (String className : this.config.guardrails) {
             guardrails.add(this.instantiate(className));
         }
@@ -335,11 +331,11 @@ public with sharing class GuardedCalloutBuilder {
         System.Type guardrailType = System.Type.forName(className);
         if (guardrailType == null) {
             throw new GuardedCalloutException(
-                'Custom guardrail class "' +
-                    className +
-                    '" was not found. Check the "guardrails" list in the configuration for "' +
-                    this.namedCredential +
-                    '".'
+                'Custom guardrail class "'
+                + className
+                + '" was not found. Check the "guardrails" list in the configuration for "'
+                + this.namedCredential
+                + '".'
             );
         }
         Object instance;
@@ -351,7 +347,9 @@ public with sharing class GuardedCalloutBuilder {
             );
         }
         if (!(instance instanceof CalloutGuardrail)) {
-            throw new GuardedCalloutException('Custom guardrail class "' + className + '" must implement CalloutGuardrail.');
+            throw new GuardedCalloutException(
+                'Custom guardrail class "' + className + '" must implement CalloutGuardrail.'
+            );
         }
         return (CalloutGuardrail) instance;
     }

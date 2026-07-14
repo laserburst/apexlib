@@ -1,12 +1,12 @@
 /**
- * @description Built-in guardrail: the request path must match at least one of
- * the configuration's allowedEndpointPatterns (defaults to "*", i.e. any path).
- * A pattern is a literal path in which "*" matches any run of characters,
- * including "/". The query string is not considered when matching. Paths
- * containing a ".." segment (raw or URL-encoded) are rejected outright, since
- * the server would resolve them outside the allowed URL space.
- * @team Laserburst
- */
+* @description Built-in guardrail: the request path must match at least one of
+* the configuration's allowedEndpointPatterns (defaults to "*", i.e. any path).
+* A pattern is a literal path in which "*" matches any run of characters,
+* including "/". The query string is not considered when matching. Paths
+* containing a ".." segment (raw or URL-encoded) are rejected outright, since
+* the server would resolve them outside the allowed URL space.
+* @team Laserburst
+*/
 public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
     public void enforce(GuardedCalloutBuilder builder) {
         String path = builder.getPath();
@@ -15,9 +15,7 @@ public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
             path = path.substring(0, queryStart);
         }
         if (containsDotSegment(path)) {
-            throw new GuardedCalloutException(
-                'Path "' + path + '" contains a ".." segment, which is not allowed.'
-            );
+            throw new GuardedCalloutException('Path "' + path + '" contains a ".." segment, which is not allowed.');
         }
 
         List<String> patterns = builder.getConfig().allowedEndpointPatterns;
@@ -27,13 +25,13 @@ public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
             }
         }
         throw new GuardedCalloutException(
-            'Path "' +
-                path +
-                '" does not match any allowed endpoint pattern for "' +
-                builder.getNamedCredential() +
-                '". Allowed patterns: ' +
-                String.join(patterns, ', ') +
-                '.'
+            'Path "'
+            + path
+            + '" does not match any allowed endpoint pattern for "'
+            + builder.getNamedCredential()
+            + '". Allowed patterns: '
+            + String.join(patterns, ', ')
+            + '.'
         );
     }
 

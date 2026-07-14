@@ -1,12 +1,12 @@
 /**
- * @description MCP tool "listCredentials": lists the Named Credentials exposed
- * through this server (those with an active configuration record) and whether
- * each is ready to use for the running context. Unlike describe, it does NOT
- * filter out unauthenticated credentials — isConfigured=false with a principal
- * type tells an agent which kind of authorization is missing. Takes no inputs.
- * Exposed as an invocable action so it is also usable from Flows and Agentforce.
- * @team Laserburst
- */
+* @description MCP tool "listCredentials": lists the Named Credentials exposed
+* through this server (those with an active configuration record) and whether
+* each is ready to use for the running context. Unlike describe, it does NOT
+* filter out unauthenticated credentials — isConfigured=false with a principal
+* type tells an agent which kind of authorization is missing. Takes no inputs.
+* Exposed as an invocable action so it is also usable from Flows and Agentforce.
+* @team Laserburst
+*/
 global with sharing class ncMcp_ListCredentialsTool {
     @InvocableMethod(
         label='List Named Credentials'

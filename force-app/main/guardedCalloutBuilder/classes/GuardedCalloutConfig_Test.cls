@@ -3,7 +3,7 @@ private class GuardedCalloutConfig_Test {
     @IsTest
     static void getActiveReturnsOnlyActiveTestRecords() {
         Test.startTest();
-            Map<String, GuardedCalloutConfig> configs = GuardedCalloutConfig.getActive();
+        Map<String, GuardedCalloutConfig> configs = GuardedCalloutConfig.getActive();
         Test.stopTest();
 
         Assert.isTrue(configs.containsKey('GuardedTest_Full'), 'Full config should be present');
@@ -21,7 +21,11 @@ private class GuardedCalloutConfig_Test {
         Assert.areEqual('https://example.com/docs', config.apiDocsUrl, 'Unexpected docs url');
         Assert.areEqual(new List<String>{ 'GET', 'POST' }, config.allowedMethods, 'Unexpected methods');
         Assert.areEqual(new List<String>{ '/v1/*' }, config.allowedEndpointPatterns, 'Unexpected patterns');
-        Assert.areEqual('GuardedTest_Full', config.namedCredential, 'Named credential should come from the record field');
+        Assert.areEqual(
+            'GuardedTest_Full',
+            config.namedCredential,
+            'Named credential should come from the record field'
+        );
     }
 
     @IsTest
@@ -39,7 +43,10 @@ private class GuardedCalloutConfig_Test {
             GuardedCalloutConfig.forName('does_not_exist');
             Assert.fail('Expected exception');
         } catch (GuardedCalloutException e) {
-            Assert.isTrue(e.getMessage().contains('No active configuration found'), 'Unexpected message: ' + e.getMessage());
+            Assert.isTrue(
+                e.getMessage().contains('No active configuration found'),
+                'Unexpected message: ' + e.getMessage()
+            );
         }
     }
 
@@ -49,7 +56,10 @@ private class GuardedCalloutConfig_Test {
             GuardedCalloutConfig.forName('GuardedTest_Inactive');
             Assert.fail('Expected exception for inactive config');
         } catch (GuardedCalloutException e) {
-            Assert.isTrue(e.getMessage().contains('No active configuration found'), 'Unexpected message: ' + e.getMessage());
+            Assert.isTrue(
+                e.getMessage().contains('No active configuration found'),
+                'Unexpected message: ' + e.getMessage()
+            );
         }
     }
 

@@ -1,22 +1,22 @@
 /**
- * @description Built-in guardrail: only allows requests to a Named Credential
- * that is authenticated for the running context — a per-user principal the
- * current user has authorized, or a named principal an administrator has
- * configured. It also exposes getStatus() so callers (such as discovery tools)
- * can report whether each credential is ready to use.
- *
- * ConnectApi lookups are not executable in test context, so getStatus() reads
- * from the @TestVisible testStatuses map during tests; seed it to simulate auth
- * states. The evaluation seams below are @TestVisible and accept ConnectApi
- * objects (which can be constructed inside a test) so the logic stays covered.
- * @team Laserburst
- */
+* @description Built-in guardrail: only allows requests to a Named Credential
+* that is authenticated for the running context — a per-user principal the
+* current user has authorized, or a named principal an administrator has
+* configured. It also exposes getStatus() so callers (such as discovery tools)
+* can report whether each credential is ready to use.
+*
+* ConnectApi lookups are not executable in test context, so getStatus() reads
+* from the @TestVisible testStatuses map during tests; seed it to simulate auth
+* states. The evaluation seams below are @TestVisible and accept ConnectApi
+* objects (which can be constructed inside a test) so the logic stays covered.
+* @team Laserburst
+*/
 public with sharing class CalloutAuthenticationGuardrail implements CalloutGuardrail {
     /**
-     * @description Authentication outcome for one Named Credential. principalType
-     * is populated even when not authenticated (from the first principal found),
-     * so callers can tell a user which kind of authorization is missing.
-     */
+    * @description Authentication outcome for one Named Credential. principalType
+    * is populated even when not authenticated (from the first principal found),
+    * so callers can tell a user which kind of authorization is missing.
+    */
     public class Status {
         public Boolean isAuthenticated = false;
         public String principalType;
@@ -43,24 +43,24 @@ public with sharing class CalloutAuthenticationGuardrail implements CalloutGuard
     }
 
     /**
-     * @description Shared explanation of a failed authentication check; callers
-     * can reuse it so the guidance never diverges.
-     * @param namedCredential developer name of the Named Credential
-     * @return the explanation, without a trailing space
-     */
+    * @description Shared explanation of a failed authentication check; callers
+    * can reuse it so the guidance never diverges.
+    * @param namedCredential developer name of the Named Credential
+    * @return the explanation, without a trailing space
+    */
     public static String notAuthenticatedMessage(String namedCredential) {
-        return 'Named Credential "' +
-            namedCredential +
-            '" is not authenticated for the current user. A per-user credential must be authorized by the user, ' +
-            'or the named principal must be configured by an administrator.';
+        return 'Named Credential "'
+            + namedCredential
+            + '" is not authenticated for the current user. A per-user credential must be authorized by the user, '
+            + 'or the named principal must be configured by an administrator.';
     }
 
     /**
-     * @description Resolves whether a Named Credential is usable now and, if so,
-     * its principal type and callout base URL.
-     * @param namedCredential developer name of the Named Credential
-     * @return the resolved Status (never null; isAuthenticated is false when unknown)
-     */
+    * @description Resolves whether a Named Credential is usable now and, if so,
+    * its principal type and callout base URL.
+    * @param namedCredential developer name of the Named Credential
+    * @return the resolved Status (never null; isAuthenticated is false when unknown)
+    */
     public static Status getStatus(String namedCredential) {
         if (Test.isRunningTest()) {
             return testStatuses.containsKey(namedCredential) ? testStatuses.get(namedCredential) : new Status();
@@ -83,7 +83,8 @@ public with sharing class CalloutAuthenticationGuardrail implements CalloutGuard
             try {
                 details = ConnectApiAdapter.getExternalCredential(externalCredential.developerName);
             } catch (Exception e) {
-                continue; // an unreadable External Credential counts as unauthenticated, not as an error
+                continue // an unreadable External Credential counts as unauthenticated, not as an error
+                ;
             }
             ConnectApi.ExternalCredentialPrincipal principal = configuredPrincipal(details);
             if (principal != null) {
@@ -99,7 +100,9 @@ public with sharing class CalloutAuthenticationGuardrail implements CalloutGuard
     }
 
     @TestVisible
-    private static ConnectApi.ExternalCredentialPrincipal configuredPrincipal(ConnectApi.ExternalCredential externalCredential) {
+    private static ConnectApi.ExternalCredentialPrincipal configuredPrincipal(
+        ConnectApi.ExternalCredential externalCredential
+    ) {
         if (externalCredential == null || externalCredential.principals == null) {
             return null;
         }
@@ -113,7 +116,11 @@ public with sharing class CalloutAuthenticationGuardrail implements CalloutGuard
 
     @TestVisible
     private static String firstPrincipalType(ConnectApi.ExternalCredential externalCredential) {
-        if (externalCredential == null || externalCredential.principals == null || externalCredential.principals.isEmpty()) {
+        if (
+            externalCredential == null
+            || externalCredential.principals == null
+            || externalCredential.principals.isEmpty()
+        ) {
             return null;
         }
         ConnectApi.CredentialPrincipalType principalType = externalCredential.principals[0].principalType;

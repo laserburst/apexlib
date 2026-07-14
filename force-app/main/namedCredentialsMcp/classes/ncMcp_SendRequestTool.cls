@@ -1,11 +1,11 @@
 /**
- * @description MCP tool "sendRequest": sends a guarded HTTP request through a
- * Named Credential. Exposed as an invocable action so it is also usable from
- * Flows and Agentforce. Parses the string-typed tool inputs and drives
- * GuardedCalloutBuilder, which enforces the guardrail chain and performs
- * the callout.
- * @team Laserburst
- */
+* @description MCP tool "sendRequest": sends a guarded HTTP request through a
+* Named Credential. Exposed as an invocable action so it is also usable from
+* Flows and Agentforce. Parses the string-typed tool inputs and drives
+* GuardedCalloutBuilder, which enforces the guardrail chain and performs
+* the callout.
+* @team Laserburst
+*/
 global with sharing class ncMcp_SendRequestTool {
     @InvocableMethod(
         label='Send HTTP Request via Named Credential'
@@ -39,12 +39,13 @@ global with sharing class ncMcp_SendRequestTool {
         if (String.isBlank(input.path)) {
             throw new GuardedCalloutException('Field "path" is required, e.g. "/v1/resource".');
         }
-        GuardedCalloutBuilder guarded = new GuardedCalloutBuilder(input.namedCredential)
-            .withEndpoint(input.path)
-            .withMethod(input.method)
-            .withHeaders(parseStringMap(input.headers, 'headers'))
-            .withQueryParameters(parseStringMap(input.queryParameters, 'queryParameters'))
-            .withTimeout(input.timeoutMilliseconds);
+        GuardedCalloutBuilder guarded =
+            new GuardedCalloutBuilder(input.namedCredential)
+                .withEndpoint(input.path)
+                .withMethod(input.method)
+                .withHeaders(parseStringMap(input.headers, 'headers'))
+                .withQueryParameters(parseStringMap(input.queryParameters, 'queryParameters'))
+                .withTimeout(input.timeoutMilliseconds);
         if (String.isNotBlank(input.body)) {
             guarded.withBody(input.body);
         }

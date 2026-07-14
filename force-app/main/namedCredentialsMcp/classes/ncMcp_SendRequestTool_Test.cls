@@ -26,7 +26,8 @@ private class ncMcp_SendRequestTool_Test {
     }
 
     private static void mockScope(String namedCredential, String endpoint, String method, HttpCalloutMock mock) {
-        CalloutBuilder scope = new CalloutBuilder('callout:' + namedCredential).withEndpoint(endpoint).withMethod(method);
+        CalloutBuilder scope =
+            new CalloutBuilder('callout:' + namedCredential).withEndpoint(endpoint).withMethod(method);
         CalloutBuilder.BUILDER_TO_MOCK_OVERRIDE.put(scope, mock);
     }
 
@@ -53,7 +54,7 @@ private class ncMcp_SendRequestTool_Test {
         request.queryParameters = '{"q":"apex"}';
 
         Test.startTest();
-            List<ncMcp_HttpResponseFacade> responses = send(request);
+        List<ncMcp_HttpResponseFacade> responses = send(request);
         Test.stopTest();
 
         Assert.areEqual(1, responses.size(), 'One response expected');
@@ -68,12 +69,18 @@ private class ncMcp_SendRequestTool_Test {
 
         try {
             Test.startTest();
-                send(input('GuardedTest_Full', '/v1/missing', 'GET'));
+            send(input('GuardedTest_Full', '/v1/missing', 'GET'));
             Test.stopTest();
             Assert.fail('Expected GuardedCalloutException');
         } catch (GuardedCalloutException e) {
-            Assert.isTrue(e.getMessage().contains('HTTP 404'), 'HTTP status should be in the message: ' + e.getMessage());
-            Assert.isTrue(e.getMessage().contains('not found here'), 'Error body should be in the message: ' + e.getMessage());
+            Assert.isTrue(
+                e.getMessage().contains('HTTP 404'),
+                'HTTP status should be in the message: ' + e.getMessage()
+            );
+            Assert.isTrue(
+                e.getMessage().contains('not found here'),
+                'Error body should be in the message: ' + e.getMessage()
+            );
         }
     }
 
@@ -82,7 +89,7 @@ private class ncMcp_SendRequestTool_Test {
         authenticate('GuardedTest_Full'); // Full allows GET, POST only
         try {
             Test.startTest();
-                send(input('GuardedTest_Full', '/v1/data', 'DELETE'));
+            send(input('GuardedTest_Full', '/v1/data', 'DELETE'));
             Test.stopTest();
             Assert.fail('Expected GuardedCalloutException');
         } catch (GuardedCalloutException e) {
@@ -95,7 +102,7 @@ private class ncMcp_SendRequestTool_Test {
         // no authenticate() call -> auth guardrail blocks
         try {
             Test.startTest();
-                send(input('GuardedTest_Full', '/v1/data', 'GET'));
+            send(input('GuardedTest_Full', '/v1/data', 'GET'));
             Test.stopTest();
             Assert.fail('Expected GuardedCalloutException');
         } catch (GuardedCalloutException e) {
@@ -111,7 +118,7 @@ private class ncMcp_SendRequestTool_Test {
 
         try {
             Test.startTest();
-                send(request);
+            send(request);
             Test.stopTest();
             Assert.fail('Expected GuardedCalloutException');
         } catch (GuardedCalloutException e) {
@@ -130,11 +137,15 @@ private class ncMcp_SendRequestTool_Test {
         request.queryParameters = 'null'; // the JSON literal, not an object
 
         Test.startTest();
-            List<ncMcp_HttpResponseFacade> responses = send(request);
+        List<ncMcp_HttpResponseFacade> responses = send(request);
         Test.stopTest();
 
         Assert.areEqual(200, responses[0].statusCode, 'Null header values and null JSON should be ignored, not crash');
-        Assert.areEqual('application/json', mock.capturedRequest.getHeader('Accept'), 'Non-null headers should be forwarded');
+        Assert.areEqual(
+            'application/json',
+            mock.capturedRequest.getHeader('Accept'),
+            'Non-null headers should be forwarded'
+        );
     }
 
     @IsTest
@@ -145,7 +156,7 @@ private class ncMcp_SendRequestTool_Test {
 
         try {
             Test.startTest();
-                send(request);
+            send(request);
             Test.stopTest();
             Assert.fail('Expected the custom guardrail to block the request');
         } catch (GuardedCalloutException e) {
@@ -160,7 +171,10 @@ private class ncMcp_SendRequestTool_Test {
             Assert.fail('Expected GuardedCalloutException');
         } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('"namedCredential" is required'), 'Unexpected: ' + e.getMessage());
-            Assert.isTrue(e.getMessage().contains('listCredentials'), 'Should point the agent to the listCredentials tool');
+            Assert.isTrue(
+                e.getMessage().contains('listCredentials'),
+                'Should point the agent to the listCredentials tool'
+            );
         }
     }
 
@@ -182,7 +196,8 @@ private class ncMcp_SendRequestTool_Test {
         mockScope('GuardedTest_Full', '/v1/b', 'GET', mock);
 
         Test.startTest();
-            List<ncMcp_HttpResponseFacade> responses = ncMcp_SendRequestTool.sendRequest(
+        List<ncMcp_HttpResponseFacade> responses =
+            ncMcp_SendRequestTool.sendRequest(
                 new List<ncMcp_SendRequestTool.Request>{
                     input('GuardedTest_Full', '/v1/a', 'GET'),
                     input('GuardedTest_Full', '/v1/b', 'GET')

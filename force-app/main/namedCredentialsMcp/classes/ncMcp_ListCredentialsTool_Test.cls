@@ -6,7 +6,7 @@ private class ncMcp_ListCredentialsTool_Test {
         // GuardedTest_Defaults and GuardedTest_Guarded are intentionally left unauthenticated
 
         Test.startTest();
-            List<ncMcp_ListCredentialsResult> results = ncMcp_ListCredentialsTool.listCredentials();
+        List<ncMcp_ListCredentialsResult> results = ncMcp_ListCredentialsTool.listCredentials();
         Test.stopTest();
 
         Assert.areEqual(1, results.size(), 'The tool returns a single result');
@@ -18,7 +18,11 @@ private class ncMcp_ListCredentialsTool_Test {
 
         Map<String, Object> defaults = (Map<String, Object>) credentials[0];
         Assert.areEqual('GuardedTest_Defaults', defaults.get('name'), 'Entries should be sorted by name');
-        Assert.areEqual(false, defaults.get('isConfigured'), 'Unauthenticated credential should show isConfigured=false');
+        Assert.areEqual(
+            false,
+            defaults.get('isConfigured'),
+            'Unauthenticated credential should show isConfigured=false'
+        );
         Assert.isNull(defaults.get('baseUrl'), 'Unknown base URL should be null');
         Assert.isNull(defaults.get('principalType'), 'Unknown principal type should be null');
 
@@ -28,7 +32,11 @@ private class ncMcp_ListCredentialsTool_Test {
         Assert.areEqual('https://example.com', full.get('baseUrl'), 'Unexpected base URL');
         Assert.areEqual('PerUserPrincipal', full.get('principalType'), 'Unexpected principal type');
 
-        Assert.areEqual('GuardedTest_Guarded', ((Map<String, Object>) credentials[2]).get('name'), 'Entries should be sorted by name');
+        Assert.areEqual(
+            'GuardedTest_Guarded',
+            ((Map<String, Object>) credentials[2]).get('name'),
+            'Entries should be sorted by name'
+        );
     }
 
     @IsTest

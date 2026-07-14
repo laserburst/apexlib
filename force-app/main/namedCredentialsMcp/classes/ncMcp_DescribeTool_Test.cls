@@ -15,14 +15,18 @@ private class ncMcp_DescribeTool_Test {
         authenticate('GuardedTest_Full', 'https://example.com');
 
         Test.startTest();
-            List<ncMcp_DescribeResult> results = describe('GuardedTest_Full');
+        List<ncMcp_DescribeResult> results = describe('GuardedTest_Full');
         Test.stopTest();
 
         Assert.areEqual(1, results.size(), 'One result per input request');
         Map<String, Object> api = (Map<String, Object>) JSON.deserializeUntyped(results[0].api);
         Assert.areEqual('GuardedTest_Full', api.get('name'), 'Unexpected API name');
         Assert.areEqual('https://example.com', api.get('baseUrl'), 'Unexpected base URL');
-        Assert.areEqual(new List<Object>{ 'GET', 'POST' }, (List<Object>) api.get('allowedMethods'), 'Unexpected methods');
+        Assert.areEqual(
+            new List<Object>{ 'GET', 'POST' },
+            (List<Object>) api.get('allowedMethods'),
+            'Unexpected methods'
+        );
         Assert.isNotNull(api.get('allowedEndpointPatterns'), 'Endpoint patterns should be included');
     }
 
@@ -34,7 +38,10 @@ private class ncMcp_DescribeTool_Test {
             Assert.fail('Expected GuardedCalloutException');
         } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('not authenticated'), 'Unexpected: ' + e.getMessage());
-            Assert.isTrue(e.getMessage().contains('listCredentials'), 'Should point the agent to the listCredentials tool');
+            Assert.isTrue(
+                e.getMessage().contains('listCredentials'),
+                'Should point the agent to the listCredentials tool'
+            );
         }
     }
 
@@ -45,7 +52,10 @@ private class ncMcp_DescribeTool_Test {
             Assert.fail('Expected GuardedCalloutException');
         } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('No active configuration found'), 'Unexpected: ' + e.getMessage());
-            Assert.isTrue(e.getMessage().contains('listCredentials'), 'Should point the agent to the listCredentials tool');
+            Assert.isTrue(
+                e.getMessage().contains('listCredentials'),
+                'Should point the agent to the listCredentials tool'
+            );
         }
     }
 

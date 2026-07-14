@@ -1,11 +1,11 @@
 /**
- * @description MCP tool "describe": returns how to use one Named Credential API
- * (purpose, docs, base URL, allowed methods and endpoint patterns). Discovery
- * is the listCredentials tool's job; this tool details a single credential and
- * fails with an actionable error when it is unknown or not authenticated.
- * Exposed as an invocable action so it is also usable from Flows and Agentforce.
- * @team Laserburst
- */
+* @description MCP tool "describe": returns how to use one Named Credential API
+* (purpose, docs, base URL, allowed methods and endpoint patterns). Discovery
+* is the listCredentials tool's job; this tool details a single credential and
+* fails with an actionable error when it is unknown or not authenticated.
+* Exposed as an invocable action so it is also usable from Flows and Agentforce.
+* @team Laserburst
+*/
 global with sharing class ncMcp_DescribeTool {
     @InvocableMethod(
         label='Describe a Named Credential API'
@@ -31,8 +31,8 @@ global with sharing class ncMcp_DescribeTool {
         CalloutAuthenticationGuardrail.Status status = CalloutAuthenticationGuardrail.getStatus(namedCredential);
         if (!status.isAuthenticated) {
             throw new GuardedCalloutException(
-                CalloutAuthenticationGuardrail.notAuthenticatedMessage(namedCredential) +
-                    ' Call the listCredentials tool to check credential status.'
+                CalloutAuthenticationGuardrail.notAuthenticatedMessage(namedCredential)
+                + ' Call the listCredentials tool to check credential status.'
             );
         }
 

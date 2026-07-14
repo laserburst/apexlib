@@ -12,9 +12,8 @@ private class CalloutGuardrails_Test {
         config.allowedEndpointPatterns = patterns;
         config.guardrails = new List<String>();
 
-        GuardedCalloutBuilder guarded = new GuardedCalloutBuilder('GuardedTest_Full')
-            .withEndpoint(path)
-            .withMethod(method);
+        GuardedCalloutBuilder guarded =
+            new GuardedCalloutBuilder('GuardedTest_Full').withEndpoint(path).withMethod(method);
         guarded.config = config;
         return guarded;
     }
@@ -23,14 +22,16 @@ private class CalloutGuardrails_Test {
 
     @IsTest
     static void methodGuardrailAllowsListedMethod() {
-        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET', 'POST' }, new List<String>{ '*' });
+        GuardedCalloutBuilder guarded =
+            buildGuarded('GET', '/v1/x', new List<String>{ 'GET', 'POST' }, new List<String>{ '*' });
         new CalloutMethodGuardrail().enforce(guarded);
         // no exception = pass
     }
 
     @IsTest
     static void methodGuardrailBlocksUnlistedMethod() {
-        GuardedCalloutBuilder guarded = buildGuarded('DELETE', '/v1/x', new List<String>{ 'GET', 'POST' }, new List<String>{ '*' });
+        GuardedCalloutBuilder guarded =
+            buildGuarded('DELETE', '/v1/x', new List<String>{ 'GET', 'POST' }, new List<String>{ '*' });
         try {
             new CalloutMethodGuardrail().enforce(guarded);
             Assert.fail('Expected block');
@@ -67,7 +68,8 @@ private class CalloutGuardrails_Test {
     }
 
     private static void assertPath(String pattern, String path, Boolean expectedAllowed) {
-        GuardedCalloutBuilder guarded = buildGuarded('GET', path, new List<String>{ 'GET' }, new List<String>{ pattern });
+        GuardedCalloutBuilder guarded =
+            buildGuarded('GET', path, new List<String>{ 'GET' }, new List<String>{ pattern });
         Boolean allowed = true;
         try {
             new CalloutEndpointGuardrail().enforce(guarded);
@@ -79,19 +81,16 @@ private class CalloutGuardrails_Test {
 
     @IsTest
     static void endpointGuardrailIgnoresQueryString() {
-        GuardedCalloutBuilder guarded = buildGuarded(
-            'GET',
-            '/v1/models?limit=10',
-            new List<String>{ 'GET' },
-            new List<String>{ '/v1/models' }
-        );
+        GuardedCalloutBuilder guarded =
+            buildGuarded('GET', '/v1/models?limit=10', new List<String>{ 'GET' }, new List<String>{ '/v1/models' });
         new CalloutEndpointGuardrail().enforce(guarded);
         // no exception = pass; query string is excluded from matching
     }
 
     @IsTest
     static void endpointGuardrailBlockMessage() {
-        GuardedCalloutBuilder guarded = buildGuarded('GET', '/admin/users', new List<String>{ 'GET' }, new List<String>{ '/v1/*' });
+        GuardedCalloutBuilder guarded =
+            buildGuarded('GET', '/admin/users', new List<String>{ 'GET' }, new List<String>{ '/v1/*' });
         try {
             new CalloutEndpointGuardrail().enforce(guarded);
             Assert.fail('Expected block');
@@ -106,14 +105,16 @@ private class CalloutGuardrails_Test {
     static void authGuardrailPassesWhenConfigured() {
         CalloutAuthenticationGuardrail.stubAuthenticated('GuardedTest_Full', null, null);
 
-        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
+        GuardedCalloutBuilder guarded =
+            buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
         new CalloutAuthenticationGuardrail().enforce(guarded);
         // no exception = pass
     }
 
     @IsTest
     static void authGuardrailBlocksWhenNotConfigured() {
-        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
+        GuardedCalloutBuilder guarded =
+            buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
         try {
             new CalloutAuthenticationGuardrail().enforce(guarded);
             Assert.fail('Expected block');
@@ -131,7 +132,10 @@ private class CalloutGuardrails_Test {
     @IsTest
     static void evaluateHandlesNullNamedCredential() {
         // ConnectApi returned null (missing/untestable NC) -> unauthenticated
-        Assert.isFalse(CalloutAuthenticationGuardrail.evaluate(null).isAuthenticated, 'Null NC should be unauthenticated');
+        Assert.isFalse(
+            CalloutAuthenticationGuardrail.evaluate(null).isAuthenticated,
+            'Null NC should be unauthenticated'
+        );
     }
 
     @IsTest
@@ -144,7 +148,11 @@ private class CalloutGuardrails_Test {
 
         // ConnectApiAdapter.getExternalCredential returns null in test, so no principal is configured
         CalloutAuthenticationGuardrail.Status status = CalloutAuthenticationGuardrail.evaluate(nc);
-        Assert.areEqual('https://x.example.com', status.baseUrl, 'Base URL should be captured from the Named Credential');
+        Assert.areEqual(
+            'https://x.example.com',
+            status.baseUrl,
+            'Base URL should be captured from the Named Credential'
+        );
         Assert.isFalse(status.isAuthenticated, 'No configured principal is reachable in test context');
         Assert.isNull(status.principalType, 'No principal details are reachable in test context');
     }
@@ -154,7 +162,10 @@ private class CalloutGuardrails_Test {
         ConnectApi.NamedCredential nc = new ConnectApi.NamedCredential();
         nc.calloutUrl = 'https://y.example.com';
         // externalCredentials left null
-        Assert.isFalse(CalloutAuthenticationGuardrail.evaluate(nc).isAuthenticated, 'No external credentials -> unauthenticated');
+        Assert.isFalse(
+            CalloutAuthenticationGuardrail.evaluate(nc).isAuthenticated,
+            'No external credentials -> unauthenticated'
+        );
     }
 
     @IsTest
@@ -213,7 +224,8 @@ private class CalloutGuardrails_Test {
         ec.principals = new List<ConnectApi.ExternalCredentialPrincipal>();
         Assert.isNull(CalloutAuthenticationGuardrail.firstPrincipalType(ec), 'Empty principals -> null');
 
-        ec.principals = new List<ConnectApi.ExternalCredentialPrincipal>{ new ConnectApi.ExternalCredentialPrincipal() };
+        ec.principals =
+            new List<ConnectApi.ExternalCredentialPrincipal>{ new ConnectApi.ExternalCredentialPrincipal() };
         Assert.isNull(CalloutAuthenticationGuardrail.firstPrincipalType(ec), 'Principal without a type -> null');
     }
 
@@ -221,8 +233,9 @@ private class CalloutGuardrails_Test {
 
     @IsTest
     static void exampleGuardrailBlocksSensitiveBody() {
-        GuardedCalloutBuilder guarded = buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' })
-            .withBody('{"user":"a","password":"hunter2"}');
+        GuardedCalloutBuilder guarded =
+            buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' })
+                .withBody('{"user":"a","password":"hunter2"}');
         try {
             new CalloutExampleGuardrail().enforce(guarded);
             Assert.fail('Expected block');
@@ -233,11 +246,13 @@ private class CalloutGuardrails_Test {
 
     @IsTest
     static void exampleGuardrailAllowsCleanAndBlankBody() {
-        GuardedCalloutBuilder withCleanBody = buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' })
-            .withBody('{"name":"widget"}');
+        GuardedCalloutBuilder withCleanBody =
+            buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' })
+                .withBody('{"name":"widget"}');
         new CalloutExampleGuardrail().enforce(withCleanBody);
 
-        GuardedCalloutBuilder withoutBody = buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' });
+        GuardedCalloutBuilder withoutBody =
+            buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' });
         new CalloutExampleGuardrail().enforce(withoutBody);
         // no exception = pass
     }
@@ -246,7 +261,8 @@ private class CalloutGuardrails_Test {
 
     @IsTest
     static void resolveGuardrailsIncludesBuiltInsThenCustom() {
-        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
+        GuardedCalloutBuilder guarded =
+            buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
         guarded.config.guardrails = new List<String>{ 'CalloutExampleGuardrail' };
 
         List<CalloutGuardrail> guardrails = guarded.resolveGuardrails();
@@ -257,7 +273,8 @@ private class CalloutGuardrails_Test {
 
     @IsTest
     static void resolveGuardrailsThrowsForUnknownClass() {
-        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
+        GuardedCalloutBuilder guarded =
+            buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
         guarded.config.guardrails = new List<String>{ 'ThisClassDoesNotExist_12345' };
 
         try {
@@ -270,7 +287,8 @@ private class CalloutGuardrails_Test {
 
     @IsTest
     static void resolveGuardrailsThrowsForWrongType() {
-        GuardedCalloutBuilder guarded = buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
+        GuardedCalloutBuilder guarded =
+            buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
         guarded.config.guardrails = new List<String>{ 'GuardedCalloutConfig' }; // a real class that is not a guardrail
 
         try {

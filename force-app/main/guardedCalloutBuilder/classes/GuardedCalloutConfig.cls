@@ -1,10 +1,10 @@
 /**
- * @description Parsed guardrail configuration for one Named Credential, loaded
- * from the Named_Credentials_Configuration__mdt custom metadata type. The public
- * fields map directly to the Configuration__c JSON; missing values are resolved
- * to safe defaults by normalize().
- * @team Laserburst
- */
+* @description Parsed guardrail configuration for one Named Credential, loaded
+* from the Named_Credentials_Configuration__mdt custom metadata type. The public
+* fields map directly to the Configuration__c JSON; missing values are resolved
+* to safe defaults by normalize().
+* @team Laserburst
+*/
 public with sharing class GuardedCalloutConfig {
     // Populated by JSON.deserialize of Configuration__c
     public String description;
@@ -17,11 +17,11 @@ public with sharing class GuardedCalloutConfig {
     public String namedCredential;
 
     /**
-     * @description Loads all active configurations in the current context,
-     * keyed by Named Credential developer name. Records whose JSON cannot be
-     * parsed are skipped and logged, so one bad record cannot break discovery.
-     * @return map of Named Credential developer name to its resolved config
-     */
+    * @description Loads all active configurations in the current context,
+    * keyed by Named Credential developer name. Records whose JSON cannot be
+    * parsed are skipped and logged, so one bad record cannot break discovery.
+    * @return map of Named Credential developer name to its resolved config
+    */
     public static Map<String, GuardedCalloutConfig> getActive() {
         Map<String, GuardedCalloutConfig> configs = new Map<String, GuardedCalloutConfig>();
         for (Named_Credentials_Configuration__mdt record : query(null)) {
@@ -31,10 +31,10 @@ public with sharing class GuardedCalloutConfig {
             } catch (Exception e) {
                 System.debug(
                     LoggingLevel.DEBUG,
-                    'GuardedCalloutConfig: skipping malformed configuration for "' +
-                        record.Named_Credentials_Developer_Name__c +
-                        '": ' +
-                        e.getMessage()
+                    'GuardedCalloutConfig: skipping malformed configuration for "'
+                    + record.Named_Credentials_Developer_Name__c
+                    + '": '
+                    + e.getMessage()
                 );
             }
         }
@@ -42,20 +42,20 @@ public with sharing class GuardedCalloutConfig {
     }
 
     /**
-     * @description Loads the active configuration for one Named Credential.
-     * @param namedCredential developer name of the Named Credential
-     * @return the resolved config
-     * @throws GuardedCalloutException when no active config exists or its JSON is invalid
-     */
+    * @description Loads the active configuration for one Named Credential.
+    * @param namedCredential developer name of the Named Credential
+    * @return the resolved config
+    * @throws GuardedCalloutException when no active config exists or its JSON is invalid
+    */
     public static GuardedCalloutConfig forName(String namedCredential) {
         for (Named_Credentials_Configuration__mdt record : query(namedCredential)) {
             try {
                 return parse(record);
             } catch (Exception e) {
                 throw new GuardedCalloutException(
-                    'Configuration for Named Credential "' +
-                        namedCredential +
-                        '" is not valid JSON. Contact an administrator.'
+                    'Configuration for Named Credential "'
+                    + namedCredential
+                    + '" is not valid JSON. Contact an administrator.'
                 );
             }
         }
@@ -84,7 +84,8 @@ public with sharing class GuardedCalloutConfig {
     }
 
     private static GuardedCalloutConfig parse(Named_Credentials_Configuration__mdt record) {
-        GuardedCalloutConfig config = String.isBlank(record.Configuration__c)
+        GuardedCalloutConfig config =
+            String.isBlank(record.Configuration__c)
             ? new GuardedCalloutConfig()
             : (GuardedCalloutConfig) JSON.deserialize(record.Configuration__c, GuardedCalloutConfig.class);
         config.namedCredential = record.Named_Credentials_Developer_Name__c;
