@@ -222,8 +222,7 @@ public inherited sharing class ConnectApiAdapter {
             throw new ConnectApiAdapterException(
                 'External credential "' + externalCredentialApiName + '" has ' + principalCount +
                 ' principals visible to the running user; the single-parameter overload requires exactly 1. ' +
-                'Use the overload with explicit principalName and principalType. If a principal exists but is not ' +
-                'listed, ensure the running user has the "View Setup and Configuration" permission.'
+                'Use the overload with explicit principalName and principalType.'
             );
         }
         return externalCredential.principals[0];
@@ -243,8 +242,7 @@ public inherited sharing class ConnectApiAdapter {
         if (externalCredential.authenticationProtocol == null) {
             throw new ConnectApiAdapterException(
                 'External credential "' + externalCredentialApiName + '" has no visible authentication protocol; ' +
-                'the single-parameter refreshToken() cannot derive it. Call the full-parameter refreshToken() ' +
-                'or ensure the running user has the "View Setup and Configuration" permission.'
+                'the single-parameter refreshToken() cannot derive it. Call the full-parameter refreshToken().'
             );
         }
         return externalCredential.authenticationProtocol;
