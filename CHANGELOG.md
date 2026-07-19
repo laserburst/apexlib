@@ -6,11 +6,14 @@
 
 - **`CalloutBuilderException` HTTP context** — the exception thrown on a failed response now carries `code` (HTTP status code) and `status` (HTTP status text) fields, so catch blocks no longer need a reference to the builder to branch on the status code; both fields are null when the exception is thrown before a callout, e.g. during builder validation ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **ConnectApiAdapter credential methods** — `getCredentialAuthenticationUrl()` returns the URL a user visits to authorize a credential (OAuth flow); `getNamedCredential()` and `getExternalCredential()` expose full Named/External Credential details ([ConnectApiAdapter.cls](force-app/main/connectApiAdapter/classes/ConnectApiAdapter.cls))
+- **ConnectApiAdapter single-parameter overloads** — `refreshToken()`, `isCredentialConfigured()`, and `getCredentialAuthenticationUrl()` now accept just the external credential api name and resolve its single principal (and authentication protocol) automatically; they throw the new `ConnectApiAdapterException` when the external credential doesn't have exactly one principal ([ConnectApiAdapter.cls](force-app/main/connectApiAdapter/classes/ConnectApiAdapter.cls))
 
 ### Changed
 
 - **API Version** — Promoted to 67
 - **ConnectApiAdapter sharing** — declared `inherited sharing` instead of `with sharing`, so the adapter runs in the caller's sharing context ([ConnectApiAdapter.cls](force-app/main/connectApiAdapter/classes/ConnectApiAdapter.cls))
+- **ConnectApiAdapter testability** — clientId extraction and authentication protocol resolution moved into test-visible helpers covered by unit tests ([ConnectApiAdapter.cls](force-app/main/connectApiAdapter/classes/ConnectApiAdapter.cls))
+- **`getCalloutUrl()`** — delegates to `getNamedCredential()` and returns null instead of throwing when the Named Credential cannot be retrieved ([ConnectApiAdapter.cls](force-app/main/connectApiAdapter/classes/ConnectApiAdapter.cls))
 
 ## May 2026
 
