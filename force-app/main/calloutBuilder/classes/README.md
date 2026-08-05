@@ -6,7 +6,7 @@ Establishing unified callout approach with basic response handling backed in.
 
 ## Structure
 
-1. [CalloutBuilder](CalloutBuilder.cls) - main class.
+1. [CalloutBuilder](CalloutBuilder.cls) - main class. `virtual`, so behavior can be added around a callout by subclassing it — every response variant funnels through `getHttpResponse()`. See [GuardedCalloutBuilder](../../guardedCalloutBuilder/classes/README.md).
 2. [CalloutErrorResponse](CalloutErrorResponse.cls) - interface enabling CalloutBuilder to extract error message from any error object.
 3. [CalloutRetrier](CalloutRetrier.cls) - interface enabling CalloutBuilder to retry a callout and to change something before the new attempt.
 4. [CalloutBuilderQueueable](CalloutBuilderQueueable.cls) - virtual class to run one or many callouts asynchronously, for example, from a trigger.
@@ -73,9 +73,11 @@ Map<String, Object> responseBody = cb.getResponseBodyMap();
 
 - For other HTTP methods (e.g., `POST`), parameters are included in the body instead, and the URL remains: `https://example.com/test`
 
+- When the endpoint already carries a query string, parameters extend it with `&` rather than starting a second one: `withEndpoint('/test?a=1')` + `withQueryParameter('b', '2')` → `https://example.com/test?a=1&b=2`
+
 #### Request Body Note
 
-If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters.
+If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters — whatever the body's type.
 
 ### Sending Files _(OpenAI Assistants API Example)_
 

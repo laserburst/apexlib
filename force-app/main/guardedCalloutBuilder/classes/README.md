@@ -2,20 +2,21 @@
 
 ## Purpose
 
-A guardrail-enforcing decorator around [CalloutBuilder](../../calloutBuilder/classes/CalloutBuilder.cls). It mirrors the CalloutBuilder fluent API, but before any request leaves the org it loads a per-Named-Credential configuration and runs a chain of guardrails — authentication, allowed HTTP method, allowed endpoint pattern, and any custom guardrails you name. Any guardrail can block the request. Nothing is callable until an administrator activates a configuration record for the credential, and the defaults are conservative (GET only, no writes).
+A guardrail-enforcing subclass of [CalloutBuilder](../../calloutBuilder/classes/CalloutBuilder.cls). It inherits the CalloutBuilder fluent API, but before any request leaves the org it loads a per-Named-Credential configuration and runs a chain of guardrails — authentication, allowed HTTP method, allowed endpoint pattern, and any custom guardrails you name. Any guardrail can block the request. Nothing is callable until an administrator activates a configuration record for the credential, and the defaults are conservative (GET only, no writes).
 
 This module is independent of Named Credentials MCP: the MCP tools are one consumer of it, but any Apex callout can opt into guardrail enforcement by swapping `CalloutBuilder` for `GuardedCalloutBuilder`.
 
 ## Structure
 
-1. [GuardedCalloutBuilder](GuardedCalloutBuilder.cls) - the core decorator. Mirrors the CalloutBuilder API, normalizes the request, loads the configuration, and runs the guardrail chain before delegating the callout. It is also the context object each guardrail inspects (via `getMethod()`, `getPath()`, `getHeaders()`, `getBody()`, `getConfig()`, ...).
+1. [GuardedCalloutBuilder](GuardedCalloutBuilder.cls) - the core class. Extends CalloutBuilder, normalizes the request, and runs the guardrail chain before the callout. It is also the context object each guardrail inspects.
 2. [CalloutGuardrail](CalloutGuardrail.cls) - the strategy interface for a single check. Implement it to add a custom rule.
-3. [CalloutAuthenticationGuardrail](CalloutAuthenticationGuardrail.cls) - built-in: allows only a Named Credential authenticated for the running context. Also exposes `getStatus()`/`Status` so callers (e.g. discovery tools) can report readiness.
-4. [CalloutMethodGuardrail](CalloutMethodGuardrail.cls) - built-in: allows only the HTTP methods in `allowedMethods` (default GET).
-5. [CalloutEndpointGuardrail](CalloutEndpointGuardrail.cls) - built-in: the path must match an `allowedEndpointPatterns` entry (default `*`); `..` traversal is always rejected.
-6. [CalloutExampleGuardrail](CalloutExampleGuardrail.cls) - copy-ready reference custom guardrail: blocks any body that appears to contain a credential.
-7. [GuardedCalloutConfig](GuardedCalloutConfig.cls) - loads and parses `Named_Credentials_Configuration__mdt`, applying safe defaults.
-8. [GuardedCalloutException](GuardedCalloutException.cls) - thrown on configuration problems, invalid input, and guardrail violations. (HTTP status ≥ 400 raises `CalloutBuilder.CalloutBuilderException` instead.)
+3. [GuardrailsFactory](GuardrailsFactory.cls) - builds the chain for one configuration: the built-ins, then the custom classes it names.
+4. [CalloutAuthenticationGuardrail](CalloutAuthenticationGuardrail.cls) - built-in: allows only a Named Credential authenticated for the running context. Also exposes `getStatus()`/`Status` so callers (e.g. discovery tools) can report readiness.
+5. [CalloutMethodGuardrail](CalloutMethodGuardrail.cls) - built-in: allows only the HTTP methods in `allowedMethods` (default GET).
+6. [CalloutEndpointGuardrail](CalloutEndpointGuardrail.cls) - built-in: the path must match an `allowedEndpointPatterns` entry (default `*`); `..` traversal is always rejected.
+7. [CalloutExampleGuardrail](CalloutExampleGuardrail.cls) - copy-ready reference custom guardrail: blocks any body that appears to contain a credential.
+8. [GuardedCalloutConfig](GuardedCalloutConfig.cls) - loads and parses `Named_Credentials_Configuration__mdt`, applying safe defaults.
+9. [GuardedCalloutException](GuardedCalloutException.cls) - thrown on configuration problems, invalid input, and guardrail violations. (HTTP status ≥ 400 raises `CalloutBuilder.CalloutBuilderException` instead.)
 
 The built-in chain runs in a fixed order — authentication → allowed method → allowed endpoint → custom guardrails (in listed order).
 
@@ -70,7 +71,7 @@ Defaults are conservative: with no `allowedMethods`, only `GET` is permitted; wi
 
 ### Direct Apex usage
 
-`GuardedCalloutBuilder` mirrors the full CalloutBuilder API, so any Apex callout can opt into guardrail enforcement by swapping the class name:
+`GuardedCalloutBuilder` inherits the full CalloutBuilder API, so any Apex callout can opt into guardrail enforcement by swapping the class name:
 
 ```Java (Apex)
 HttpResponse response = new GuardedCalloutBuilder('OpenAI_NC')
@@ -80,7 +81,14 @@ HttpResponse response = new GuardedCalloutBuilder('OpenAI_NC')
 System.debug(response.getStatusCode() + ' ' + response.getBody());
 ```
 
-`withSuccessType`/`getTypedResponseBody`, `withRetrier`, `withFile`, and the other CalloutBuilder methods are available unchanged. Differences from a bare CalloutBuilder: query parameters are URL-encoded and appended to the endpoint for **every** HTTP method (not only GET), a `String` passed to `withBody` or `withBlobBody` is sent verbatim (a bare CalloutBuilder would JSON-serialize it a second time), the timeout defaults to 30 s and is clamped to [1 s, 120 s], and `Content-Type` defaults to `application/json` when a body is present. `withBody` JSON-serializes non-String objects.
+`withSuccessType`/`getTypedResponseBody`, `withRetrier`, `withFile`, and every other CalloutBuilder method behave as they do on the base class. Two differences: a `String` passed to `withBody` or `withBlobBody` is sent verbatim, so guardrails inspect the bytes actually sent; and an invalid HTTP method is rejected as soon as it is set, rather than at callout time.
+
+Apex has no covariant return types, so the inherited setters return `CalloutBuilder`. Assign the instance before chaining when you need the `GuardedCalloutBuilder` type — enforcement itself is unaffected, being dispatched dynamically:
+
+```Java (Apex)
+GuardedCalloutBuilder guarded = new GuardedCalloutBuilder('OpenAI_NC');
+guarded.withEndpoint('/v1/models').withHeader('Accept', 'application/json');
+```
 
 ### Custom guardrails
 
@@ -104,4 +112,6 @@ public with sharing class NoBulkDeleteGuardrail implements CalloutGuardrail {
 
 - The authentication check relies on ConnectApi, which reports on unified Named Credentials. Legacy Named Credentials may be reported as unauthenticated.
 - ConnectApi is not executable in test context; [CalloutAuthenticationGuardrail](CalloutAuthenticationGuardrail.cls) exposes a `@TestVisible` status map so tests can simulate authentication states.
-- Binary request bodies passed via `withBlobBody`/`withFile` are not inspectable by guardrails.
+- Binary request bodies passed via `withBlobBody`/`withFile` are only inspectable when they decode as UTF-8 text; `getBody()` is null otherwise.
+- Query parameters are always inspectable via `getQueryParameters()`, including on the non-GET requests where CalloutBuilder form-encodes them into the request body.
+- A subclass guards what routes through `getHttpResponse()`. A new CalloutBuilder execution method that sends a request without going through it would bypass the chain.

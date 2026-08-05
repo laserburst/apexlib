@@ -12,13 +12,13 @@ Because the tools are Apex invocable actions, they are equally usable from Flows
 | `describe` | [ncMcp_DescribeTool](ncMcp_DescribeTool.cls) | Returns how to use **one** credential: purpose, docs URL, base URL, allowed methods and endpoint patterns. Errors when the credential is unknown or not authenticated. |
 | `sendRequest` | [ncMcp_SendRequestTool](ncMcp_SendRequestTool.cls) | Sends a guarded HTTP request through a Named Credential and returns the response. |
 
-All three are thin invocable wrappers. The callout path and every guardrail live in the separate, MCP-independent [GuardedCalloutBuilder](../../guardedCalloutBuilder/classes/README.md) module — a decorator that mirrors the [CalloutBuilder](../../calloutBuilder/classes/CalloutBuilder.cls) API and enforces the guardrail chain. That module also owns the **Named Credentials Configuration** custom metadata type, the guardrail interface, and the custom-guardrail how-to.
+All three are thin invocable wrappers. The callout path and every guardrail live in the separate, MCP-independent [GuardedCalloutBuilder](../../guardedCalloutBuilder/classes/README.md) module — a [CalloutBuilder](../../calloutBuilder/classes/CalloutBuilder.cls) subclass that enforces the guardrail chain. That module also owns the **Named Credentials Configuration** custom metadata type, the guardrail interface, and the custom-guardrail how-to.
 
 ## How it works
 
 1. `listCredentials` returns every credential with an active configuration and its authentication status for the running user.
 2. `describe` returns the usage contract for one credential: its purpose, docs URL, allowed methods, and endpoint patterns.
-3. `sendRequest` builds a `GuardedCalloutBuilder`. Before the request leaves the org, the decorator loads the credential's configuration and runs the guardrail chain:
+3. `sendRequest` builds a `GuardedCalloutBuilder`. Before the request leaves the org, it loads the credential's configuration and runs the guardrail chain:
    authentication → allowed method → allowed endpoint → any custom guardrails.
 4. On success the response (status code, status text, body, headers) is returned. On an HTTP status ≥ 400 the callout raises `CalloutBuilder.CalloutBuilderException` (its message carries the response body); on a guardrail violation or bad input it raises `GuardedCalloutException`.
 

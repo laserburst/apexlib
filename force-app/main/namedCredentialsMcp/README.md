@@ -14,7 +14,7 @@ An agent works through three tools, in this order:
 
 ## Request lifecycle
 
-Everything converges on one class: `GuardedCalloutBuilder`, a decorator around the [CalloutBuilder](../calloutBuilder/classes/CalloutBuilder.cls) library. It lives in its own MCP-independent [module](../guardedCalloutBuilder/classes/README.md): it mirrors CalloutBuilder's public API and adds configuration loading, input normalization, and the guardrail chain before delegating the actual callout.
+Everything converges on one class: `GuardedCalloutBuilder`, a subclass of the [CalloutBuilder](../calloutBuilder/classes/CalloutBuilder.cls) library. It lives in its own MCP-independent [module](../guardedCalloutBuilder/classes/README.md): it inherits CalloutBuilder's public API and adds configuration loading, input normalization, and the guardrail chain in front of the actual callout.
 
 ```mermaid
 sequenceDiagram
@@ -50,7 +50,7 @@ A blocked request never reaches the network: any guardrail may throw, and the er
 
 ## Beyond MCP
 
-The tools are plain invocable actions, so the same three operations are available to Flows and Agentforce without extra code. From Apex, the [GuardedCalloutBuilder](../guardedCalloutBuilder/classes/README.md) decorator *is* the API — any callout can opt into guardrail enforcement:
+The tools are plain invocable actions, so the same three operations are available to Flows and Agentforce without extra code. From Apex, [GuardedCalloutBuilder](../guardedCalloutBuilder/classes/README.md) *is* the API — any callout can opt into guardrail enforcement:
 
 ```apex
 HttpResponse response = new GuardedCalloutBuilder('OpenAI_NC')
@@ -58,7 +58,7 @@ HttpResponse response = new GuardedCalloutBuilder('OpenAI_NC')
     .getHttpResponse();
 ```
 
-It mirrors the full CalloutBuilder API (`withHeader`, `withTimeout`, `withSuccessType`, `getTypedResponseBody`, ...), with a few deliberate differences: query parameters are appended to the URL for every HTTP method, String bodies are sent verbatim (never re-serialized), the timeout defaults to 30 seconds and is clamped to platform bounds, and `Content-Type` defaults to `application/json` when a body is present.
+It inherits the full CalloutBuilder API (`withHeader`, `withTimeout`, `withSuccessType`, `getTypedResponseBody`, ...), with two deliberate differences: String bodies are sent verbatim (never re-serialized), so guardrails inspect the bytes actually sent, and an invalid HTTP method is rejected as soon as it is set.
 
 ## Configuration and setup
 

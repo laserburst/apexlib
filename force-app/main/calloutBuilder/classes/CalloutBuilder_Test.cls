@@ -189,6 +189,7 @@ private class CalloutBuilder_Test {
 
     @isTest
     static void testWithQueryParametersPostSuccess() {
+        CaptureMock mock = new CaptureMock();
         Test.startTest();
             CalloutBuilder cb =
                 new CalloutBuilder('https://example.com')
@@ -196,12 +197,54 @@ private class CalloutBuilder_Test {
                     .withMethod('POST')
                     .withQueryParameters(new Map<String, String>{ 'param1' => 'value1', 'param2' => 'value2' })
                     .withQueryParameter('param3', 'value3')
-                    .withMockIfTest(new SuccessMock());
+                    .withMockIfTest(mock);
             Map<String, Object> resMap = cb.getResponseBodyMap();
         Test.stopTest();
         String expectedUrl = 'https://example.com/test'; // POST requests do not include query parameters in the URL
         Assert.areEqual(expectedUrl, cb.constructFullEndpoint(), 'Unexpected endpoint URL');
+        Assert.areEqual(
+            'param1=value1&param2=value2&param3=value3',
+            mock.capturedRequest.getBody(),
+            'Parameters should be the body instead'
+        );
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
+    @isTest
+    static void testWithQueryParametersJoinEndpointQueryString() {
+        Test.startTest();
+            CalloutBuilder cb =
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test?a=1')
+                    .withQueryParameter('b', '2');
+        Test.stopTest();
+        Assert.areEqual(
+            'https://example.com/test?a=1&b=2',
+            cb.constructFullEndpoint(),
+            'Parameters should extend the existing query string, not start a second one'
+        );
+    }
+
+    @isTest
+    static void testBodyWinsOverQueryParametersForNonGet() {
+        CaptureMock mock = new CaptureMock();
+        DummyResponse body = new DummyResponse();
+        body.value = 'kept';
+
+        Test.startTest();
+            new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withMethod('POST')
+                .withBody(body)
+                .withQueryParameter('param1', 'value1')
+                .withMockIfTest(mock)
+                .getHttpResponse();
+        Test.stopTest();
+        Assert.areEqual(
+            '{"value":"kept"}',
+            mock.capturedRequest.getBody(),
+            'An object body should be serialized and win over query parameters'
+        );
     }
 
     @isTest
@@ -401,6 +444,20 @@ private class CalloutBuilder_Test {
     // A mock class to simulate a successful callout
     class SuccessMock implements HttpCalloutMock {
         public HTTPResponse respond(HTTPRequest req) {
+            HttpResponse res = new HttpResponse();
+            res.setHeader('Content-Type', 'application/json');
+            res.setBody('{"value": "Success"}');
+            res.setStatusCode(200);
+            return res;
+        }
+    }
+
+    // A mock class capturing the request it responded to
+    class CaptureMock implements HttpCalloutMock {
+        public HttpRequest capturedRequest;
+
+        public HTTPResponse respond(HTTPRequest req) {
+            this.capturedRequest = req;
             HttpResponse res = new HttpResponse();
             res.setHeader('Content-Type', 'application/json');
             res.setBody('{"value": "Success"}');

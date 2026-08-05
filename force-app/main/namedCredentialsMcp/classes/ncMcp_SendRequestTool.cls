@@ -39,13 +39,14 @@ global with sharing class ncMcp_SendRequestTool {
         if (String.isBlank(input.path)) {
             throw new GuardedCalloutException('Field "path" is required, e.g. "/v1/resource".');
         }
-        GuardedCalloutBuilder guarded =
-            new GuardedCalloutBuilder(input.namedCredential)
-                .withEndpoint(input.path)
-                .withMethod(input.method)
-                .withHeaders(parseStringMap(input.headers, 'headers'))
-                .withQueryParameters(parseStringMap(input.queryParameters, 'queryParameters'))
-                .withTimeout(input.timeoutMilliseconds);
+        // Assigned before chaining: the inherited setters return CalloutBuilder
+        GuardedCalloutBuilder guarded = new GuardedCalloutBuilder(input.namedCredential);
+        guarded
+            .withEndpoint(input.path)
+            .withMethod(input.method)
+            .withHeaders(parseStringMap(input.headers, 'headers'))
+            .withQueryParameters(parseStringMap(input.queryParameters, 'queryParameters'))
+            .withTimeout(input.timeoutMilliseconds);
         if (String.isNotBlank(input.body)) {
             guarded.withBody(input.body);
         }
@@ -90,7 +91,7 @@ global with sharing class ncMcp_SendRequestTool {
 
         @InvocableVariable(
             required=true
-            description='URL path relative to the API base URL, starting with "/" (e.g. "/v1/models"). Do not include the protocol, domain, or query string.'
+            description='URL path relative to the API base URL, starting with "/" (e.g. "/v1/models"). Do not include the protocol or domain. A query string is allowed here and is the way to put parameters in the URL of a non-GET request.'
         )
         global String path;
 
@@ -105,17 +106,17 @@ global with sharing class ncMcp_SendRequestTool {
         global String body;
 
         @InvocableVariable(
-            description='HTTP request headers as a JSON object string, e.g. {"Accept":"application/json"}. When a body is provided and no Content-Type header is set, Content-Type defaults to application/json.'
+            description='HTTP request headers as a JSON object string, e.g. {"Accept":"application/json"}. No header is set for you: when sending a body, set Content-Type explicitly, e.g. {"Content-Type":"application/json"}.'
         )
         global String headers;
 
         @InvocableVariable(
-            description='URL query parameters as a JSON object string with string values, e.g. {"limit":"10","q":"name"}. Keys and values are URL-encoded automatically and appended to the path.'
+            description='URL query parameters as a JSON object string with string values, e.g. {"limit":"10","q":"name"}. Keys and values are URL-encoded automatically. They are appended to the path for GET requests; for other methods they are form-encoded into the request body, and only when "body" is omitted. To put them in the URL of a non-GET request, write the query string into "path" instead.'
         )
         global String queryParameters;
 
         @InvocableVariable(
-            description='Request timeout in milliseconds (1000-120000). Defaults to 30000. Out-of-range values are clamped.'
+            description='Request timeout in milliseconds. Omit to use the platform default of 10000. Values outside 1000-120000 are rejected by the platform and make the request fail.'
         )
         global Integer timeoutMilliseconds;
     }

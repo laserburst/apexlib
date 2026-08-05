@@ -41,7 +41,9 @@ private class GuardedCalloutBuilder_Test {
     }
 
     private static GuardedCalloutBuilder guarded(String path, String method) {
-        return new GuardedCalloutBuilder('GuardedTest_Full').withEndpoint(path).withMethod(method);
+        GuardedCalloutBuilder builder = new GuardedCalloutBuilder('GuardedTest_Full');
+        builder.withEndpoint(path).withMethod(method);
+        return builder;
     }
 
     @IsTest
@@ -58,29 +60,30 @@ private class GuardedCalloutBuilder_Test {
     }
 
     @IsTest
-    static void appendsEncodedQueryParametersForEveryMethod() {
+    static void appendsEncodedQueryParametersToUrlForGet() {
         authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
-        mockScope('/v1/data?q=a+b', 'POST', mock);
+        mockScope('/v1/data?q=a+b', 'GET', mock);
 
         Test.startTest();
-        guarded('/v1/data', 'POST').withQueryParameter('q', 'a b').getHttpResponse();
+        guarded('/v1/data', 'GET').withQueryParameter('q', 'a b').getHttpResponse();
         Test.stopTest();
 
         Assert.areEqual(
             'callout:GuardedTest_Full/v1/data?q=a+b',
             mock.capturedRequest.getEndpoint(),
-            'Query string should be URL-encoded and appended to the path even for POST'
+            'Query string should be URL-encoded and appended to the path'
         );
     }
 
     @IsTest
-    static void passesBodyVerbatimAndDefaultsContentType() {
+    static void passesBodyVerbatimWithoutSettingContentType() {
         authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
         mockScope('/v1/data', 'POST', mock);
 
-        GuardedCalloutBuilder builder = guarded('/v1/data', 'POST').withBody('{"name":"widget"}');
+        GuardedCalloutBuilder builder = guarded('/v1/data', 'POST');
+        builder.withBody('{"name":"widget"}');
 
         Test.startTest();
         builder.getHttpResponse();
@@ -92,10 +95,9 @@ private class GuardedCalloutBuilder_Test {
             'String body should be sent verbatim (no double-encoding)'
         );
         Assert.areEqual('{"name":"widget"}', builder.getBody(), 'Body should be readable as a string by guardrails');
-        Assert.areEqual(
-            'application/json',
+        Assert.isNull(
             mock.capturedRequest.getHeader('Content-Type'),
-            'Content-Type should default to JSON'
+            'Content-Type should be left to the caller, as with a bare CalloutBuilder'
         );
     }
 
@@ -138,17 +140,22 @@ private class GuardedCalloutBuilder_Test {
     }
 
     @IsTest
-    static void clampsOutOfRangeTimeout() {
+    static void outOfRangeTimeoutFailsInsteadOfBeingClamped() {
         authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
         mockScope('/v1/data', 'GET', mock);
 
+        Exception caught;
         Test.startTest();
-        guarded('/v1/data', 'GET').withTimeout(999999).getHttpResponse(); // over the 120000 platform max
+        try {
+            guarded('/v1/data', 'GET').withTimeout(999999).getHttpResponse(); // over the 120000 platform max
+        } catch (Exception e) {
+            caught = e;
+        }
         Test.stopTest();
 
-        // If the timeout were not clamped, HttpRequest.setTimeout would reject it and no callout would occur
-        Assert.isNotNull(mock.capturedRequest, 'Callout should occur with the timeout clamped into range');
+        Assert.isNotNull(caught, 'HttpRequest.setTimeout should reject the out-of-range timeout');
+        Assert.isNull(mock.capturedRequest, 'No callout should be made');
     }
 
     @IsTest
@@ -269,13 +276,13 @@ private class GuardedCalloutBuilder_Test {
 
     @IsTest
     static void accessorsReflectRecordedState() {
-        GuardedCalloutBuilder builder =
-            new GuardedCalloutBuilder('GuardedTest_Full')
-                .withEndpoint('v1/data')
-                .withMethod('post')
-                .withHeader('Accept', 'application/json')
-                .withQueryParameter('limit', '10')
-                .withBody('{"name":"widget"}');
+        GuardedCalloutBuilder builder = new GuardedCalloutBuilder('GuardedTest_Full');
+        builder
+            .withEndpoint('v1/data')
+            .withMethod('post')
+            .withHeader('Accept', 'application/json')
+            .withQueryParameter('limit', '10')
+            .withBody('{"name":"widget"}');
 
         Assert.areEqual('GuardedTest_Full', builder.getNamedCredential(), 'Unexpected named credential');
         Assert.areEqual('/v1/data', builder.getPath(), 'Path should be normalized with a leading slash');
@@ -284,12 +291,6 @@ private class GuardedCalloutBuilder_Test {
         Assert.areEqual('10', builder.getQueryParameters().get('limit'), 'Query parameters should be readable');
         Assert.areEqual('{"name":"widget"}', builder.getBody(), 'Body should be readable as a string');
         Assert.isNull(builder.getConfig(), 'Config is loaded only on execution');
-    }
-
-    @IsTest
-    static void constructFullEndpointBakesQueryString() {
-        String fullEndpoint = guarded('/v1/data', 'GET').withQueryParameter('limit', '10').constructFullEndpoint();
-        Assert.areEqual('callout:GuardedTest_Full/v1/data?limit=10', fullEndpoint, 'Unexpected full endpoint');
     }
 
     @IsTest

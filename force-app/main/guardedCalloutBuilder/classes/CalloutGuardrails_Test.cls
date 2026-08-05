@@ -12,8 +12,8 @@ private class CalloutGuardrails_Test {
         config.allowedEndpointPatterns = patterns;
         config.guardrails = new List<String>();
 
-        GuardedCalloutBuilder guarded =
-            new GuardedCalloutBuilder('GuardedTest_Full').withEndpoint(path).withMethod(method);
+        GuardedCalloutBuilder guarded = new GuardedCalloutBuilder('GuardedTest_Full');
+        guarded.withEndpoint(path).withMethod(method);
         guarded.config = config;
         return guarded;
     }
@@ -234,8 +234,8 @@ private class CalloutGuardrails_Test {
     @IsTest
     static void exampleGuardrailBlocksSensitiveBody() {
         GuardedCalloutBuilder guarded =
-            buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' })
-                .withBody('{"user":"a","password":"hunter2"}');
+            buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' });
+        guarded.withBody('{"user":"a","password":"hunter2"}');
         try {
             new CalloutExampleGuardrail().enforce(guarded);
             Assert.fail('Expected block');
@@ -247,8 +247,8 @@ private class CalloutGuardrails_Test {
     @IsTest
     static void exampleGuardrailAllowsCleanAndBlankBody() {
         GuardedCalloutBuilder withCleanBody =
-            buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' })
-                .withBody('{"name":"widget"}');
+            buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' });
+        withCleanBody.withBody('{"name":"widget"}');
         new CalloutExampleGuardrail().enforce(withCleanBody);
 
         GuardedCalloutBuilder withoutBody =
@@ -257,42 +257,41 @@ private class CalloutGuardrails_Test {
         // no exception = pass
     }
 
-    // --- Guardrail chain resolution (decorator) ---
+    // --- GuardrailsFactory ---
+
+    private static GuardrailsFactory factory(List<String> customGuardrails) {
+        GuardedCalloutConfig config = new GuardedCalloutConfig();
+        config.namedCredential = 'GuardedTest_Full';
+        config.guardrails = customGuardrails;
+        return new GuardrailsFactory(config);
+    }
 
     @IsTest
-    static void resolveGuardrailsIncludesBuiltInsThenCustom() {
-        GuardedCalloutBuilder guarded =
-            buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
-        guarded.config.guardrails = new List<String>{ 'CalloutExampleGuardrail' };
-
-        List<CalloutGuardrail> guardrails = guarded.resolveGuardrails();
+    static void factoryCreatesBuiltInsThenCustom() {
+        List<CalloutGuardrail> guardrails = factory(new List<String>{ 'CalloutExampleGuardrail' }).create();
 
         Assert.areEqual(4, guardrails.size(), 'Three built-ins plus one custom');
+        Assert.isInstanceOfType(guardrails[0], CalloutAuthenticationGuardrail.class, 'Authentication runs first');
+        Assert.isInstanceOfType(guardrails[1], CalloutMethodGuardrail.class, 'Method runs second');
+        Assert.isInstanceOfType(guardrails[2], CalloutEndpointGuardrail.class, 'Endpoint runs third');
         Assert.isInstanceOfType(guardrails[3], CalloutExampleGuardrail.class, 'Custom guardrail should run last');
     }
 
     @IsTest
-    static void resolveGuardrailsThrowsForUnknownClass() {
-        GuardedCalloutBuilder guarded =
-            buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
-        guarded.config.guardrails = new List<String>{ 'ThisClassDoesNotExist_12345' };
-
+    static void factoryThrowsForUnknownClass() {
         try {
-            guarded.resolveGuardrails();
+            factory(new List<String>{ 'ThisClassDoesNotExist_12345' }).create();
             Assert.fail('Expected exception');
         } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('was not found'), 'Unexpected: ' + e.getMessage());
+            Assert.isTrue(e.getMessage().contains('GuardedTest_Full'), 'Should name the credential to fix');
         }
     }
 
     @IsTest
-    static void resolveGuardrailsThrowsForWrongType() {
-        GuardedCalloutBuilder guarded =
-            buildGuarded('GET', '/v1/x', new List<String>{ 'GET' }, new List<String>{ '*' });
-        guarded.config.guardrails = new List<String>{ 'GuardedCalloutConfig' }; // a real class that is not a guardrail
-
+    static void factoryThrowsForWrongType() {
         try {
-            guarded.resolveGuardrails();
+            factory(new List<String>{ 'GuardedCalloutConfig' }).create(); // a real class that is not a guardrail
             Assert.fail('Expected exception');
         } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('must implement CalloutGuardrail'), 'Unexpected: ' + e.getMessage());
