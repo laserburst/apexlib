@@ -60,16 +60,6 @@ private class ncMcp_DescribeTool_Test {
     }
 
     @IsTest
-    static void describeThrowsWhenConfigIsMalformed() {
-        try {
-            describe('GuardedTest_BadJson');
-            Assert.fail('Expected GuardedCalloutException');
-        } catch (GuardedCalloutException e) {
-            Assert.isTrue(e.getMessage().contains('not valid JSON'), 'Unexpected: ' + e.getMessage());
-        }
-    }
-
-    @IsTest
     static void describeThrowsWhenNameIsBlank() {
         try {
             describe(null);

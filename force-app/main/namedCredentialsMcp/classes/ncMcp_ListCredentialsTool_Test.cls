@@ -12,8 +12,8 @@ private class ncMcp_ListCredentialsTool_Test {
         Assert.areEqual(1, results.size(), 'The tool returns a single result');
         List<Object> credentials = (List<Object>) JSON.deserializeUntyped(results[0].credentials);
 
-        // The three active, well-formed test configs, sorted by name; the
-        // inactive and malformed ones are excluded by GuardedCalloutConfig.getActive()
+        // The three active test configs, sorted by name; the inactive one is
+        // excluded by GuardedCalloutConfig.getActive()
         Assert.areEqual(3, credentials.size(), 'All active configs should be listed regardless of authentication');
 
         Map<String, Object> defaults = (Map<String, Object>) credentials[0];

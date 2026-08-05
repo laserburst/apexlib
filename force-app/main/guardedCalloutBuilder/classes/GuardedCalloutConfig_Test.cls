@@ -10,7 +10,6 @@ private class GuardedCalloutConfig_Test {
         Assert.isTrue(configs.containsKey('GuardedTest_Defaults'), 'Defaults config should be present');
         Assert.isTrue(configs.containsKey('GuardedTest_Guarded'), 'Guarded config should be present');
         Assert.isFalse(configs.containsKey('GuardedTest_Inactive'), 'Inactive config should be excluded');
-        Assert.isFalse(configs.containsKey('GuardedTest_BadJson'), 'Malformed config should be skipped, not fatal');
     }
 
     @IsTest
@@ -64,12 +63,19 @@ private class GuardedCalloutConfig_Test {
     }
 
     @IsTest
-    static void forNameThrowsForBadJson() {
+    static void parseThrowsForBadJson() {
+        Named_Credentials_Configuration__mdt record =
+            new Named_Credentials_Configuration__mdt(
+                Named_Credentials_Developer_Name__c = 'GuardedTest_BadJson',
+                Configuration__c = 'not-valid-json{'
+            );
+
         try {
-            GuardedCalloutConfig.forName('GuardedTest_BadJson');
+            GuardedCalloutConfig.parse(record);
             Assert.fail('Expected exception for malformed JSON');
         } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('not valid JSON'), 'Unexpected message: ' + e.getMessage());
+            Assert.isTrue(e.getMessage().contains('GuardedTest_BadJson'), 'Should name the offending credential');
         }
     }
 }

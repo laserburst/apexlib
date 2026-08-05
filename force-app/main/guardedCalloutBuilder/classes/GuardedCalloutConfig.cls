@@ -18,25 +18,15 @@ public with sharing class GuardedCalloutConfig {
 
     /**
     * @description Loads all active configurations in the current context,
-    * keyed by Named Credential developer name. Records whose JSON cannot be
-    * parsed are skipped and logged, so one bad record cannot break discovery.
+    * keyed by Named Credential developer name.
     * @return map of Named Credential developer name to its resolved config
+    * @throws GuardedCalloutException when any record's JSON is invalid
     */
     public static Map<String, GuardedCalloutConfig> getActive() {
         Map<String, GuardedCalloutConfig> configs = new Map<String, GuardedCalloutConfig>();
         for (Named_Credentials_Configuration__mdt record : query(null)) {
-            try {
-                GuardedCalloutConfig config = parse(record);
-                configs.put(config.namedCredential, config);
-            } catch (Exception e) {
-                System.debug(
-                    LoggingLevel.DEBUG,
-                    'GuardedCalloutConfig: skipping malformed configuration for "'
-                    + record.Named_Credentials_Developer_Name__c
-                    + '": '
-                    + e.getMessage()
-                );
-            }
+            GuardedCalloutConfig config = parse(record);
+            configs.put(config.namedCredential, config);
         }
         return configs;
     }
@@ -49,15 +39,7 @@ public with sharing class GuardedCalloutConfig {
     */
     public static GuardedCalloutConfig forName(String namedCredential) {
         for (Named_Credentials_Configuration__mdt record : query(namedCredential)) {
-            try {
-                return parse(record);
-            } catch (Exception e) {
-                throw new GuardedCalloutException(
-                    'Configuration for Named Credential "'
-                    + namedCredential
-                    + '" is not valid JSON. Contact an administrator.'
-                );
-            }
+            return parse(record);
         }
         throw new GuardedCalloutException(
             'No active configuration found for Named Credential "' + namedCredential + '".'
@@ -83,11 +65,21 @@ public with sharing class GuardedCalloutConfig {
         ];
     }
 
+    @TestVisible
     private static GuardedCalloutConfig parse(Named_Credentials_Configuration__mdt record) {
-        GuardedCalloutConfig config =
-            String.isBlank(record.Configuration__c)
-            ? new GuardedCalloutConfig()
-            : (GuardedCalloutConfig) JSON.deserialize(record.Configuration__c, GuardedCalloutConfig.class);
+        GuardedCalloutConfig config;
+        try {
+            config =
+                String.isBlank(record.Configuration__c)
+                ? new GuardedCalloutConfig()
+                : (GuardedCalloutConfig) JSON.deserialize(record.Configuration__c, GuardedCalloutConfig.class);
+        } catch (Exception e) {
+            throw new GuardedCalloutException(
+                'Configuration for Named Credential "'
+                + record.Named_Credentials_Developer_Name__c
+                + '" is not valid JSON. Contact an administrator.'
+            );
+        }
         config.namedCredential = record.Named_Credentials_Developer_Name__c;
         config.normalize();
         return config;
