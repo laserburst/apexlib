@@ -134,6 +134,26 @@ private class GuardedCalloutBuilder_Test {
     }
 
     @IsTest
+    static void acceptsCredentialWithCalloutPrefix() {
+        authenticate('GuardedTest_Full', 'https://example.com');
+        CapturingMock mock = new CapturingMock();
+        mockScope('/v1/data', 'GET', mock);
+
+        GuardedCalloutBuilder builder = new GuardedCalloutBuilder('callout:GuardedTest_Full');
+        builder.withEndpoint('/v1/data');
+
+        Test.startTest();
+        builder.getHttpResponse();
+        Test.stopTest();
+
+        Assert.areEqual(
+            'callout:GuardedTest_Full/v1/data',
+            mock.capturedRequest.getEndpoint(),
+            'An already-prefixed credential should not be prefixed twice'
+        );
+    }
+
+    @IsTest
     static void outOfRangeTimeoutFailsInsteadOfBeingClamped() {
         authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
@@ -159,6 +179,21 @@ private class GuardedCalloutBuilder_Test {
             Assert.fail('Expected exception');
         } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('Named Credential'), 'Unexpected: ' + e.getMessage());
+        }
+    }
+
+    @IsTest
+    static void throwsForUrlInsteadOfNamedCredential() {
+        assertRejectsUrl('https://example.com');
+        assertRejectsUrl('HTTP://example.com');
+    }
+
+    private static void assertRejectsUrl(String namedCredential) {
+        try {
+            new GuardedCalloutBuilder(namedCredential);
+            Assert.fail('Expected exception for ' + namedCredential);
+        } catch (GuardedCalloutException e) {
+            Assert.isTrue(e.getMessage().contains('not a URL'), 'Unexpected: ' + e.getMessage());
         }
     }
 

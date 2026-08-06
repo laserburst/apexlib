@@ -14,14 +14,25 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
     private Boolean chainRegistered = false;
     private List<CalloutGuardrail> guardrails;
 
+    private static final String CALLOUT_PREFIX = 'callout:';
+
     public GuardedCalloutBuilder(String namedCredential) {
-        super('callout:' + namedCredential);
+        super(validate(namedCredential));
+        this.namedCredential = namedCredential.removeStart(CALLOUT_PREFIX);
+    }
+
+    private static String validate(String namedCredential) {
         if (String.isBlank(namedCredential)) {
             throw new GuardedCalloutException(
                 'A Named Credential developer name is required to build a guarded callout.'
             );
         }
-        this.namedCredential = namedCredential;
+        if (namedCredential.startsWithIgnoreCase('http://') || namedCredential.startsWithIgnoreCase('https://')) {
+            throw new GuardedCalloutException(
+                'A guarded callout requires a Named Credential developer name, not a URL: "' + namedCredential + '".'
+            );
+        }
+        return namedCredential.startsWith(CALLOUT_PREFIX) ? namedCredential : CALLOUT_PREFIX + namedCredential;
     }
 
     public override CalloutBuilder withEndpoint(String path) {
