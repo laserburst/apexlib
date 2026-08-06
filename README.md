@@ -38,6 +38,16 @@ Thin wrapper around the most-used `ConnectApi` methods prepared for use.
 ConnectApiAdapter.refreshToken('MyExternalCredential');
 ```
 
+### [GuardedCalloutBuilder](force-app/main/guardedCalloutBuilder/classes/README.md)
+
+A guardrail-enforcing CalloutBuilder subclass. Before any request leaves the org it loads a per-Named-Credential configuration and runs a chain of guardrails — authentication, allowed methods, endpoint patterns, and custom strategies — configured in custom metadata. Nothing is callable until an admin activates a configuration, and the defaults are conservative (GET only). Any Apex callout can opt in by swapping the class name:
+
+```java
+HttpResponse response = new GuardedCalloutBuilder('OpenAI_NC')
+    .withEndpoint('/v1/models')
+    .getHttpResponse();
+```
+
 ## Claude Code
 
 A Claude Code skill for CalloutBuilder is included at [.claude/skills/apex-callout-builder/SKILL.md](.claude/skills/apex-callout-builder/SKILL.md). Copy it to your project's `.claude/skills/` directory and Claude will automatically generate, review, and explain CalloutBuilder code — including response DTOs, error handling, test mocks, file uploads, and async callouts.

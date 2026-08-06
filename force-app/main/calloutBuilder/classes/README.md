@@ -6,7 +6,7 @@ Establishing unified callout approach with basic response handling backed in.
 
 ## Structure
 
-1. [CalloutBuilder](CalloutBuilder.cls) - main class. `virtual`, so behavior can be added around a callout by subclassing it — every response variant funnels through `getHttpResponse()`.
+1. [CalloutBuilder](CalloutBuilder.cls) - main class. `virtual`, so behavior can be added around a callout by subclassing it — every response variant funnels through `getHttpResponse()`. See [GuardedCalloutBuilder](../../guardedCalloutBuilder/classes/README.md).
 2. [CalloutErrorResponse](CalloutErrorResponse.cls) - interface enabling CalloutBuilder to extract error message from any error object.
 3. [CalloutRetrier](CalloutRetrier.cls) - interface enabling CalloutBuilder to retry a callout and to change something before the new attempt.
 4. [CalloutGuardrail](CalloutGuardrail.cls) - interface for a check that runs before a callout and can block it. Attach implementations with `withGuardrail()` or `withGuardrails()`. [CalloutGuardrailException](CalloutGuardrailException.cls) is the exception a guardrail throws to block.
@@ -127,6 +127,8 @@ new CalloutBuilder('callout:MyService')
 ```
 
 A guardrail reads the request through the builder's accessors — `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `constructFullEndpoint()` — and must not execute the builder it is inspecting; doing so throws `CalloutBuilderException`.
+
+[GuardedCalloutBuilder](../../guardedCalloutBuilder/classes/README.md) builds on this: it resolves a guardrail chain per Named Credential from custom metadata and attaches it automatically.
 
 ---
 
