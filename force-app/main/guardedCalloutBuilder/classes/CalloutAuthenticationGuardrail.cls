@@ -35,10 +35,10 @@ public with sharing class CalloutAuthenticationGuardrail implements CalloutGuard
         testStatuses.put(namedCredential, status);
     }
 
-    public void enforce(GuardedCalloutBuilder builder) {
-        Status status = getStatus(builder.getNamedCredential());
-        if (!status.isAuthenticated) {
-            throw new GuardedCalloutException(notAuthenticatedMessage(builder.getNamedCredential()));
+    public void enforce(CalloutBuilder builder) {
+        String namedCredential = ((GuardedCalloutBuilder) builder).getNamedCredential();
+        if (!getStatus(namedCredential).isAuthenticated) {
+            throw new GuardedCalloutException(notAuthenticatedMessage(namedCredential));
         }
     }
 

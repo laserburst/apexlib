@@ -10,11 +10,12 @@
 public with sharing class CalloutExampleGuardrail implements CalloutGuardrail {
     private static final Set<String> SENSITIVE_TOKENS = new Set<String>{ 'password', 'secret', 'session_id' };
 
-    public void enforce(GuardedCalloutBuilder builder) {
-        if (String.isBlank(builder.getBody())) {
+    public void enforce(CalloutBuilder builder) {
+        GuardedCalloutBuilder guarded = (GuardedCalloutBuilder) builder;
+        if (String.isBlank(guarded.getBody())) {
             return;
         }
-        String body = builder.getBody().toLowerCase();
+        String body = guarded.getBody().toLowerCase();
         for (String token : SENSITIVE_TOKENS) {
             if (body.contains(token)) {
                 throw new GuardedCalloutException(

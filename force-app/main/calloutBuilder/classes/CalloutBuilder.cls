@@ -42,6 +42,9 @@ public virtual with sharing class CalloutBuilder {
     private Integer maxRetries = 1;
     private Integer attempt = 0;
 
+    private List<CalloutGuardrail> guardrails = new List<CalloutGuardrail>();
+    private Boolean enforcingGuardrails = false;
+
     // CalloutErrorResponse implementation
     private System.Type errorResponseImplType;
     private CalloutErrorResponse error;
@@ -114,6 +117,16 @@ public virtual with sharing class CalloutBuilder {
 
     public CalloutBuilder withRetrier(CalloutRetrier retrier) {
         this.retrier = retrier;
+        return this;
+    }
+
+    /**
+     * @description withGuardrails adds checks running before the callout;
+     * a guardrail blocks it by throwing
+     * @param guardrails appended to any already attached
+     */
+    public CalloutBuilder withGuardrails(List<CalloutGuardrail> guardrails) {
+        this.guardrails.addAll(guardrails);
         return this;
     }
 
@@ -294,6 +307,21 @@ public virtual with sharing class CalloutBuilder {
         }
         if (String.isBlank(this.method)) {
             throw new CalloutBuilderException('HTTP method must be provided');
+        }
+        this.enforceGuardrails();
+    }
+
+    private void enforceGuardrails() {
+        if (this.enforcingGuardrails) {
+            throw new CalloutBuilderException('A guardrail must not execute the callout it is guarding.');
+        }
+        this.enforcingGuardrails = true;
+        try {
+            for (CalloutGuardrail guardrail : this.guardrails) {
+                guardrail.enforce(this);
+            }
+        } finally {
+            this.enforcingGuardrails = false;
         }
     }
 

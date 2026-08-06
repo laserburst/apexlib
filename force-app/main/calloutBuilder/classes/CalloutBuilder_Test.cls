@@ -441,6 +441,93 @@ private class CalloutBuilder_Test {
         Assert.areEqual(400, caught.code, 'The exception should carry the HTTP status code');
     }
 
+    @IsTest
+    static void testGuardrailBlocksCalloutBeforeSending() {
+        CaptureMock mock = new CaptureMock();
+        CalloutBuilder.CalloutBuilderException caught;
+
+        Test.startTest();
+            try {
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withGuardrails(new List<CalloutGuardrail>{ new BlockingGuardrail() })
+                    .withMockIfTest(mock)
+                    .getHttpResponse();
+            } catch (CalloutBuilder.CalloutBuilderException e) {
+                caught = e;
+            }
+        Test.stopTest();
+
+        Assert.areEqual('Blocked by test guardrail', caught?.getMessage(), 'A throwing guardrail should block');
+        Assert.isNull(mock.capturedRequest, 'No request should be sent');
+    }
+
+    @IsTest
+    static void testGuardrailsRunInAttachedOrder() {
+        CaptureMock mock = new CaptureMock();
+
+        Test.startTest();
+            new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withGuardrails(new List<CalloutGuardrail>{ new RecordingGuardrail('first') })
+                .withGuardrails(new List<CalloutGuardrail>{ new RecordingGuardrail('second') })
+                .withMockIfTest(mock)
+                .getHttpResponse();
+        Test.stopTest();
+
+        Assert.areEqual(
+            new List<String>{ 'first', 'second' },
+            guardrailLog,
+            'Guardrails should run in the order attached, accumulating across calls'
+        );
+        Assert.isNotNull(mock.capturedRequest, 'A passing chain should let the callout through');
+    }
+
+    @IsTest
+    static void testGuardrailCannotExecuteItsOwnBuilder() {
+        CaptureMock mock = new CaptureMock();
+
+        try {
+            Test.startTest();
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withGuardrails(new List<CalloutGuardrail>{ new RecursiveGuardrail() })
+                    .withMockIfTest(mock)
+                    .getHttpResponse();
+            Test.stopTest();
+            Assert.fail('Expected error not thrown');
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            Assert.isTrue(e.getMessage().contains('must not execute'), 'Unexpected message: ' + e.getMessage());
+            Assert.isNull(mock.capturedRequest, 'No request should be sent');
+        }
+    }
+
+    private static List<String> guardrailLog = new List<String>();
+
+    private class RecordingGuardrail implements CalloutGuardrail {
+        private final String name;
+
+        private RecordingGuardrail(String name) {
+            this.name = name;
+        }
+
+        public void enforce(CalloutBuilder builder) {
+            guardrailLog.add(this.name);
+        }
+    }
+
+    private class BlockingGuardrail implements CalloutGuardrail {
+        public void enforce(CalloutBuilder builder) {
+            throw new CalloutBuilder.CalloutBuilderException('Blocked by test guardrail');
+        }
+    }
+
+    private class RecursiveGuardrail implements CalloutGuardrail {
+        public void enforce(CalloutBuilder builder) {
+            builder.getHttpResponse();
+        }
+    }
+
     // A mock class to simulate a successful callout
     class SuccessMock implements HttpCalloutMock {
         public HTTPResponse respond(HTTPRequest req) {

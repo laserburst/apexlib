@@ -11,7 +11,7 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
     private String inspectableBody; // null for binary content
     @TestVisible
     private GuardedCalloutConfig config; // loaded on execution; @TestVisible so guardrail tests can inject one
-    private Boolean enforcing = false;
+    private Boolean chainRegistered = false;
 
     public GuardedCalloutBuilder(String namedCredential) {
         super('callout:' + namedCredential);
@@ -61,7 +61,7 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
     }
 
     public override HttpResponse getHttpResponse() {
-        this.enforceGuardrails();
+        this.registerGuardrails();
         return super.getHttpResponse();
     }
 
@@ -83,25 +83,18 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
         return this.config;
     }
 
-    private void enforceGuardrails() {
-        if (this.enforcing) {
-            throw new GuardedCalloutException('A guardrail must not execute the callout it is guarding.');
-        }
+    private void registerGuardrails() {
         if (String.isBlank(this.getEndpoint())) {
             throw new GuardedCalloutException('An endpoint path is required, e.g. withEndpoint(\'/v1/resource\').');
+        }
+        if (this.chainRegistered) {
+            return;
         }
         if (this.config == null) {
             this.config = GuardedCalloutConfig.forName(this.namedCredential);
         }
-        List<CalloutGuardrail> guardrails = new GuardrailsFactory(this.config).create();
-        this.enforcing = true;
-        try {
-            for (CalloutGuardrail guardrail : guardrails) {
-                guardrail.enforce(this);
-            }
-        } finally {
-            this.enforcing = false;
-        }
+        this.withGuardrails(new GuardrailsFactory(this.config).create());
+        this.chainRegistered = true;
     }
 
     private static String stringForm(Object body) {

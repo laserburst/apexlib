@@ -17,16 +17,6 @@ private class GuardedCalloutBuilder_Test {
         }
     }
 
-    /**
-    * @description Referenced by name from recursionIsBlocked's injected config;
-    * proves a custom guardrail cannot execute the callout it is guarding.
-    */
-    public class RecursiveGuardrail implements CalloutGuardrail {
-        public void enforce(GuardedCalloutBuilder builder) {
-            builder.getHttpResponse();
-        }
-    }
-
     public class OkDto {
         public Boolean ok;
     }
@@ -291,27 +281,5 @@ private class GuardedCalloutBuilder_Test {
         Assert.areEqual('10', builder.getQueryParameters().get('limit'), 'Query parameters should be readable');
         Assert.areEqual('{"name":"widget"}', builder.getBody(), 'Body should be readable as a string');
         Assert.isNull(builder.getConfig(), 'Config is loaded only on execution');
-    }
-
-    @IsTest
-    static void recursionFromCustomGuardrailIsBlocked() {
-        authenticate('GuardedTest_Full', 'https://example.com');
-        GuardedCalloutConfig config = new GuardedCalloutConfig();
-        config.namedCredential = 'GuardedTest_Full';
-        config.allowedMethods = new List<String>{ 'GET' };
-        config.allowedEndpointPatterns = new List<String>{ '*' };
-        config.guardrails = new List<String>{ 'GuardedCalloutBuilder_Test.RecursiveGuardrail' };
-
-        GuardedCalloutBuilder builder = guarded('/v1/data', 'GET');
-        builder.config = config;
-
-        try {
-            Test.startTest();
-            builder.getHttpResponse();
-            Test.stopTest();
-            Assert.fail('Expected exception');
-        } catch (GuardedCalloutException e) {
-            Assert.isTrue(e.getMessage().contains('must not execute'), 'Unexpected: ' + e.getMessage());
-        }
     }
 }

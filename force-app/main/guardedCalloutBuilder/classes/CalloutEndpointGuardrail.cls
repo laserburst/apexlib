@@ -8,8 +8,9 @@
 * @team Laserburst
 */
 public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
-    public void enforce(GuardedCalloutBuilder builder) {
-        String path = builder.getPath();
+    public void enforce(CalloutBuilder builder) {
+        GuardedCalloutBuilder guarded = (GuardedCalloutBuilder) builder;
+        String path = guarded.getPath();
         Integer queryStart = path.indexOf('?');
         if (queryStart >= 0) {
             path = path.substring(0, queryStart);
@@ -18,7 +19,7 @@ public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
             throw new GuardedCalloutException('Path "' + path + '" contains a ".." segment, which is not allowed.');
         }
 
-        List<String> patterns = builder.getConfig().allowedEndpointPatterns;
+        List<String> patterns = guarded.getConfig().allowedEndpointPatterns;
         for (String pattern : patterns) {
             if (isMatch(pattern, path)) {
                 return;
@@ -28,7 +29,7 @@ public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
             'Path "'
             + path
             + '" does not match any allowed endpoint pattern for "'
-            + builder.getNamedCredential()
+            + guarded.getNamedCredential()
             + '". Allowed patterns: '
             + String.join(patterns, ', ')
             + '.'

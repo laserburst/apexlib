@@ -4,14 +4,15 @@
 * @team Laserburst
 */
 public with sharing class CalloutMethodGuardrail implements CalloutGuardrail {
-    public void enforce(GuardedCalloutBuilder builder) {
-        List<String> allowed = builder.getConfig().allowedMethods;
-        if (!allowed.contains(builder.getMethod())) {
+    public void enforce(CalloutBuilder builder) {
+        GuardedCalloutBuilder guarded = (GuardedCalloutBuilder) builder;
+        List<String> allowed = guarded.getConfig().allowedMethods;
+        if (!allowed.contains(guarded.getMethod())) {
             throw new GuardedCalloutException(
                 'HTTP method "'
-                + builder.getMethod()
+                + guarded.getMethod()
                 + '" is not allowed for "'
-                + builder.getNamedCredential()
+                + guarded.getNamedCredential()
                 + '". Allowed methods: '
                 + String.join(allowed, ', ')
                 + '.'
