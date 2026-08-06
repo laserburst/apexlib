@@ -57,8 +57,6 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
         return super.getHttpResponse();
     }
 
-    // Read accessors (the context guardrails inspect)
-
     public String getInspectableBody() {
         return this.inspectableBody;
     }
