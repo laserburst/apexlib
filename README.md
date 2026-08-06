@@ -48,6 +48,10 @@ HttpResponse response = new GuardedCalloutBuilder('OpenAI_NC')
     .getHttpResponse();
 ```
 
+### [Named Credentials MCP](force-app/main/namedCredentialsMcp/README.md)
+
+Three Salesforce-hosted MCP tools that let an AI agent make HTTP callouts through the org's Named Credentials — the token never reaches the AI. `listCredentials` shows which credentials exist and whether each is ready to use; `describe` explains how to call one; `sendRequest` sends a guarded request through [GuardedCalloutBuilder](force-app/main/guardedCalloutBuilder/classes/README.md). The tools are invocable actions, so they also work in Flows and Agentforce.
+
 ## Claude Code
 
 A Claude Code skill for CalloutBuilder is included at [.claude/skills/apex-callout-builder/SKILL.md](.claude/skills/apex-callout-builder/SKILL.md). Copy it to your project's `.claude/skills/` directory and Claude will automatically generate, review, and explain CalloutBuilder code — including response DTOs, error handling, test mocks, file uploads, and async callouts.
