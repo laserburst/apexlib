@@ -280,6 +280,5 @@ private class GuardedCalloutBuilder_Test {
         Assert.areEqual('application/json', builder.getHeaders().get('Accept'), 'Headers should be readable');
         Assert.areEqual('10', builder.getQueryParameters().get('limit'), 'Query parameters should be readable');
         Assert.areEqual('{"name":"widget"}', builder.getBody(), 'Body should be readable as a string');
-        Assert.isNull(builder.getConfig(), 'Config is loaded only on execution');
     }
 }

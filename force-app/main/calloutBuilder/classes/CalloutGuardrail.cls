@@ -6,11 +6,8 @@
 */
 public interface CalloutGuardrail {
     /**
-    * @description Inspect the builder and throw to block the callout. Return
-    * normally to allow it. The builder exposes the request through its read
-    * accessors (getMethod, getEndpoint, getHeaders, getQueryParameters, ...);
-    * do not execute it. The thrown message is surfaced to the caller, so make
-    * it actionable.
+    * @description Throw to block the callout, return to allow it.
+    * Do not execute the builder.
     * @param builder the callout about to be sent
     */
     void enforce(CalloutBuilder builder);

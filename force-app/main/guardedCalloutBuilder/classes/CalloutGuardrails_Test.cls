@@ -259,16 +259,17 @@ private class CalloutGuardrails_Test {
 
     // --- GuardrailsFactory ---
 
-    private static GuardrailsFactory factory(List<String> customGuardrails) {
+    private static GuardedCalloutConfig configNaming(List<String> customGuardrails) {
         GuardedCalloutConfig config = new GuardedCalloutConfig();
         config.namedCredential = 'GuardedTest_Full';
         config.guardrails = customGuardrails;
-        return new GuardrailsFactory(config);
+        return config;
     }
 
     @IsTest
     static void factoryCreatesBuiltInsThenCustom() {
-        List<CalloutGuardrail> guardrails = factory(new List<String>{ 'CalloutExampleGuardrail' }).create();
+        List<CalloutGuardrail> guardrails =
+            GuardrailsFactory.create(configNaming(new List<String>{ 'CalloutExampleGuardrail' }));
 
         Assert.areEqual(4, guardrails.size(), 'Three built-ins plus one custom');
         Assert.isInstanceOfType(guardrails[0], CalloutAuthenticationGuardrail.class, 'Authentication runs first');
@@ -280,7 +281,7 @@ private class CalloutGuardrails_Test {
     @IsTest
     static void factoryThrowsForUnknownClass() {
         try {
-            factory(new List<String>{ 'ThisClassDoesNotExist_12345' }).create();
+            GuardrailsFactory.create(configNaming(new List<String>{ 'ThisClassDoesNotExist_12345' }));
             Assert.fail('Expected exception');
         } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('was not found'), 'Unexpected: ' + e.getMessage());
@@ -291,7 +292,7 @@ private class CalloutGuardrails_Test {
     @IsTest
     static void factoryThrowsForWrongType() {
         try {
-            factory(new List<String>{ 'GuardedCalloutConfig' }).create(); // a real class that is not a guardrail
+            GuardrailsFactory.create(configNaming(new List<String>{ 'GuardedCalloutConfig' })); // not a guardrail
             Assert.fail('Expected exception');
         } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('must implement CalloutGuardrail'), 'Unexpected: ' + e.getMessage());

@@ -10,8 +10,9 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
     private final String namedCredential;
     private String inspectableBody; // null for binary content
     @TestVisible
-    private GuardedCalloutConfig config; // loaded on execution; @TestVisible so guardrail tests can inject one
+    private GuardedCalloutConfig config; // resolved on first read; @TestVisible so guardrail tests can inject one
     private Boolean chainRegistered = false;
+    private List<CalloutGuardrail> guardrails;
 
     public GuardedCalloutBuilder(String namedCredential) {
         super('callout:' + namedCredential);
@@ -80,6 +81,9 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
     }
 
     public GuardedCalloutConfig getConfig() {
+        if (this.config == null) {
+            this.config = GuardedCalloutConfig.forName(this.namedCredential);
+        }
         return this.config;
     }
 
@@ -90,11 +94,15 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
         if (this.chainRegistered) {
             return;
         }
-        if (this.config == null) {
-            this.config = GuardedCalloutConfig.forName(this.namedCredential);
-        }
-        this.withGuardrails(new GuardrailsFactory(this.config).create());
+        this.withGuardrails(this.getGuardrails());
         this.chainRegistered = true;
+    }
+
+    private List<CalloutGuardrail> getGuardrails() {
+        if (this.guardrails == null) {
+            this.guardrails = GuardrailsFactory.create(this.getConfig());
+        }
+        return this.guardrails;
     }
 
     private static String stringForm(Object body) {

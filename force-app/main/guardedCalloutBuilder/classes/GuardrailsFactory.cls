@@ -6,33 +6,31 @@
 * @team Laserburst
 */
 public with sharing class GuardrailsFactory {
-    private final GuardedCalloutConfig config;
-
-    public GuardrailsFactory(GuardedCalloutConfig config) {
-        this.config = config;
+    public static List<CalloutGuardrail> create(String namedCredential) {
+        return create(GuardedCalloutConfig.forName(namedCredential));
     }
 
-    public List<CalloutGuardrail> create() {
+    public static List<CalloutGuardrail> create(GuardedCalloutConfig config) {
         List<CalloutGuardrail> guardrails =
             new List<CalloutGuardrail>{
                 new CalloutAuthenticationGuardrail(),
                 new CalloutMethodGuardrail(),
                 new CalloutEndpointGuardrail()
             };
-        for (String className : this.config.guardrails) {
-            guardrails.add(this.instantiate(className));
+        for (String className : config.guardrails) {
+            guardrails.add(instantiate(className, config.namedCredential));
         }
         return guardrails;
     }
 
-    private CalloutGuardrail instantiate(String className) {
+    private static CalloutGuardrail instantiate(String className, String namedCredential) {
         System.Type guardrailType = System.Type.forName(className);
         if (guardrailType == null) {
             throw new GuardedCalloutException(
                 'Custom guardrail class "'
                 + className
                 + '" was not found. Check the "guardrails" list in the configuration for "'
-                + this.config.namedCredential
+                + namedCredential
                 + '".'
             );
         }
