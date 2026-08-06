@@ -160,7 +160,7 @@ private class ncMcp_SendRequestTool_Test {
             Test.stopTest();
             Assert.fail('Expected the custom guardrail to block the request');
         } catch (CalloutGuardrailException e) {
-            Assert.isTrue(e.getMessage().contains('CalloutExampleGuardrail'), 'Unexpected: ' + e.getMessage());
+            Assert.isTrue(e.getMessage().contains('CalloutTestGuardrail'), 'Unexpected: ' + e.getMessage());
         }
     }
 

@@ -14,8 +14,7 @@ This module is independent of Named Credentials MCP: the MCP tools are one consu
 4. [CalloutAuthenticationGuardrail](CalloutAuthenticationGuardrail.cls) - built-in: allows only a Named Credential authenticated for the running context. Also exposes `getStatus()`/`Status` so callers (e.g. discovery tools) can report readiness.
 5. [CalloutMethodGuardrail](CalloutMethodGuardrail.cls) - built-in: allows only the HTTP methods in `allowedMethods` (default GET).
 6. [CalloutEndpointGuardrail](CalloutEndpointGuardrail.cls) - built-in: the path must match an `allowedEndpointPatterns` entry (default `*`); `..` traversal is always rejected.
-7. [CalloutExampleGuardrail](CalloutExampleGuardrail.cls) - copy-ready reference custom guardrail: blocks any body that appears to contain a credential.
-8. [GuardedCalloutConfig](GuardedCalloutConfig.cls) - loads and parses `Named_Credentials_Configuration__mdt`, applying safe defaults.
+7. [GuardedCalloutConfig](GuardedCalloutConfig.cls) - loads and parses `Named_Credentials_Configuration__mdt`, applying safe defaults.
 
 The built-in chain runs in a fixed order — authentication → allowed method → allowed endpoint → custom guardrails (in listed order).
 
@@ -97,13 +96,34 @@ Guardrails are a strategy: implement [CalloutGuardrail](../../calloutBuilder/cla
 
 `enforce` receives a `CalloutBuilder`; cast it to reach `getInspectableBody()` and `getConfig()`, whose `namedCredential` names the credential. The request itself comes from the inherited `getNcOrBaseUrl()`, `getEndpoint()`, `getMethod()`, `getHeaders()`, and `getQueryParameters()`.
 
-[CalloutExampleGuardrail](CalloutExampleGuardrail.cls) is a copy-ready reference: it blocks any request whose body looks like it contains a credential.
-
 ```Java (Apex)
 public with sharing class NoBulkDeleteGuardrail implements CalloutGuardrail {
     public void enforce(CalloutBuilder builder) {
         if (builder.getMethod() == 'DELETE' && builder.getEndpoint().contains('/bulk')) {
             throw new CalloutGuardrailException('Bulk delete is not permitted.');
+        }
+    }
+}
+```
+
+Inspecting the body needs the cast. This one keeps a caller from forwarding secrets to an external API — a check the declarative method and endpoint rules cannot express:
+
+```Java (Apex)
+public with sharing class NoCredentialsInBodyGuardrail implements CalloutGuardrail {
+    private static final Set<String> SENSITIVE_TOKENS = new Set<String>{ 'password', 'secret', 'session_id' };
+
+    public void enforce(CalloutBuilder builder) {
+        GuardedCalloutBuilder guarded = (GuardedCalloutBuilder) builder;
+        if (String.isBlank(guarded.getInspectableBody())) {
+            return;
+        }
+        String body = guarded.getInspectableBody().toLowerCase();
+        for (String token : SENSITIVE_TOKENS) {
+            if (body.contains(token)) {
+                throw new CalloutGuardrailException(
+                    'Request blocked: the request body appears to contain a credential ("' + token + '").'
+                );
+            }
         }
     }
 }

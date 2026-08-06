@@ -229,34 +229,6 @@ private class CalloutGuardrails_Test {
         Assert.isNull(CalloutAuthenticationGuardrail.firstPrincipalType(ec), 'Principal without a type -> null');
     }
 
-    // --- Example (custom) guardrail ---
-
-    @IsTest
-    static void exampleGuardrailBlocksSensitiveBody() {
-        GuardedCalloutBuilder guarded =
-            buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' });
-        guarded.withBody('{"user":"a","password":"hunter2"}');
-        try {
-            new CalloutExampleGuardrail().enforce(guarded);
-            Assert.fail('Expected block');
-        } catch (CalloutGuardrailException e) {
-            Assert.isTrue(e.getMessage().contains('credential'), 'Unexpected: ' + e.getMessage());
-        }
-    }
-
-    @IsTest
-    static void exampleGuardrailAllowsCleanAndBlankBody() {
-        GuardedCalloutBuilder withCleanBody =
-            buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' });
-        withCleanBody.withBody('{"name":"widget"}');
-        new CalloutExampleGuardrail().enforce(withCleanBody);
-
-        GuardedCalloutBuilder withoutBody =
-            buildGuarded('POST', '/v1/x', new List<String>{ 'POST' }, new List<String>{ '*' });
-        new CalloutExampleGuardrail().enforce(withoutBody);
-        // no exception = pass
-    }
-
     // --- GuardrailsFactory ---
 
     private static GuardedCalloutConfig configNaming(List<String> customGuardrails) {
@@ -269,13 +241,13 @@ private class CalloutGuardrails_Test {
     @IsTest
     static void factoryCreatesBuiltInsThenCustom() {
         List<CalloutGuardrail> guardrails =
-            GuardrailsFactory.create(configNaming(new List<String>{ 'CalloutExampleGuardrail' }));
+            GuardrailsFactory.create(configNaming(new List<String>{ 'CalloutTestGuardrail' }));
 
         Assert.areEqual(4, guardrails.size(), 'Three built-ins plus one custom');
         Assert.isInstanceOfType(guardrails[0], CalloutAuthenticationGuardrail.class, 'Authentication runs first');
         Assert.isInstanceOfType(guardrails[1], CalloutMethodGuardrail.class, 'Method runs second');
         Assert.isInstanceOfType(guardrails[2], CalloutEndpointGuardrail.class, 'Endpoint runs third');
-        Assert.isInstanceOfType(guardrails[3], CalloutExampleGuardrail.class, 'Custom guardrail should run last');
+        Assert.isInstanceOfType(guardrails[3], CalloutTestGuardrail.class, 'Custom guardrail should run last');
     }
 
     @IsTest
