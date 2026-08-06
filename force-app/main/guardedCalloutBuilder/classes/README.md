@@ -94,7 +94,7 @@ guarded.withEndpoint('/v1/models').withHeader('Accept', 'application/json');
 
 Guardrails are a strategy: implement [CalloutGuardrail](../../calloutBuilder/classes/CalloutGuardrail.cls) and add the class name to the `guardrails` list. They run after the built-in checks, in listed order. Throw `GuardedCalloutException` to block; return normally to allow. Do not execute the builder from inside a guardrail — it throws.
 
-`enforce` receives a `CalloutBuilder`; cast it to reach `getBody()`, `getNamedCredential()`, and `getConfig()`. The request itself comes from the inherited `getEndpoint()`, `getMethod()`, `getHeaders()`, and `getQueryParameters()`.
+`enforce` receives a `CalloutBuilder`; cast it to reach `getInspectableBody()`, `getNamedCredential()`, and `getConfig()`. The request itself comes from the inherited `getEndpoint()`, `getMethod()`, `getHeaders()`, and `getQueryParameters()`.
 
 [CalloutExampleGuardrail](CalloutExampleGuardrail.cls) is a copy-ready reference: it blocks any request whose body looks like it contains a credential.
 
@@ -116,5 +116,5 @@ The cast holds for any guardrail named in a configuration. Write against `Callou
 
 - The authentication check relies on ConnectApi, which reports on unified Named Credentials. Legacy Named Credentials may be reported as unauthenticated.
 - ConnectApi is not executable in test context; [CalloutAuthenticationGuardrail](CalloutAuthenticationGuardrail.cls) exposes a `@TestVisible` status map so tests can simulate authentication states.
-- Binary request bodies passed via `withBlobBody`/`withFile` are only inspectable when they decode as UTF-8 text; `getBody()` is null otherwise.
+- Binary request bodies passed via `withBlobBody`/`withFile` are only inspectable when they decode as UTF-8 text; `getInspectableBody()` is null otherwise.
 - Query parameters are inspectable via `getQueryParameters()`, including when they are form-encoded into a non-GET body.

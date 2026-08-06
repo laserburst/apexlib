@@ -84,7 +84,11 @@ private class GuardedCalloutBuilder_Test {
             mock.capturedRequest.getBody(),
             'String body should be sent verbatim (no double-encoding)'
         );
-        Assert.areEqual('{"name":"widget"}', builder.getBody(), 'Body should be readable as a string by guardrails');
+        Assert.areEqual(
+            '{"name":"widget"}',
+            builder.getInspectableBody(),
+            'Body should be readable as a string by guardrails'
+        );
         Assert.isNull(
             mock.capturedRequest.getHeader('Content-Type'),
             'Content-Type should be left to the caller, as with a bare CalloutBuilder'
@@ -279,6 +283,6 @@ private class GuardedCalloutBuilder_Test {
         Assert.areEqual('POST', builder.getMethod(), 'Method should be read back from the wrapped builder');
         Assert.areEqual('application/json', builder.getHeaders().get('Accept'), 'Headers should be readable');
         Assert.areEqual('10', builder.getQueryParameters().get('limit'), 'Query parameters should be readable');
-        Assert.areEqual('{"name":"widget"}', builder.getBody(), 'Body should be readable as a string');
+        Assert.areEqual('{"name":"widget"}', builder.getInspectableBody(), 'Body should be readable as a string');
     }
 }

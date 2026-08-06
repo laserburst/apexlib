@@ -12,10 +12,10 @@ public with sharing class CalloutExampleGuardrail implements CalloutGuardrail {
 
     public void enforce(CalloutBuilder builder) {
         GuardedCalloutBuilder guarded = (GuardedCalloutBuilder) builder;
-        if (String.isBlank(guarded.getBody())) {
+        if (String.isBlank(guarded.getInspectableBody())) {
             return;
         }
-        String body = guarded.getBody().toLowerCase();
+        String body = guarded.getInspectableBody().toLowerCase();
         for (String token : SENSITIVE_TOKENS) {
             if (body.contains(token)) {
                 throw new GuardedCalloutException(

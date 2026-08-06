@@ -72,7 +72,7 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
         return this.namedCredential;
     }
 
-    public String getBody() {
+    public String getInspectableBody() {
         return this.inspectableBody;
     }
 
