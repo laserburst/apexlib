@@ -116,23 +116,6 @@ private class GuardedCalloutBuilder_Test {
     }
 
     @IsTest
-    static void normalizesPath() {
-        authenticate('GuardedTest_Full', 'https://example.com');
-        CapturingMock mock = new CapturingMock();
-        mockScope('/v1/data', 'GET', mock);
-
-        Test.startTest();
-        guarded('v1/data', 'GET').getHttpResponse(); // no leading slash
-        Test.stopTest();
-
-        Assert.areEqual(
-            'callout:GuardedTest_Full/v1/data',
-            mock.capturedRequest.getEndpoint(),
-            'Leading slash should be added'
-        );
-    }
-
-    @IsTest
     static void acceptsCredentialWithCalloutPrefix() {
         authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
@@ -296,14 +279,14 @@ private class GuardedCalloutBuilder_Test {
     static void accessorsReflectRecordedState() {
         GuardedCalloutBuilder builder = new GuardedCalloutBuilder('GuardedTest_Full');
         builder
-            .withEndpoint('v1/data')
+            .withEndpoint('/v1/data')
             .withMethod('POST')
             .withHeader('Accept', 'application/json')
             .withQueryParameter('limit', '10')
             .withBody('{"name":"widget"}');
 
         Assert.areEqual('callout:GuardedTest_Full', builder.getNcOrBaseUrl(), 'Unexpected callout target');
-        Assert.areEqual('/v1/data', builder.getEndpoint(), 'Path should be normalized with a leading slash');
+        Assert.areEqual('/v1/data', builder.getEndpoint(), 'Endpoint should be readable');
         Assert.areEqual('POST', builder.getMethod(), 'Method should be readable');
         Assert.areEqual('application/json', builder.getHeaders().get('Accept'), 'Headers should be readable');
         Assert.areEqual('10', builder.getQueryParameters().get('limit'), 'Query parameters should be readable');

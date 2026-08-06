@@ -8,7 +8,7 @@ This module is independent of Named Credentials MCP: the MCP tools are one consu
 
 ## Structure
 
-1. [GuardedCalloutBuilder](GuardedCalloutBuilder.cls) - the core class. Extends CalloutBuilder, normalizes the request, and attaches the guardrail chain for its Named Credential. It is also the context object each guardrail inspects.
+1. [GuardedCalloutBuilder](GuardedCalloutBuilder.cls) - the core class. Extends CalloutBuilder and attaches the guardrail chain for its Named Credential. It is also the context object each guardrail inspects.
 2. [CalloutGuardrail](../../calloutBuilder/classes/CalloutGuardrail.cls) - the strategy interface for a single check, part of the CalloutBuilder library. Implement it to add a custom rule.
 3. [GuardrailsFactory](GuardrailsFactory.cls) - builds the chain for one configuration: the built-ins, then the custom classes it names.
 4. [CalloutAuthenticationGuardrail](CalloutAuthenticationGuardrail.cls) - built-in: allows only a Named Credential authenticated for the running context. Also exposes `getStatus()`/`Status` so callers (e.g. discovery tools) can report readiness.

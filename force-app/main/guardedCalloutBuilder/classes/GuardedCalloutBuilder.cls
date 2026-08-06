@@ -33,13 +33,6 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
         return namedCredential.startsWith(CALLOUT_PREFIX) ? namedCredential : CALLOUT_PREFIX + namedCredential;
     }
 
-    public override CalloutBuilder withEndpoint(String path) {
-        if (String.isBlank(path)) {
-            return this;
-        }
-        return super.withEndpoint(path.startsWith('/') ? path : '/' + path);
-    }
-
     public override CalloutBuilder withBody(Object body) {
         if (body == null) {
             return this;
