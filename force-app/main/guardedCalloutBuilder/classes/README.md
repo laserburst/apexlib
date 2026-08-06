@@ -94,15 +94,14 @@ guarded.withEndpoint('/v1/models').withHeader('Accept', 'application/json');
 
 Guardrails are a strategy: implement [CalloutGuardrail](../../calloutBuilder/classes/CalloutGuardrail.cls) and add the class name to the `guardrails` list. They run after the built-in checks, in listed order. Throw `GuardedCalloutException` to block; return normally to allow. Do not execute the builder from inside a guardrail — it throws.
 
-`enforce` receives a `CalloutBuilder`; cast it to reach the guarded accessors — `getPath()`, `getBody()`, `getNamedCredential()`, `getConfig()` — alongside the inherited `getMethod()`, `getHeaders()`, and `getQueryParameters()`.
+`enforce` receives a `CalloutBuilder`; cast it to reach `getBody()`, `getNamedCredential()`, and `getConfig()`. The request itself comes from the inherited `getEndpoint()`, `getMethod()`, `getHeaders()`, and `getQueryParameters()`.
 
 [CalloutExampleGuardrail](CalloutExampleGuardrail.cls) is a copy-ready reference: it blocks any request whose body looks like it contains a credential.
 
 ```Java (Apex)
 public with sharing class NoBulkDeleteGuardrail implements CalloutGuardrail {
     public void enforce(CalloutBuilder builder) {
-        GuardedCalloutBuilder guarded = (GuardedCalloutBuilder) builder;
-        if (guarded.getMethod() == 'DELETE' && guarded.getPath().contains('/bulk')) {
+        if (builder.getMethod() == 'DELETE' && builder.getEndpoint().contains('/bulk')) {
             throw new GuardedCalloutException('Bulk delete is not permitted.');
         }
     }

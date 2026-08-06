@@ -72,10 +72,6 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
         return this.namedCredential;
     }
 
-    public String getPath() {
-        return this.getEndpoint();
-    }
-
     public String getBody() {
         return this.inspectableBody;
     }

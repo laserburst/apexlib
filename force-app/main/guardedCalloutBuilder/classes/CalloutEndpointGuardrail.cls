@@ -10,7 +10,7 @@
 public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
     public void enforce(CalloutBuilder builder) {
         GuardedCalloutBuilder guarded = (GuardedCalloutBuilder) builder;
-        String path = guarded.getPath();
+        String path = guarded.getEndpoint();
         Integer queryStart = path.indexOf('?');
         if (queryStart >= 0) {
             path = path.substring(0, queryStart);

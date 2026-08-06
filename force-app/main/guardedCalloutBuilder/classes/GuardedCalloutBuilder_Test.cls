@@ -275,7 +275,7 @@ private class GuardedCalloutBuilder_Test {
             .withBody('{"name":"widget"}');
 
         Assert.areEqual('GuardedTest_Full', builder.getNamedCredential(), 'Unexpected named credential');
-        Assert.areEqual('/v1/data', builder.getPath(), 'Path should be normalized with a leading slash');
+        Assert.areEqual('/v1/data', builder.getEndpoint(), 'Path should be normalized with a leading slash');
         Assert.areEqual('POST', builder.getMethod(), 'Method should be read back from the wrapped builder');
         Assert.areEqual('application/json', builder.getHeaders().get('Accept'), 'Headers should be readable');
         Assert.areEqual('10', builder.getQueryParameters().get('limit'), 'Query parameters should be readable');
