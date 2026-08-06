@@ -33,6 +33,11 @@ ViciousMockery.cast(200);
 
 Thin wrapper around the most-used `ConnectApi` methods prepared for use.
 
+```java
+// principal and protocol are resolved from the external credential
+ConnectApiAdapter.refreshToken('MyExternalCredential');
+```
+
 ## Claude Code
 
 A Claude Code skill for CalloutBuilder is included at [.claude/skills/apex-callout-builder/SKILL.md](.claude/skills/apex-callout-builder/SKILL.md). Copy it to your project's `.claude/skills/` directory and Claude will automatically generate, review, and explain CalloutBuilder code — including response DTOs, error handling, test mocks, file uploads, and async callouts.

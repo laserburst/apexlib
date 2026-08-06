@@ -10,15 +10,7 @@ public inherited sharing class ConnectApiAdapter {
     * @return callout URL
     */
     public static String getCalloutUrl(String namedCredentialApiName) {
-        ConnectApi.NamedCredential nc;
-        if (Test.isRunningTest()) {
-            //ConnectApi is not testable
-            nc = null;
-        } else {
-            nc = getNamedCredential(namedCredentialApiName);
-            return nc.calloutUrl;
-        }
-        return null;
+        return getNamedCredential(namedCredentialApiName)?.calloutUrl;
     }
 
     /**
@@ -29,16 +21,24 @@ public inherited sharing class ConnectApiAdapter {
     * @return client id of the app configured on external system
     */
     public static String getAppClientIdFromExternalAuthIdentityProvider(String apiName) {
-        List<ConnectApi.ExternalAuthIdentityProviderCredential> externalAuth;
-
         if (Test.isRunningTest()) {
             //ConnectApi is not testable
-            externalAuth = new List<ConnectApi.ExternalAuthIdentityProviderCredential>();
-        } else {
-            externalAuth = ConnectApi.NamedCredentials.getExternalAuthIdentityProviderCredentials(apiName)?.credentials;
+            return null;
         }
+        return getClientId(ConnectApi.NamedCredentials.getExternalAuthIdentityProviderCredentials(apiName)?.credentials);
+    }
 
-        for (ConnectApi.ExternalAuthIdentityProviderCredential cr : externalAuth) {
+    /**
+    * @description getClientId extracts the clientId credential value
+    * @param  credentials External Auth Identity Provider credentials
+    * @return client id or null
+    */
+    @TestVisible
+    private static String getClientId(List<ConnectApi.ExternalAuthIdentityProviderCredential> credentials) {
+        if (credentials == null) {
+            return null;
+        }
+        for (ConnectApi.ExternalAuthIdentityProviderCredential cr : credentials) {
             if (cr.credentialName == 'clientId') {
                 return cr.credentialValue;
             }
@@ -76,7 +76,29 @@ public inherited sharing class ConnectApiAdapter {
     }
 
     /**
+    * @description refreshToken overload for an external credential with a single principal
+    * @param  externalCredential api name of the external credential
+    */
+    public static void refreshToken(String externalCredential) {
+        if (Test.isRunningTest()) {
+            //ConnectApi is not testable
+            return;
+        }
+        ConnectApi.ExternalCredential credential = getExternalCredential(externalCredential);
+        ConnectApi.ExternalCredentialPrincipal principal = getSinglePrincipal(credential, externalCredential);
+        refreshToken(
+            externalCredential,
+            principal.principalName,
+            principal.principalType,
+            getAuthenticationProtocol(credential, externalCredential)
+        );
+    }
+
+    /**
     * @description isCredentialConfigured
+    * @param  externalCredential api name of the external credential
+    * @param  principalName (previously called Permission Set Mapping)
+    * @param  principalType - https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/connectAPI_enums.htm#CredentialPrincipalTypeEnum
     * @return true if configured
     */
     public static Boolean isCredentialConfigured(
@@ -93,7 +115,24 @@ public inherited sharing class ConnectApiAdapter {
     }
 
     /**
+    * @description isCredentialConfigured overload for an external credential with a single principal
+    * @param  externalCredential api name of the external credential
+    * @return true if configured
+    */
+    public static Boolean isCredentialConfigured(String externalCredential) {
+        if (Test.isRunningTest()) {
+            return true;
+        }
+        ConnectApi.ExternalCredentialPrincipal principal =
+            getSinglePrincipal(getExternalCredential(externalCredential), externalCredential);
+        return isCredentialConfigured(externalCredential, principal.principalName, principal.principalType);
+    }
+
+    /**
      * @description getCredentialAuthenticationUrl
+     * @param  externalCredential api name of the external credential
+     * @param  principalName (previously called Permission Set Mapping)
+     * @param  principalType - https://developer.salesforce.com/docs/atlas.en-us.apexref.meta/apexref/connectAPI_enums.htm#CredentialPrincipalTypeEnum
      * @return authentication URL for OAuth flow
      */
     public static String getCredentialAuthenticationUrl(
@@ -113,6 +152,20 @@ public inherited sharing class ConnectApiAdapter {
 
         ConnectApi.OAuthCredentialAuthUrl output = ConnectApi.NamedCredentials.getOAuthCredentialAuthUrl(input);
         return output.authenticationUrl;
+    }
+
+    /**
+     * @description getCredentialAuthenticationUrl overload for an external credential with a single principal
+     * @param  externalCredential api name of the external credential
+     * @return authentication URL for OAuth flow
+     */
+    public static String getCredentialAuthenticationUrl(String externalCredential) {
+        if (Test.isRunningTest()) {
+            return null;
+        }
+        ConnectApi.ExternalCredentialPrincipal principal =
+            getSinglePrincipal(getExternalCredential(externalCredential), externalCredential);
+        return getCredentialAuthenticationUrl(externalCredential, principal.principalName, principal.principalType);
     }
 
     /**
@@ -146,4 +199,57 @@ public inherited sharing class ConnectApiAdapter {
         }
         return ConnectApi.NamedCredentials.getExternalCredential(externalCredentialApiName);
     }
+
+    /**
+    * @description getSinglePrincipal extracts the only principal of an external credential
+    * @param  externalCredential fetched External Credential
+    * @param  externalCredentialApiName api name for error messages
+    * @return the single principal
+    */
+    @TestVisible
+    private static ConnectApi.ExternalCredentialPrincipal getSinglePrincipal(
+        ConnectApi.ExternalCredential externalCredential,
+        String externalCredentialApiName
+    ) {
+        if (externalCredential == null) {
+            throw new ConnectApiAdapterException(
+                'External credential "' + externalCredentialApiName + '" could not be retrieved. ' +
+                'Check the API name and the running user\'s access.'
+            );
+        }
+        Integer principalCount = externalCredential.principals == null ? 0 : externalCredential.principals.size();
+        if (principalCount != 1) {
+            throw new ConnectApiAdapterException(
+                'External credential "' + externalCredentialApiName + '" has ' + principalCount +
+                ' principals visible to the running user; the single-parameter overload requires exactly 1. ' +
+                'Use the overload with explicit principalName and principalType.'
+            );
+        }
+        return externalCredential.principals[0];
+    }
+
+    /**
+    * @description getAuthenticationProtocol extracts the authentication protocol of an external credential
+    * @param  externalCredential fetched External Credential
+    * @param  externalCredentialApiName api name for error messages
+    * @return the authentication protocol
+    */
+    @TestVisible
+    private static ConnectApi.CredentialAuthenticationProtocol getAuthenticationProtocol(
+        ConnectApi.ExternalCredential externalCredential,
+        String externalCredentialApiName
+    ) {
+        if (externalCredential.authenticationProtocol == null) {
+            throw new ConnectApiAdapterException(
+                'External credential "' + externalCredentialApiName + '" has no visible authentication protocol; ' +
+                'the single-parameter refreshToken() cannot derive it. Call the full-parameter refreshToken().'
+            );
+        }
+        return externalCredential.authenticationProtocol;
+    }
+
+    /**
+    * @description custom adapter exception
+    */
+    public class ConnectApiAdapterException extends Exception {}
 }
