@@ -16,9 +16,10 @@ This module is independent of Named Credentials MCP: the MCP tools are one consu
 6. [CalloutEndpointGuardrail](CalloutEndpointGuardrail.cls) - built-in: the path must match an `allowedEndpointPatterns` entry (default `*`); `..` traversal is always rejected.
 7. [CalloutExampleGuardrail](CalloutExampleGuardrail.cls) - copy-ready reference custom guardrail: blocks any body that appears to contain a credential.
 8. [GuardedCalloutConfig](GuardedCalloutConfig.cls) - loads and parses `Named_Credentials_Configuration__mdt`, applying safe defaults.
-9. [GuardedCalloutException](GuardedCalloutException.cls) - thrown on configuration problems, invalid input, and guardrail violations. (HTTP status ≥ 400 raises `CalloutBuilder.CalloutBuilderException` instead.)
 
 The built-in chain runs in a fixed order — authentication → allowed method → allowed endpoint → custom guardrails (in listed order).
+
+Each class throws its own inner exception — `GuardedCalloutBuilder.GuardedCalloutBuilderException` for invalid builder input, `GuardedCalloutConfig.GuardedCalloutConfigException` for configuration problems, `GuardrailsFactory.GuardrailsFactoryException` for an unusable custom guardrail class. Guardrails themselves throw [CalloutGuardrailException](../../calloutBuilder/classes/CalloutGuardrailException.cls). (HTTP status ≥ 400 raises `CalloutBuilder.CalloutBuilderException` instead.)
 
 ## Configuration
 
@@ -92,7 +93,7 @@ guarded.withEndpoint('/v1/models').withHeader('Accept', 'application/json');
 
 ### Custom guardrails
 
-Guardrails are a strategy: implement [CalloutGuardrail](../../calloutBuilder/classes/CalloutGuardrail.cls) and add the class name to the `guardrails` list. They run after the built-in checks, in listed order. Throw `GuardedCalloutException` to block; return normally to allow. Do not execute the builder from inside a guardrail — it throws.
+Guardrails are a strategy: implement [CalloutGuardrail](../../calloutBuilder/classes/CalloutGuardrail.cls) and add the class name to the `guardrails` list. They run after the built-in checks, in listed order. Throw `CalloutGuardrailException` to block; return normally to allow. Do not execute the builder from inside a guardrail — it throws.
 
 `enforce` receives a `CalloutBuilder`; cast it to reach `getInspectableBody()` and `getConfig()`, whose `namedCredential` names the credential. The request itself comes from the inherited `getNcOrBaseUrl()`, `getEndpoint()`, `getMethod()`, `getHeaders()`, and `getQueryParameters()`.
 
@@ -102,7 +103,7 @@ Guardrails are a strategy: implement [CalloutGuardrail](../../calloutBuilder/cla
 public with sharing class NoBulkDeleteGuardrail implements CalloutGuardrail {
     public void enforce(CalloutBuilder builder) {
         if (builder.getMethod() == 'DELETE' && builder.getEndpoint().contains('/bulk')) {
-            throw new GuardedCalloutException('Bulk delete is not permitted.');
+            throw new CalloutGuardrailException('Bulk delete is not permitted.');
         }
     }
 }

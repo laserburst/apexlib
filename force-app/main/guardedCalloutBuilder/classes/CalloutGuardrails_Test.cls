@@ -35,7 +35,7 @@ private class CalloutGuardrails_Test {
         try {
             new CalloutMethodGuardrail().enforce(guarded);
             Assert.fail('Expected block');
-        } catch (GuardedCalloutException e) {
+        } catch (CalloutGuardrailException e) {
             Assert.isTrue(e.getMessage().contains('is not allowed'), 'Unexpected: ' + e.getMessage());
             Assert.isTrue(e.getMessage().contains('GET, POST'), 'Should list allowed methods');
         }
@@ -73,7 +73,7 @@ private class CalloutGuardrails_Test {
         Boolean allowed = true;
         try {
             new CalloutEndpointGuardrail().enforce(guarded);
-        } catch (GuardedCalloutException e) {
+        } catch (CalloutGuardrailException e) {
             allowed = false;
         }
         Assert.areEqual(expectedAllowed, allowed, 'Pattern "' + pattern + '" vs path "' + path + '"');
@@ -94,7 +94,7 @@ private class CalloutGuardrails_Test {
         try {
             new CalloutEndpointGuardrail().enforce(guarded);
             Assert.fail('Expected block');
-        } catch (GuardedCalloutException e) {
+        } catch (CalloutGuardrailException e) {
             Assert.isTrue(e.getMessage().contains('does not match'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -118,7 +118,7 @@ private class CalloutGuardrails_Test {
         try {
             new CalloutAuthenticationGuardrail().enforce(guarded);
             Assert.fail('Expected block');
-        } catch (GuardedCalloutException e) {
+        } catch (CalloutGuardrailException e) {
             Assert.isTrue(e.getMessage().contains('not authenticated'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -239,7 +239,7 @@ private class CalloutGuardrails_Test {
         try {
             new CalloutExampleGuardrail().enforce(guarded);
             Assert.fail('Expected block');
-        } catch (GuardedCalloutException e) {
+        } catch (CalloutGuardrailException e) {
             Assert.isTrue(e.getMessage().contains('credential'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -283,7 +283,7 @@ private class CalloutGuardrails_Test {
         try {
             GuardrailsFactory.create(configNaming(new List<String>{ 'ThisClassDoesNotExist_12345' }));
             Assert.fail('Expected exception');
-        } catch (GuardedCalloutException e) {
+        } catch (GuardrailsFactory.GuardrailsFactoryException e) {
             Assert.isTrue(e.getMessage().contains('was not found'), 'Unexpected: ' + e.getMessage());
             Assert.isTrue(e.getMessage().contains('GuardedTest_Full'), 'Should name the credential to fix');
         }
@@ -294,7 +294,7 @@ private class CalloutGuardrails_Test {
         try {
             GuardrailsFactory.create(configNaming(new List<String>{ 'GuardedCalloutConfig' })); // not a guardrail
             Assert.fail('Expected exception');
-        } catch (GuardedCalloutException e) {
+        } catch (GuardrailsFactory.GuardrailsFactoryException e) {
             Assert.isTrue(e.getMessage().contains('must implement CalloutGuardrail'), 'Unexpected: ' + e.getMessage());
         }
     }

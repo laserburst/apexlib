@@ -20,7 +20,7 @@ All three are thin invocable wrappers. The callout path and every guardrail live
 2. `describe` returns the usage contract for one credential: its purpose, docs URL, allowed methods, and endpoint patterns.
 3. `sendRequest` builds a `GuardedCalloutBuilder`. Before the request leaves the org, it loads the credential's configuration and runs the guardrail chain:
    authentication → allowed method → allowed endpoint → any custom guardrails.
-4. On success the response (status code, status text, body, headers) is returned. On an HTTP status ≥ 400 the callout raises `CalloutBuilder.CalloutBuilderException` (its message carries the response body); on a guardrail violation or bad input it raises `GuardedCalloutException`.
+4. On success the response (status code, status text, body, headers) is returned. On an HTTP status ≥ 400 the callout raises `CalloutBuilder.CalloutBuilderException` (its message carries the response body); on a guardrail violation it raises `CalloutGuardrailException`, and on bad input the tool's own inner exception (`ncMcp_SendRequestTool.ncMcp_SendRequestToolException`).
 
 Nothing is usable by default. An API can be called only when an admin adds an active configuration record for it **and** the Named Credential is authenticated for the running user (per-user principal) or the org (named principal). `listCredentials` does show unauthenticated credentials — with `isConfigured=false` and the principal type — so agents can tell users which authorization is missing; `describe` and `sendRequest` refuse them.
 

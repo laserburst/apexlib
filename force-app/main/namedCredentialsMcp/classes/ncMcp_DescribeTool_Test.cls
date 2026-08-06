@@ -35,8 +35,8 @@ private class ncMcp_DescribeTool_Test {
         // no authenticate() call -> the credential exists but is not usable
         try {
             describe('GuardedTest_Full');
-            Assert.fail('Expected GuardedCalloutException');
-        } catch (GuardedCalloutException e) {
+            Assert.fail('Expected ncMcp_DescribeTool.ncMcp_DescribeToolException');
+        } catch (ncMcp_DescribeTool.ncMcp_DescribeToolException e) {
             Assert.isTrue(e.getMessage().contains('not authenticated'), 'Unexpected: ' + e.getMessage());
             Assert.isTrue(
                 e.getMessage().contains('listCredentials'),
@@ -49,8 +49,8 @@ private class ncMcp_DescribeTool_Test {
     static void describeThrowsWhenNoActiveConfig() {
         try {
             describe('GuardedTest_Inactive');
-            Assert.fail('Expected GuardedCalloutException');
-        } catch (GuardedCalloutException e) {
+            Assert.fail('Expected ncMcp_DescribeTool.ncMcp_DescribeToolException');
+        } catch (ncMcp_DescribeTool.ncMcp_DescribeToolException e) {
             Assert.isTrue(e.getMessage().contains('No active configuration found'), 'Unexpected: ' + e.getMessage());
             Assert.isTrue(
                 e.getMessage().contains('listCredentials'),
@@ -63,8 +63,8 @@ private class ncMcp_DescribeTool_Test {
     static void describeThrowsWhenNameIsBlank() {
         try {
             describe(null);
-            Assert.fail('Expected GuardedCalloutException');
-        } catch (GuardedCalloutException e) {
+            Assert.fail('Expected ncMcp_DescribeTool.ncMcp_DescribeToolException');
+        } catch (ncMcp_DescribeTool.ncMcp_DescribeToolException e) {
             Assert.isTrue(e.getMessage().contains('"namedCredential" is required'), 'Unexpected: ' + e.getMessage());
         }
     }

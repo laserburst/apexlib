@@ -18,7 +18,7 @@ public with sharing class CalloutExampleGuardrail implements CalloutGuardrail {
         String body = guarded.getInspectableBody().toLowerCase();
         for (String token : SENSITIVE_TOKENS) {
             if (body.contains(token)) {
-                throw new GuardedCalloutException(
+                throw new CalloutGuardrailException(
                     'Request blocked by CalloutExampleGuardrail: the request body appears to contain a credential ("'
                     + token
                     + '").'

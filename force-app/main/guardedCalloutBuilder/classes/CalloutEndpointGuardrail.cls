@@ -16,7 +16,9 @@ public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
             path = path.substring(0, queryStart);
         }
         if (containsDotSegment(path)) {
-            throw new GuardedCalloutException('Path "' + path + '" contains a ".." segment, which is not allowed.');
+            throw new CalloutGuardrailException(
+                'Path "' + path + '" contains a ".." segment, which is not allowed.'
+            );
         }
 
         List<String> patterns = guarded.getConfig().allowedEndpointPatterns;
@@ -25,7 +27,7 @@ public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
                 return;
             }
         }
-        throw new GuardedCalloutException(
+        throw new CalloutGuardrailException(
             'Path "'
             + path
             + '" does not match any allowed endpoint pattern for "'

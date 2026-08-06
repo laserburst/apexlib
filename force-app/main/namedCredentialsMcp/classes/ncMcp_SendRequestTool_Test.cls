@@ -71,8 +71,8 @@ private class ncMcp_SendRequestTool_Test {
             Test.startTest();
             send(input('GuardedTest_Full', '/v1/missing', 'GET'));
             Test.stopTest();
-            Assert.fail('Expected GuardedCalloutException');
-        } catch (GuardedCalloutException e) {
+            Assert.fail('Expected ncMcp_SendRequestTool.ncMcp_SendRequestToolException');
+        } catch (ncMcp_SendRequestTool.ncMcp_SendRequestToolException e) {
             Assert.isTrue(
                 e.getMessage().contains('HTTP 404'),
                 'HTTP status should be in the message: ' + e.getMessage()
@@ -91,8 +91,8 @@ private class ncMcp_SendRequestTool_Test {
             Test.startTest();
             send(input('GuardedTest_Full', '/v1/data', 'DELETE'));
             Test.stopTest();
-            Assert.fail('Expected GuardedCalloutException');
-        } catch (GuardedCalloutException e) {
+            Assert.fail('Expected CalloutGuardrailException');
+        } catch (CalloutGuardrailException e) {
             Assert.isTrue(e.getMessage().contains('is not allowed'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -104,8 +104,8 @@ private class ncMcp_SendRequestTool_Test {
             Test.startTest();
             send(input('GuardedTest_Full', '/v1/data', 'GET'));
             Test.stopTest();
-            Assert.fail('Expected GuardedCalloutException');
-        } catch (GuardedCalloutException e) {
+            Assert.fail('Expected CalloutGuardrailException');
+        } catch (CalloutGuardrailException e) {
             Assert.isTrue(e.getMessage().contains('not authenticated'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -120,8 +120,8 @@ private class ncMcp_SendRequestTool_Test {
             Test.startTest();
             send(request);
             Test.stopTest();
-            Assert.fail('Expected GuardedCalloutException');
-        } catch (GuardedCalloutException e) {
+            Assert.fail('Expected ncMcp_SendRequestTool.ncMcp_SendRequestToolException');
+        } catch (ncMcp_SendRequestTool.ncMcp_SendRequestToolException e) {
             Assert.isTrue(e.getMessage().contains('must be a JSON object string'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -159,7 +159,7 @@ private class ncMcp_SendRequestTool_Test {
             send(request);
             Test.stopTest();
             Assert.fail('Expected the custom guardrail to block the request');
-        } catch (GuardedCalloutException e) {
+        } catch (CalloutGuardrailException e) {
             Assert.isTrue(e.getMessage().contains('CalloutExampleGuardrail'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -168,8 +168,8 @@ private class ncMcp_SendRequestTool_Test {
     static void rejectsBlankNamedCredential() {
         try {
             send(input(null, '/v1/data', 'GET'));
-            Assert.fail('Expected GuardedCalloutException');
-        } catch (GuardedCalloutException e) {
+            Assert.fail('Expected ncMcp_SendRequestTool.ncMcp_SendRequestToolException');
+        } catch (ncMcp_SendRequestTool.ncMcp_SendRequestToolException e) {
             Assert.isTrue(e.getMessage().contains('"namedCredential" is required'), 'Unexpected: ' + e.getMessage());
             Assert.isTrue(
                 e.getMessage().contains('listCredentials'),
@@ -182,8 +182,8 @@ private class ncMcp_SendRequestTool_Test {
     static void rejectsBlankPath() {
         try {
             send(input('GuardedTest_Full', null, 'GET'));
-            Assert.fail('Expected GuardedCalloutException');
-        } catch (GuardedCalloutException e) {
+            Assert.fail('Expected ncMcp_SendRequestTool.ncMcp_SendRequestToolException');
+        } catch (ncMcp_SendRequestTool.ncMcp_SendRequestToolException e) {
             Assert.isTrue(e.getMessage().contains('"path" is required'), 'Unexpected: ' + e.getMessage());
         }
     }

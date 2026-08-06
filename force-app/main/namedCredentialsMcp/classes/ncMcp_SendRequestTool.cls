@@ -24,7 +24,9 @@ global with sharing class ncMcp_SendRequestTool {
                 }
                 // The exception message is only the response body; prepend the
                 // status so the tool keeps its promise to report both
-                throw new GuardedCalloutException('HTTP ' + e.code + ' ' + e.status + ': ' + e.getMessage());
+                throw new ncMcp_SendRequestToolException(
+                    'HTTP ' + e.code + ' ' + e.status + ': ' + e.getMessage()
+                );
             }
         }
         return responses;
@@ -32,12 +34,12 @@ global with sharing class ncMcp_SendRequestTool {
 
     private static GuardedCalloutBuilder toGuardedBuilder(Request input) {
         if (String.isBlank(input.namedCredential)) {
-            throw new GuardedCalloutException(
+            throw new ncMcp_SendRequestToolException(
                 'Field "namedCredential" is required. Call the listCredentials tool to list available credentials.'
             );
         }
         if (String.isBlank(input.path)) {
-            throw new GuardedCalloutException('Field "path" is required, e.g. "/v1/resource".');
+            throw new ncMcp_SendRequestToolException('Field "path" is required, e.g. "/v1/resource".');
         }
         // Assigned before chaining: the inherited setters return CalloutBuilder
         GuardedCalloutBuilder guarded = new GuardedCalloutBuilder(input.namedCredential);
@@ -62,7 +64,7 @@ global with sharing class ncMcp_SendRequestTool {
         try {
             parsed = (Map<String, Object>) JSON.deserializeUntyped(jsonObject);
         } catch (Exception e) {
-            throw new GuardedCalloutException(
+            throw new ncMcp_SendRequestToolException(
                 'Field "' + fieldName + '" must be a JSON object string, e.g. {"Header-Name":"value"}.'
             );
         }
@@ -119,5 +121,9 @@ global with sharing class ncMcp_SendRequestTool {
             description='Request timeout in milliseconds. Omit to use the platform default of 10000. Values outside 1000-120000 are rejected by the platform and make the request fail.'
         )
         global Integer timeoutMilliseconds;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public class ncMcp_SendRequestToolException extends Exception {
     }
 }

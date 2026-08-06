@@ -159,7 +159,7 @@ private class GuardedCalloutBuilder_Test {
         try {
             new GuardedCalloutBuilder(' ');
             Assert.fail('Expected exception');
-        } catch (GuardedCalloutException e) {
+        } catch (GuardedCalloutBuilder.GuardedCalloutBuilderException e) {
             Assert.isTrue(e.getMessage().contains('Named Credential'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -174,7 +174,7 @@ private class GuardedCalloutBuilder_Test {
         try {
             new GuardedCalloutBuilder(namedCredential);
             Assert.fail('Expected exception for ' + namedCredential);
-        } catch (GuardedCalloutException e) {
+        } catch (GuardedCalloutBuilder.GuardedCalloutBuilderException e) {
             Assert.isTrue(e.getMessage().contains('not a URL'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -184,7 +184,7 @@ private class GuardedCalloutBuilder_Test {
         try {
             new GuardedCalloutBuilder('GuardedTest_Full').getHttpResponse();
             Assert.fail('Expected exception');
-        } catch (GuardedCalloutException e) {
+        } catch (GuardedCalloutBuilder.GuardedCalloutBuilderException e) {
             Assert.isTrue(e.getMessage().contains('endpoint path'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -194,7 +194,7 @@ private class GuardedCalloutBuilder_Test {
         try {
             new GuardedCalloutBuilder('GuardedTest_Nonexistent').withEndpoint('/v1/x').getHttpResponse();
             Assert.fail('Expected exception');
-        } catch (GuardedCalloutException e) {
+        } catch (GuardedCalloutConfig.GuardedCalloutConfigException e) {
             Assert.isTrue(e.getMessage().contains('No active configuration found'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -207,7 +207,7 @@ private class GuardedCalloutBuilder_Test {
             guarded('/v1/data', 'DELETE').getHttpResponse();
             Test.stopTest();
             Assert.fail('Expected exception');
-        } catch (GuardedCalloutException e) {
+        } catch (CalloutGuardrailException e) {
             Assert.isTrue(e.getMessage().contains('is not allowed'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -220,7 +220,7 @@ private class GuardedCalloutBuilder_Test {
             guarded('/v1/data', 'GET').getHttpResponse();
             Test.stopTest();
             Assert.fail('Expected exception');
-        } catch (GuardedCalloutException e) {
+        } catch (CalloutGuardrailException e) {
             Assert.isTrue(e.getMessage().contains('not authenticated'), 'Unexpected: ' + e.getMessage());
         }
     }
@@ -255,7 +255,7 @@ private class GuardedCalloutBuilder_Test {
         try {
             guarded('/v1/data', 'DELETE').getResponseBodyMap();
             Assert.fail('Expected the guardrail chain to run for getResponseBodyMap');
-        } catch (GuardedCalloutException e) {
+        } catch (CalloutGuardrailException e) {
             Assert.isTrue(e.getMessage().contains('is not allowed'), 'Unexpected: ' + e.getMessage());
         }
         Test.stopTest();

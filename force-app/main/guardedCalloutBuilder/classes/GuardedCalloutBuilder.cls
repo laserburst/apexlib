@@ -1,6 +1,6 @@
 /**
 * @description A CalloutBuilder subclass that runs a guardrail chain before any
-* callout leaves the org. A guardrail throws GuardedCalloutException to block
+* callout leaves the org. A guardrail throws CalloutGuardrailException to block
 * the request, and inspects it through this class's read accessors.
 * @team Laserburst
 */
@@ -21,12 +21,12 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
 
     private static String validate(String namedCredential) {
         if (String.isBlank(namedCredential)) {
-            throw new GuardedCalloutException(
+            throw new GuardedCalloutBuilderException(
                 'A Named Credential developer name is required to build a guarded callout.'
             );
         }
         if (namedCredential.startsWithIgnoreCase('http://') || namedCredential.startsWithIgnoreCase('https://')) {
-            throw new GuardedCalloutException(
+            throw new GuardedCalloutBuilderException(
                 'A guarded callout requires a Named Credential developer name, not a URL: "' + namedCredential + '".'
             );
         }
@@ -70,7 +70,9 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
 
     private void registerGuardrails() {
         if (String.isBlank(this.getEndpoint())) {
-            throw new GuardedCalloutException('An endpoint path is required, e.g. withEndpoint(\'/v1/resource\').');
+            throw new GuardedCalloutBuilderException(
+                'An endpoint path is required, e.g. withEndpoint(\'/v1/resource\').'
+            );
         }
         if (this.chainRegistered) {
             return;
@@ -98,5 +100,9 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
             }
         }
         return JSON.serialize(body);
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public class GuardedCalloutBuilderException extends Exception {
     }
 }

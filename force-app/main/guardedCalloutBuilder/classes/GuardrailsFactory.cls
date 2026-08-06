@@ -26,7 +26,7 @@ public with sharing class GuardrailsFactory {
     private static CalloutGuardrail instantiate(String className, String namedCredential) {
         System.Type guardrailType = System.Type.forName(className);
         if (guardrailType == null) {
-            throw new GuardedCalloutException(
+            throw new GuardrailsFactoryException(
                 'Custom guardrail class "'
                 + className
                 + '" was not found. Check the "guardrails" list in the configuration for "'
@@ -38,15 +38,19 @@ public with sharing class GuardrailsFactory {
         try {
             instance = guardrailType.newInstance();
         } catch (Exception e) {
-            throw new GuardedCalloutException(
+            throw new GuardrailsFactoryException(
                 'Custom guardrail class "' + className + '" could not be instantiated: ' + e.getMessage()
             );
         }
         if (!(instance instanceof CalloutGuardrail)) {
-            throw new GuardedCalloutException(
+            throw new GuardrailsFactoryException(
                 'Custom guardrail class "' + className + '" must implement CalloutGuardrail.'
             );
         }
         return (CalloutGuardrail) instance;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public class GuardrailsFactoryException extends Exception {
     }
 }

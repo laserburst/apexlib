@@ -8,7 +8,7 @@ public with sharing class CalloutMethodGuardrail implements CalloutGuardrail {
         GuardedCalloutBuilder guarded = (GuardedCalloutBuilder) builder;
         List<String> allowed = guarded.getConfig().allowedMethods;
         if (!allowed.contains(guarded.getMethod())) {
-            throw new GuardedCalloutException(
+            throw new CalloutGuardrailException(
                 'HTTP method "'
                 + guarded.getMethod()
                 + '" is not allowed for "'

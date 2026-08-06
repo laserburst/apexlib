@@ -23,14 +23,14 @@ global with sharing class ncMcp_DescribeTool {
 
     private static ncMcp_DescribeResult.Api buildApi(String namedCredential) {
         if (String.isBlank(namedCredential)) {
-            throw new GuardedCalloutException(
+            throw new ncMcp_DescribeToolException(
                 'Field "namedCredential" is required. Call the listCredentials tool to list available credentials.'
             );
         }
         GuardedCalloutConfig config = loadConfig(namedCredential);
         CalloutAuthenticationGuardrail.Status status = CalloutAuthenticationGuardrail.getStatus(namedCredential);
         if (!status.isAuthenticated) {
-            throw new GuardedCalloutException(
+            throw new ncMcp_DescribeToolException(
                 CalloutAuthenticationGuardrail.notAuthenticatedMessage(namedCredential)
                 + ' Call the listCredentials tool to check credential status.'
             );
@@ -51,9 +51,9 @@ global with sharing class ncMcp_DescribeTool {
     private static GuardedCalloutConfig loadConfig(String namedCredential) {
         try {
             return GuardedCalloutConfig.forName(namedCredential);
-        } catch (GuardedCalloutException e) {
+        } catch (GuardedCalloutConfig.GuardedCalloutConfigException e) {
             if (e.getMessage().contains('No active configuration')) {
-                throw new GuardedCalloutException(
+                throw new ncMcp_DescribeToolException(
                     e.getMessage() + ' Call the listCredentials tool to list available credentials.'
                 );
             }
@@ -70,5 +70,9 @@ global with sharing class ncMcp_DescribeTool {
             description='DeveloperName of the Named Credential to describe, exactly as returned by the listCredentials tool.'
         )
         global String namedCredential;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public class ncMcp_DescribeToolException extends Exception {
     }
 }

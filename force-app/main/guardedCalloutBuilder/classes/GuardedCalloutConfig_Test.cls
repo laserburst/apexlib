@@ -41,7 +41,7 @@ private class GuardedCalloutConfig_Test {
         try {
             GuardedCalloutConfig.forName('does_not_exist');
             Assert.fail('Expected exception');
-        } catch (GuardedCalloutException e) {
+        } catch (GuardedCalloutConfig.GuardedCalloutConfigException e) {
             Assert.isTrue(
                 e.getMessage().contains('No active configuration found'),
                 'Unexpected message: ' + e.getMessage()
@@ -54,7 +54,7 @@ private class GuardedCalloutConfig_Test {
         try {
             GuardedCalloutConfig.forName('GuardedTest_Inactive');
             Assert.fail('Expected exception for inactive config');
-        } catch (GuardedCalloutException e) {
+        } catch (GuardedCalloutConfig.GuardedCalloutConfigException e) {
             Assert.isTrue(
                 e.getMessage().contains('No active configuration found'),
                 'Unexpected message: ' + e.getMessage()
@@ -73,7 +73,7 @@ private class GuardedCalloutConfig_Test {
         try {
             GuardedCalloutConfig.parse(record);
             Assert.fail('Expected exception for malformed JSON');
-        } catch (GuardedCalloutException e) {
+        } catch (GuardedCalloutConfig.GuardedCalloutConfigException e) {
             Assert.isTrue(e.getMessage().contains('not valid JSON'), 'Unexpected message: ' + e.getMessage());
             Assert.isTrue(e.getMessage().contains('GuardedTest_BadJson'), 'Should name the offending credential');
         }

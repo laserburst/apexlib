@@ -9,7 +9,7 @@ Establishing unified callout approach with basic response handling backed in.
 1. [CalloutBuilder](CalloutBuilder.cls) - main class. `virtual`, so behavior can be added around a callout by subclassing it — every response variant funnels through `getHttpResponse()`. See [GuardedCalloutBuilder](../../guardedCalloutBuilder/classes/README.md).
 2. [CalloutErrorResponse](CalloutErrorResponse.cls) - interface enabling CalloutBuilder to extract error message from any error object.
 3. [CalloutRetrier](CalloutRetrier.cls) - interface enabling CalloutBuilder to retry a callout and to change something before the new attempt.
-4. [CalloutGuardrail](CalloutGuardrail.cls) - interface for a check that runs before a callout and can block it. Attach implementations with `withGuardrails()`.
+4. [CalloutGuardrail](CalloutGuardrail.cls) - interface for a check that runs before a callout and can block it. Attach implementations with `withGuardrails()`. [CalloutGuardrailException](CalloutGuardrailException.cls) is the exception a guardrail throws to block.
 5. [CalloutBuilderQueueable](CalloutBuilderQueueable.cls) - virtual class to run one or many callouts asynchronously, for example, from a trigger.
 6. [CalloutCollection](CalloutCollection.cls) - virtual class which is bundling many CalloutBuilder instances, callout preparation and post processing for [CalloutBuilderQueueable](CalloutCollection.cls).
 7. [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) - a class to build multipart requests to enable sending files. It's used in `withFile()` method of the CalloutBuilder, and may be used separately. **NOTE:** It's resource-intensive and may reach heap limit when processing files of more than 2 Mb in size. It's recommended to send files up to 2 Mb.
@@ -115,7 +115,7 @@ HttpResponse response = new CalloutBuilder('callout:OpenAI_NC')
 public with sharing class ProductionOnlyGuardrail implements CalloutGuardrail {
     public void enforce(CalloutBuilder builder) {
         if (builder.getEndpoint().startsWith('/debug')) {
-            throw new IllegalArgumentException('Debug endpoints are not callable.');
+            throw new CalloutGuardrailException('Debug endpoints are not callable.');
         }
     }
 }

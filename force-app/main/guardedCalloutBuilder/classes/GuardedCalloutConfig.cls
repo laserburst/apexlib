@@ -20,7 +20,7 @@ public with sharing class GuardedCalloutConfig {
     * @description Loads all active configurations in the current context,
     * keyed by Named Credential developer name.
     * @return map of Named Credential developer name to its resolved config
-    * @throws GuardedCalloutException when any record's JSON is invalid
+    * @throws GuardedCalloutConfigException when any record's JSON is invalid
     */
     public static Map<String, GuardedCalloutConfig> getActive() {
         Map<String, GuardedCalloutConfig> configs = new Map<String, GuardedCalloutConfig>();
@@ -35,13 +35,13 @@ public with sharing class GuardedCalloutConfig {
     * @description Loads the active configuration for one Named Credential.
     * @param namedCredential developer name of the Named Credential
     * @return the resolved config
-    * @throws GuardedCalloutException when no active config exists or its JSON is invalid
+    * @throws GuardedCalloutConfigException when no active config exists or its JSON is invalid
     */
     public static GuardedCalloutConfig forName(String namedCredential) {
         for (Named_Credentials_Configuration__mdt record : query(namedCredential)) {
             return parse(record);
         }
-        throw new GuardedCalloutException(
+        throw new GuardedCalloutConfigException(
             'No active configuration found for Named Credential "' + namedCredential + '".'
         );
     }
@@ -74,7 +74,7 @@ public with sharing class GuardedCalloutConfig {
                 ? new GuardedCalloutConfig()
                 : (GuardedCalloutConfig) JSON.deserialize(record.Configuration__c, GuardedCalloutConfig.class);
         } catch (Exception e) {
-            throw new GuardedCalloutException(
+            throw new GuardedCalloutConfigException(
                 'Configuration for Named Credential "'
                 + record.Named_Credentials_Developer_Name__c
                 + '" is not valid JSON. Contact an administrator.'
@@ -103,5 +103,9 @@ public with sharing class GuardedCalloutConfig {
         if (this.guardrails == null) {
             this.guardrails = new List<String>();
         }
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public class GuardedCalloutConfigException extends Exception {
     }
 }
