@@ -33,6 +33,11 @@ ViciousMockery.cast(200);
 
 Thin wrapper around the most-used `ConnectApi` methods prepared for use.
 
+```java
+// requires the external credential to have exactly one principal
+ConnectApiAdapter.refreshToken('MyExternalCredential');
+```
+
 ### [GuardedCalloutBuilder](force-app/main/guardedCalloutBuilder/classes/README.md)
 
 A guardrail-enforcing CalloutBuilder subclass. Before any request leaves the org it loads a per-Named-Credential configuration and runs a chain of guardrails — authentication, allowed methods, endpoint patterns, and custom strategies — configured in custom metadata. Nothing is callable until an admin activates a configuration, and the defaults are conservative (GET only). Any Apex callout can opt in by swapping the class name:

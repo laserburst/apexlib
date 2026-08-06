@@ -24,4 +24,17 @@ Simplifying work with ConnectApi namespace.
         'principalName',
         ConnectApi.CredentialPrincipalType.PERUSERPRINCIPAL
     );
+
+    Boolean isConfigured = ConnectApiAdapter.isCredentialConfigured(
+        'externalCredential',
+        'principalName',
+        ConnectApi.CredentialPrincipalType.PERUSERPRINCIPAL
+    );
+
+    // Single-parameter overloads require exactly one principal on the external credential
+    ConnectApiAdapter.refreshToken('externalCredential');
+    isConfigured = ConnectApiAdapter.isCredentialConfigured('externalCredential');
+    authUrl = ConnectApiAdapter.getCredentialAuthenticationUrl('externalCredential');
 ```
+
+The single-parameter overloads throw `ConnectApiAdapter.ConnectApiAdapterException` when the external credential cannot be retrieved, has other than exactly one principal, or — for `refreshToken()` — exposes no authentication protocol. Use the full-parameter methods in those cases.
