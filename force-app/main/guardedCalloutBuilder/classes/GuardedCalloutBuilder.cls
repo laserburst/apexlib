@@ -5,8 +5,6 @@
 * @team Laserburst
 */
 public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
-    private static final Set<String> VALID_METHODS = new Set<String>{ 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD' };
-
     private final String namedCredential;
     private String inspectableBody; // null for binary content
     @TestVisible
@@ -40,17 +38,6 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
             return this;
         }
         return super.withEndpoint(path.startsWith('/') ? path : '/' + path);
-    }
-
-    public override CalloutBuilder withMethod(String method) {
-        if (String.isBlank(method)) {
-            return this; // CalloutBuilder's GET default stands
-        }
-        String normalized = method.trim().toUpperCase();
-        if (!VALID_METHODS.contains(normalized)) {
-            throw new GuardedCalloutException('HTTP method "' + method + '" is not a valid method.');
-        }
-        return super.withMethod(normalized);
     }
 
     public override CalloutBuilder withBody(Object body) {

@@ -81,7 +81,7 @@ HttpResponse response = new GuardedCalloutBuilder('OpenAI_NC')
 System.debug(response.getStatusCode() + ' ' + response.getBody());
 ```
 
-A `String` passed to `withBody` or `withBlobBody` is sent verbatim, so guardrails inspect the bytes actually sent. An invalid HTTP method is rejected as soon as it is set.
+A `String` passed to `withBody` or `withBlobBody` is sent verbatim, so guardrails inspect the bytes actually sent.
 
 Apex has no covariant return types, so the inherited setters return `CalloutBuilder`. Assign the instance before chaining when you need the `GuardedCalloutBuilder` type:
 

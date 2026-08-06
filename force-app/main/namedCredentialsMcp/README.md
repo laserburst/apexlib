@@ -58,7 +58,7 @@ HttpResponse response = new GuardedCalloutBuilder('OpenAI_NC')
     .getHttpResponse();
 ```
 
-It inherits the full CalloutBuilder API (`withHeader`, `withTimeout`, `withSuccessType`, `getTypedResponseBody`, ...), with two deliberate differences: String bodies are sent verbatim (never re-serialized), so guardrails inspect the bytes actually sent, and an invalid HTTP method is rejected as soon as it is set.
+It inherits the full CalloutBuilder API (`withHeader`, `withTimeout`, `withSuccessType`, `getTypedResponseBody`, ...), with one deliberate difference: String bodies are sent verbatim (never re-serialized), so guardrails inspect the bytes actually sent.
 
 ## Configuration and setup
 

@@ -116,13 +116,13 @@ private class GuardedCalloutBuilder_Test {
     }
 
     @IsTest
-    static void normalizesPathAndMethod() {
+    static void normalizesPath() {
         authenticate('GuardedTest_Full', 'https://example.com');
         CapturingMock mock = new CapturingMock();
         mockScope('/v1/data', 'GET', mock);
 
         Test.startTest();
-        guarded('v1/data', 'get').getHttpResponse(); // no leading slash, lowercase method
+        guarded('v1/data', 'GET').getHttpResponse(); // no leading slash
         Test.stopTest();
 
         Assert.areEqual(
@@ -130,7 +130,6 @@ private class GuardedCalloutBuilder_Test {
             mock.capturedRequest.getEndpoint(),
             'Leading slash should be added'
         );
-        Assert.areEqual('GET', mock.capturedRequest.getMethod(), 'Method should be uppercased');
     }
 
     @IsTest
@@ -204,16 +203,6 @@ private class GuardedCalloutBuilder_Test {
             Assert.fail('Expected exception');
         } catch (GuardedCalloutException e) {
             Assert.isTrue(e.getMessage().contains('endpoint path'), 'Unexpected: ' + e.getMessage());
-        }
-    }
-
-    @IsTest
-    static void throwsForInvalidMethodImmediately() {
-        try {
-            guarded('/v1/x', 'FETCH');
-            Assert.fail('Expected exception');
-        } catch (GuardedCalloutException e) {
-            Assert.isTrue(e.getMessage().contains('not a valid method'), 'Unexpected: ' + e.getMessage());
         }
     }
 
@@ -308,14 +297,14 @@ private class GuardedCalloutBuilder_Test {
         GuardedCalloutBuilder builder = new GuardedCalloutBuilder('GuardedTest_Full');
         builder
             .withEndpoint('v1/data')
-            .withMethod('post')
+            .withMethod('POST')
             .withHeader('Accept', 'application/json')
             .withQueryParameter('limit', '10')
             .withBody('{"name":"widget"}');
 
         Assert.areEqual('callout:GuardedTest_Full', builder.getNcOrBaseUrl(), 'Unexpected callout target');
         Assert.areEqual('/v1/data', builder.getEndpoint(), 'Path should be normalized with a leading slash');
-        Assert.areEqual('POST', builder.getMethod(), 'Method should be read back from the wrapped builder');
+        Assert.areEqual('POST', builder.getMethod(), 'Method should be readable');
         Assert.areEqual('application/json', builder.getHeaders().get('Accept'), 'Headers should be readable');
         Assert.areEqual('10', builder.getQueryParameters().get('limit'), 'Query parameters should be readable');
         Assert.areEqual('{"name":"widget"}', builder.getInspectableBody(), 'Body should be readable as a string');
