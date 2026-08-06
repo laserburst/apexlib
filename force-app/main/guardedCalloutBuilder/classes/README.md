@@ -94,7 +94,7 @@ guarded.withEndpoint('/v1/models').withHeader('Accept', 'application/json');
 
 Guardrails are a strategy: implement [CalloutGuardrail](../../calloutBuilder/classes/CalloutGuardrail.cls) and add the class name to the `guardrails` list. They run after the built-in checks, in listed order. Throw `GuardedCalloutException` to block; return normally to allow. Do not execute the builder from inside a guardrail — it throws.
 
-`enforce` receives a `CalloutBuilder`; cast it to reach `getInspectableBody()`, `getNamedCredential()`, and `getConfig()`. The request itself comes from the inherited `getEndpoint()`, `getMethod()`, `getHeaders()`, and `getQueryParameters()`.
+`enforce` receives a `CalloutBuilder`; cast it to reach `getInspectableBody()` and `getConfig()`, whose `namedCredential` names the credential. The request itself comes from the inherited `getNcOrBaseUrl()`, `getEndpoint()`, `getMethod()`, `getHeaders()`, and `getQueryParameters()`.
 
 [CalloutExampleGuardrail](CalloutExampleGuardrail.cls) is a copy-ready reference: it blocks any request whose body looks like it contains a credential.
 

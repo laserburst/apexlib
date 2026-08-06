@@ -29,7 +29,7 @@ public with sharing class CalloutEndpointGuardrail implements CalloutGuardrail {
             'Path "'
             + path
             + '" does not match any allowed endpoint pattern for "'
-            + guarded.getNamedCredential()
+            + guarded.getConfig().namedCredential
             + '". Allowed patterns: '
             + String.join(patterns, ', ')
             + '.'

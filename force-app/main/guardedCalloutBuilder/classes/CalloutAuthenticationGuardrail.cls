@@ -36,7 +36,7 @@ public with sharing class CalloutAuthenticationGuardrail implements CalloutGuard
     }
 
     public void enforce(CalloutBuilder builder) {
-        String namedCredential = ((GuardedCalloutBuilder) builder).getNamedCredential();
+        String namedCredential = ((GuardedCalloutBuilder) builder).getConfig().namedCredential;
         if (!getStatus(namedCredential).isAuthenticated) {
             throw new GuardedCalloutException(notAuthenticatedMessage(namedCredential));
         }

@@ -277,6 +277,11 @@ public virtual with sharing class CalloutBuilder {
     }
 
     @SuppressWarnings('PMD.ApexDoc')
+    public String getNcOrBaseUrl() {
+        return this.ncOrBaseUrl;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
     public String getEndpoint() {
         return this.endpoint;
     }

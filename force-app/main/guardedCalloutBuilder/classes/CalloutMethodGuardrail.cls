@@ -12,7 +12,7 @@ public with sharing class CalloutMethodGuardrail implements CalloutGuardrail {
                 'HTTP method "'
                 + guarded.getMethod()
                 + '" is not allowed for "'
-                + guarded.getNamedCredential()
+                + guarded.getConfig().namedCredential
                 + '". Allowed methods: '
                 + String.join(allowed, ', ')
                 + '.'

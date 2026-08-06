@@ -68,10 +68,6 @@ public with sharing class GuardedCalloutBuilder extends CalloutBuilder {
 
     // Read accessors (the context guardrails inspect)
 
-    public String getNamedCredential() {
-        return this.namedCredential;
-    }
-
     public String getInspectableBody() {
         return this.inspectableBody;
     }
