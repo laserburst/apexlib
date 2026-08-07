@@ -528,6 +528,194 @@ private class CalloutBuilder_Test {
         }
     }
 
+    @IsTest
+    static void testSanitizerMutatesBodyBeforeTypedResponse() {
+        Test.startTest();
+            DummyResponse res = (DummyResponse) new CalloutBuilder('callout:Test')
+                .withEndpoint('/test')
+                .withSuccessType(DummyResponse.class)
+                .withResponseSanitizer(new ReplacingSanitizer('{"value":"Sanitized"}'))
+                .withMockIfTest(new SuccessMock())
+                .getTypedResponseBody();
+        Test.stopTest();
+
+        Assert.areEqual('Sanitized', res.value, 'A sanitized body should reach the typed response');
+    }
+
+    @IsTest
+    static void testSanitizerMutatesBodyBeforeResponseBodyMap() {
+        Test.startTest();
+            Map<String, Object> resMap = new CalloutBuilder('callout:Test')
+                .withEndpoint('/test')
+                .withResponseSanitizer(new ReplacingSanitizer('{"value":"Sanitized"}'))
+                .withMockIfTest(new SuccessMock())
+                .getResponseBodyMap();
+        Test.stopTest();
+
+        Assert.areEqual('Sanitized', (String) resMap.get('value'), 'A sanitized body should reach the response map');
+    }
+
+    @IsTest
+    static void testSanitizersRunInAttachedOrderAndChain() {
+        Test.startTest();
+            HttpResponse response = new CalloutBuilder('callout:Test')
+                .withEndpoint('/test')
+                .withResponseSanitizers(new List<CalloutResponseSanitizer>{ new AppendingSanitizer('first') })
+                .withResponseSanitizer(new AppendingSanitizer('second'))
+                .withMockIfTest(new SuccessMock())
+                .getHttpResponse();
+        Test.stopTest();
+
+        Assert.areEqual(
+            new List<String>{ 'first', 'second' },
+            sanitizerLog,
+            'Sanitizers should run in the order attached, accumulating across calls and across both overloads'
+        );
+        Assert.isTrue(
+            response.getBody().endsWith('firstsecond'),
+            'Each sanitizer should see the previous one output, got: ' + response.getBody()
+        );
+    }
+
+    @IsTest
+    static void testSanitizerBlocksResponse() {
+        CaptureMock mock = new CaptureMock();
+        CalloutResponseSanitizerException caught;
+
+        Test.startTest();
+            try {
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withResponseSanitizer(new BlockingSanitizer())
+                    .withMockIfTest(mock)
+                    .getHttpResponse();
+            } catch (CalloutResponseSanitizerException e) {
+                caught = e;
+            }
+        Test.stopTest();
+
+        Assert.areEqual('Blocked by test sanitizer', caught?.getMessage(), 'A throwing sanitizer should block');
+        Assert.isNotNull(mock.capturedRequest, 'The request is sent; only the response is blocked');
+    }
+
+    @IsTest
+    static void testSanitizerCannotExecuteItsOwnBuilder() {
+        CaptureMock mock = new CaptureMock();
+        RecursiveSanitizer sanitizer = new RecursiveSanitizer();
+        CalloutBuilder cb = new CalloutBuilder('https://example.com')
+            .withEndpoint('/test')
+            .withResponseSanitizer(sanitizer)
+            .withMockIfTest(mock);
+        sanitizer.builder = cb;
+
+        try {
+            Test.startTest();
+                cb.getHttpResponse();
+            Test.stopTest();
+            Assert.fail('Expected error not thrown');
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            Assert.isTrue(e.getMessage().contains('must not execute'), 'Unexpected message: ' + e.getMessage());
+            Assert.areEqual(1, mock.callCount, 'The re-entered callout should be rejected before it is sent');
+        }
+    }
+
+    @IsTest
+    static void testErrorResponseIsNotSanitized() {
+        Test.startTest();
+            try {
+                new CalloutBuilder('callout:ErrorTest')
+                    .withEndpoint('/fail')
+                    .withResponseSanitizer(new ReplacingSanitizer('{"message":"scrubbed"}'))
+                    .withMockIfTest(new ErrorMock())
+                    .getHttpResponse();
+                Assert.fail('Expected error not thrown');
+            } catch (CalloutBuilder.CalloutBuilderException e) {
+                Assert.isTrue(e.getMessage().contains('Something went wrong'), 'The error path should see the raw body');
+            }
+        Test.stopTest();
+
+        Assert.isTrue(sanitizerLog.isEmpty(), 'Sanitizers should not run on a response that fails validation');
+    }
+
+    @IsTest
+    static void testSanitizerRunsWhenValidationBypassed() {
+        Test.startTest();
+            Map<String, Object> resMap = new CalloutBuilder('callout:ErrorTest')
+                .withEndpoint('/fail')
+                .withBypassResponseValidation(true)
+                .withResponseSanitizer(new ReplacingSanitizer('{"message":"scrubbed"}'))
+                .withMockIfTest(new ErrorMock())
+                .getResponseBodyMap();
+        Test.stopTest();
+
+        Assert.areEqual(
+            'scrubbed',
+            (String) resMap.get('message'),
+            'Every response the caller sees passes sanitization, including a bypassed error response'
+        );
+    }
+
+    @IsTest
+    static void testSanitizerCanRewriteBlobBody() {
+        Test.startTest();
+            Blob responseBodyBlob = new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withResponseSanitizer(new BlobSanitizer())
+                .withMockIfTest(new SuccessMock())
+                .getResponseBodyAsBlob();
+        Test.stopTest();
+
+        Assert.areEqual('scrubbed', responseBodyBlob.toString(), 'A sanitized blob body should reach the caller');
+    }
+
+    private static List<String> sanitizerLog = new List<String>();
+
+    private class AppendingSanitizer implements CalloutResponseSanitizer {
+        private final String name;
+
+        private AppendingSanitizer(String name) {
+            this.name = name;
+        }
+
+        public void sanitize(HttpResponse response) {
+            sanitizerLog.add(this.name);
+            response.setBody(response.getBody() + this.name);
+        }
+    }
+
+    private class ReplacingSanitizer implements CalloutResponseSanitizer {
+        private final String newBody;
+
+        private ReplacingSanitizer(String newBody) {
+            this.newBody = newBody;
+        }
+
+        public void sanitize(HttpResponse response) {
+            sanitizerLog.add('replaced');
+            response.setBody(this.newBody);
+        }
+    }
+
+    private class BlockingSanitizer implements CalloutResponseSanitizer {
+        public void sanitize(HttpResponse response) {
+            throw new CalloutResponseSanitizerException('Blocked by test sanitizer');
+        }
+    }
+
+    private class RecursiveSanitizer implements CalloutResponseSanitizer {
+        public CalloutBuilder builder;
+
+        public void sanitize(HttpResponse response) {
+            this.builder.getHttpResponse();
+        }
+    }
+
+    private class BlobSanitizer implements CalloutResponseSanitizer {
+        public void sanitize(HttpResponse response) {
+            response.setBodyAsBlob(Blob.valueOf('scrubbed'));
+        }
+    }
+
     // A mock class to simulate a successful callout
     class SuccessMock implements HttpCalloutMock {
         public HTTPResponse respond(HTTPRequest req) {
@@ -542,9 +730,11 @@ private class CalloutBuilder_Test {
     // A mock class capturing the request it responded to
     class CaptureMock implements HttpCalloutMock {
         public HttpRequest capturedRequest;
+        public Integer callCount = 0;
 
         public HTTPResponse respond(HTTPRequest req) {
             this.capturedRequest = req;
+            this.callCount++;
             HttpResponse res = new HttpResponse();
             res.setHeader('Content-Type', 'application/json');
             res.setBody('{"value": "Success"}');

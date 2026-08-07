@@ -45,6 +45,9 @@ public virtual with sharing class CalloutBuilder {
     private List<CalloutGuardrail> guardrails = new List<CalloutGuardrail>();
     private Boolean enforcingGuardrails = false;
 
+    private List<CalloutResponseSanitizer> responseSanitizers = new List<CalloutResponseSanitizer>();
+    private Boolean sanitizingResponse = false;
+
     // CalloutErrorResponse implementation
     private System.Type errorResponseImplType;
     private CalloutErrorResponse error;
@@ -133,6 +136,23 @@ public virtual with sharing class CalloutBuilder {
     @SuppressWarnings('PMD.ApexDoc')
     public CalloutBuilder withGuardrail(CalloutGuardrail guardrail) {
         this.guardrails.add(guardrail);
+        return this;
+    }
+
+    /**
+     * @description withResponseSanitizers adds transformations applied to a
+     * validated response before the caller sees it;
+     * a sanitizer blocks the response by throwing
+     * @param sanitizers appended to any already attached
+     */
+    public CalloutBuilder withResponseSanitizers(List<CalloutResponseSanitizer> sanitizers) {
+        this.responseSanitizers.addAll(sanitizers);
+        return this;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public CalloutBuilder withResponseSanitizer(CalloutResponseSanitizer sanitizer) {
+        this.responseSanitizers.add(sanitizer);
         return this;
     }
 
@@ -227,6 +247,7 @@ public virtual with sharing class CalloutBuilder {
         this.attempt = 0;
 
         this.validateResponse();
+        this.sanitizeResponse();
         return this.response;
     }
 
@@ -313,6 +334,10 @@ public virtual with sharing class CalloutBuilder {
     * @description it checks if required fields are set.
     */
     private void validateBeforeCall() {
+        // not in sanitizeResponse(): re-entry must be rejected before the request is sent
+        if (this.sanitizingResponse) {
+            throw new CalloutBuilderException('A response sanitizer must not execute the callout it is sanitizing.');
+        }
         if (String.isBlank(this.ncOrBaseUrl)) {
             throw new CalloutBuilderException('NC or base URL must be provided');
         }
@@ -333,6 +358,17 @@ public virtual with sharing class CalloutBuilder {
             }
         } finally {
             this.enforcingGuardrails = false;
+        }
+    }
+
+    private void sanitizeResponse() {
+        this.sanitizingResponse = true;
+        try {
+            for (CalloutResponseSanitizer sanitizer : this.responseSanitizers) {
+                sanitizer.sanitize(this.response);
+            }
+        } finally {
+            this.sanitizingResponse = false;
         }
     }
 

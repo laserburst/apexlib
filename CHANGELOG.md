@@ -1,5 +1,12 @@
 # Changelog
 
+## August 2026
+
+### Added
+
+- **`CalloutBuilder.withResponseSanitizer()` / `withResponseSanitizers()`** — a callout can carry a chain of `CalloutResponseSanitizer` transformations that rewrite a validated response before the caller sees it, or block it by throwing `CalloutResponseSanitizerException`. The retrier, the error path, and debug logging still see the raw response; a sanitizer that tries to execute its own builder is rejected ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls), [CalloutResponseSanitizer.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizer.cls), [CalloutResponseSanitizerException.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizerException.cls))
+- **`CalloutJsonPathSanitizer`** — shipped sanitizer removing JSON nodes matched by bracket-path criteria (`'results[folder][id]' => restricted ids`, a `List` value meaning any-of); a match removes the nearest enclosing list item, entries combine with `Match.ANY_ENTRY` or `Match.ALL_ENTRIES`, and a non-JSON body fails closed ([CalloutJsonPathSanitizer.cls](force-app/main/calloutBuilder/classes/CalloutJsonPathSanitizer.cls))
+
 ## July 2026
 
 ### Added
