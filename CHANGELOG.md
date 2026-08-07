@@ -1,5 +1,11 @@
 # Changelog
 
+## August 2026
+
+### Added
+
+- **`CalloutBuilder.withResponseSanitizer()` / `withResponseSanitizers()`** — a callout can carry a chain of `CalloutResponseSanitizer` transformations that rewrite a validated response before the caller sees it, or block it by throwing `CalloutResponseSanitizerException`. The retrier, the error path, and debug logging still see the raw response; a sanitizer that tries to execute its own builder is rejected ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls), [CalloutResponseSanitizer.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizer.cls), [CalloutResponseSanitizerException.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizerException.cls))
+
 ## July 2026
 
 ### Added

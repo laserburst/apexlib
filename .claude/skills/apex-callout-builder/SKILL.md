@@ -8,8 +8,9 @@ description: >-
   jobs, file uploads, retry logic, error handling, and test mocks. Trigger on
   phrases like "callout", "HTTP request in Apex", "named credential", "API
   integration", "CalloutBuilder", "withMockIfTest", "CalloutBuilderQueueable",
-  "withFile", "withGuardrail", "CalloutGuardrail", or any question about how to
-  call an external service from Apex.
+  "withFile", "withGuardrail", "CalloutGuardrail", "withResponseSanitizer",
+  "CalloutResponseSanitizer", "sanitize a response", or any question about how
+  to call an external service from Apex.
   Do not wait for the user to name the library explicitly — if they are writing
   Apex that talks to an external API, this skill applies.
 ---
@@ -207,7 +208,38 @@ Use a guardrail for a pass/fail check. Subclass instead when behavior wraps the 
 
 ---
 
-## Step 6: Test mocks
+## Step 6: Response sanitizers
+
+Guardrails police the request; `CalloutResponseSanitizer` polices the response. Implement one to strip content the caller must not receive — restricted search hits, PII. Rewrite the body with `setBody()`, or throw `CalloutResponseSanitizerException` to block the response.
+
+```Java (Apex)
+public with sharing class RestrictedFolderSanitizer implements CalloutResponseSanitizer {
+    public void sanitize(HttpResponse response) {
+        Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(response.getBody());
+        body.put('results', this.withoutRestrictedFolders((List<Object>) body.get('results')));
+        response.setBody(JSON.serialize(body));
+    }
+}
+
+new CalloutBuilder('callout:MyNC')
+    .withEndpoint('/v1/search')
+    .withResponseSanitizer(new RestrictedFolderSanitizer())   // withResponseSanitizers(List) for many
+    .getResponseBodyMap();
+```
+
+- Both `with` methods append; the chain runs in attachment order, each sanitizer seeing the previous one's output, and stops at the first throw.
+- One run per execution, after validation, feeding every response variant.
+- `CalloutRetrier.shouldRetry()`, the `>= 400` error path, and `withDebugMode(true)` see the **raw** response. Sanitizing is not log redaction.
+- Error responses are never sanitized, because validation throws first. Under `withBypassResponseValidation(true)` nothing throws, so non-2xx responses reach the chain too — branch on `response.getStatusCode()` when that matters.
+- Fail closed: throw rather than return a body you could not parse.
+- Binary responses need `setBodyAsBlob()`.
+- A sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilder.CalloutBuilderException` before the second request is sent. Its own callout needs a separate `CalloutBuilder`.
+- `CalloutCollection.postProcess()` receives the sanitized response. A throw inside `CalloutBuilderQueueable` fails the job and strands the builders queued behind it.
+- `CalloutResponseSanitizerException` extends `Exception` — catch it beside `CalloutGuardrailException`, not under `CalloutBuilder.CalloutBuilderException`.
+
+---
+
+## Step 7: Test mocks
 
 It's recommended to include `.withMockIfTest(new MyMock())`. This method is a no-op outside of test context. Omitting it means tests will fail with "Callout not allowed" errors unless mocks are set elsewhere. This apporch helps reducing test code clutter when the same mock applies across many tests. If the codebase has the `ViciousMockBase` class, you can also use derived classes here.
 
@@ -255,7 +287,7 @@ The override matches by full URL + HTTP method. Builders targeting other endpoin
 
 ---
 
-## Step 7: File uploads (multipart/form-data)
+## Step 8: File uploads (multipart/form-data)
 
 Use `CalloutHexFormBuilder` for multipart/form-data uploads. The Apex heap limit means files should not exceed ~2 MB in synchronous contexts — warn users about this.
 
@@ -279,7 +311,7 @@ HttpResponse response = new CalloutBuilder('callout:StorageNC')
 
 ---
 
-## Step 8: Async callouts (from triggers)
+## Step 9: Async callouts (from triggers)
 
 Apex forbids synchronous callouts from triggers. Use `CalloutBuilderQueueable`.
 
@@ -360,5 +392,8 @@ When generating response types:
 - Passing a class that does not implement `CalloutErrorResponse` to `.withErrorType()` — throws at configuration time, not at callout time
 - Using `withQueryParameters` on a POST that also has `.withBody()` — body wins
 - Omitting `.withMockIfTest()` — tests fail with "Callout not allowed"
-- A guardrail executing the builder it was handed, or expecting the `HttpRequest` or body — only builder state is readable
-- Catching only `CalloutBuilder.CalloutBuilderException` around a guarded callout — `CalloutGuardrailException` escapes it
+- A guardrail or a sanitizer executing the builder it is inspecting — both are rejected with `CalloutBuilder.CalloutBuilderException`; a guardrail also cannot read the `HttpRequest` or body, only builder state
+- Catching only `CalloutBuilder.CalloutBuilderException` around a guarded or sanitized callout — `CalloutGuardrailException` and `CalloutResponseSanitizerException` escape it
+- Assuming debug logs are sanitized — `withDebugMode(true)` prints the raw body, before any sanitizer runs
+- A sanitizer returning quietly when it cannot parse the body — throw instead, or unfiltered content reaches the caller
+- Expecting the retrier or `builder.getError()` to see sanitized content — both observe the raw response
