@@ -34,7 +34,7 @@ ViciousMockery.cast(200);
 Thin wrapper around the most-used `ConnectApi` methods prepared for use.
 
 ```java
-// principal and protocol are resolved from the external credential
+// requires the external credential to have exactly one principal
 ConnectApiAdapter.refreshToken('MyExternalCredential');
 ```
 

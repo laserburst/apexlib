@@ -18,7 +18,7 @@ CalloutBuilder cb = new CalloutBuilder('callout:MyNc')
 MyType response = (MyType)cb.getTypedResponseBody();
 * @team Laserburst
 */
-public with sharing class CalloutBuilder {
+public virtual with sharing class CalloutBuilder {
     @TestVisible
     private static final Map<CalloutBuilder, HttpCalloutMock> BUILDER_TO_MOCK_OVERRIDE = new Map<CalloutBuilder, HttpCalloutMock>();
 
@@ -42,6 +42,9 @@ public with sharing class CalloutBuilder {
     private Integer maxRetries = 1;
     private Integer attempt = 0;
 
+    private List<CalloutGuardrail> guardrails = new List<CalloutGuardrail>();
+    private Boolean enforcingGuardrails = false;
+
     // CalloutErrorResponse implementation
     private System.Type errorResponseImplType;
     private CalloutErrorResponse error;
@@ -63,7 +66,7 @@ public with sharing class CalloutBuilder {
      * It won't help when a redundant slash comes from Named Credential.
      * For the same reason, it won't add any slash to not harm.
      */
-    public CalloutBuilder withEndpoint(String endpoint) {
+    public virtual CalloutBuilder withEndpoint(String endpoint) {
         if (endpoint?.startsWith('/') && this.ncOrBaseUrl?.endsWith('/')) {
             endpoint = endpoint.removeStart('/');
         }
@@ -71,7 +74,7 @@ public with sharing class CalloutBuilder {
         return this;
     }
 
-    public CalloutBuilder withMethod(String method) {
+    public virtual CalloutBuilder withMethod(String method) {
         this.method = method;
         return this;
     }
@@ -96,14 +99,14 @@ public with sharing class CalloutBuilder {
         return this;
     }
 
-    public CalloutBuilder withBody(Object body) {
+    public virtual CalloutBuilder withBody(Object body) {
         this.body = body;
         return this;
     }
 
-    public CalloutBuilder withBlobBody(Object body) {
+    public virtual CalloutBuilder withBlobBody(Object body) {
         this.hasBlobBody = true;
-        this.withBody(body);
+        this.body = body; // not withBody(): it is virtual and must not be re-entered by a subclass
         return this;
     }
 
@@ -114,6 +117,22 @@ public with sharing class CalloutBuilder {
 
     public CalloutBuilder withRetrier(CalloutRetrier retrier) {
         this.retrier = retrier;
+        return this;
+    }
+
+    /**
+     * @description withGuardrails adds checks running before the callout;
+     * a guardrail blocks it by throwing
+     * @param guardrails appended to any already attached
+     */
+    public CalloutBuilder withGuardrails(List<CalloutGuardrail> guardrails) {
+        this.guardrails.addAll(guardrails);
+        return this;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public CalloutBuilder withGuardrail(CalloutGuardrail guardrail) {
+        this.guardrails.add(guardrail);
         return this;
     }
 
@@ -195,7 +214,7 @@ public with sharing class CalloutBuilder {
      * retries if needed and returns HttpResponse as is
      * @return plain HttpResponse
      */
-    public HttpResponse getHttpResponse() {
+    public virtual HttpResponse getHttpResponse() {
         this.validateBeforeCall();
         this.constructRequest();
         this.setMockIfTest();
@@ -251,7 +270,8 @@ public with sharing class CalloutBuilder {
         String fullEndpoint = String.isNotBlank(this.endpoint) ? this.ncOrBaseUrl + this.endpoint : this.ncOrBaseUrl;
 
         if (this.method == 'GET' && !this.queryParameters.isEmpty()) {
-            fullEndpoint += '?' + this.getEncodedQueryParameters();
+            String separator = fullEndpoint?.contains('?') == true ? '&' : '?';
+            fullEndpoint += separator + this.getEncodedQueryParameters();
         }
 
         return fullEndpoint;
@@ -260,6 +280,26 @@ public with sharing class CalloutBuilder {
     @SuppressWarnings('PMD.ApexDoc')
     public String getMethod() {
         return this.method;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public String getNcOrBaseUrl() {
+        return this.ncOrBaseUrl;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public String getEndpoint() {
+        return this.endpoint;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public Map<String, String> getHeaders() {
+        return new Map<String, String>(this.headersMap);
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public Map<String, String> getQueryParameters() {
+        return new Map<String, String>(this.queryParameters);
     }
 
     @SuppressWarnings('PMD.ApexDoc')
@@ -278,6 +318,21 @@ public with sharing class CalloutBuilder {
         }
         if (String.isBlank(this.method)) {
             throw new CalloutBuilderException('HTTP method must be provided');
+        }
+        this.enforceGuardrails();
+    }
+
+    private void enforceGuardrails() {
+        if (this.enforcingGuardrails) {
+            throw new CalloutBuilderException('A guardrail must not execute the callout it is guarding.');
+        }
+        this.enforcingGuardrails = true;
+        try {
+            for (CalloutGuardrail guardrail : this.guardrails) {
+                guardrail.enforce(this);
+            }
+        } finally {
+            this.enforcingGuardrails = false;
         }
     }
 
@@ -307,23 +362,18 @@ public with sharing class CalloutBuilder {
     }
 
     /**
-     * @description attachBody sets body of the request:
+     * @description attachBody sets body of the request, in precedence order:
      * 1. blob
-     * 2. query parameters (if any and if method is not GET).
-     * 3. JSON (default)
+     * 2. JSON (a body always wins over query parameters)
+     * 3. query parameters (if any and if method is not GET)
      */
     private void attachBody() {
-        if (this.body == null && this.queryParameters.isEmpty()) {
-            return;
-        }
-
         if (this.hasBlobBody && this.body != null) {
-            this.request.setBodyAsBlob((Blob) body);
-        } else if (!this.queryParameters.isEmpty() && this.method != 'GET') {
-            String body = this.body != null ? (String) this.body : this.getEncodedQueryParameters();
-            this.request.setBody(body);
+            this.request.setBodyAsBlob((Blob) this.body);
         } else if (this.body != null) {
             this.request.setBody(JSON.serialize(this.body, this.suppressApexObjectNulls));
+        } else if (!this.queryParameters.isEmpty() && this.method != 'GET') {
+            this.request.setBody(this.getEncodedQueryParameters());
         }
     }
 

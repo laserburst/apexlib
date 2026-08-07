@@ -8,7 +8,8 @@ description: >-
   jobs, file uploads, retry logic, error handling, and test mocks. Trigger on
   phrases like "callout", "HTTP request in Apex", "named credential", "API
   integration", "CalloutBuilder", "withMockIfTest", "CalloutBuilderQueueable",
-  "withFile", or any question about how to call an external service from Apex.
+  "withFile", "withGuardrail", "CalloutGuardrail", or any question about how to
+  call an external service from Apex.
   Do not wait for the user to name the library explicitly — if they are writing
   Apex that talks to an external API, this skill applies.
 ---
@@ -164,7 +165,49 @@ new CalloutBuilder('callout:MyNC')
 
 ---
 
-## Step 5: Test mocks
+## Step 5: Guardrails
+
+Implement `CalloutGuardrail` for a policy check before sending — blocked endpoints, required header, kill switch. Throwing `CalloutGuardrailException` blocks; returning allows.
+
+```Java (Apex)
+public with sharing class InternalEndpointGuardrail implements CalloutGuardrail {
+    public void enforce(CalloutBuilder builder) {
+        if (builder.getEndpoint()?.startsWith('/internal') == true) {
+            throw new CalloutGuardrailException('Internal endpoints are not callable from this context.');
+        }
+    }
+}
+
+new CalloutBuilder('callout:MyNC')
+    .withEndpoint('/v1/resource')
+    .withGuardrail(new InternalEndpointGuardrail())              // withGuardrails(List) for many
+    .withSuccessType(MyResponse.class)
+    .getTypedResponseBody();
+```
+
+- Both `with` methods append; the chain runs in attachment order and stops at the first throw. Chain position is irrelevant — guardrails run at execution time.
+- One run per execution, inside every response variant, before the request is built and before retries. A guardrail reads builder state — `getNcOrBaseUrl()`, `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `constructFullEndpoint()` — never the `HttpRequest` or the body. The two map accessors return copies.
+- A guardrail must not execute the builder it receives; doing so throws `CalloutBuilder.CalloutBuilderException`. Its own callout needs a separate `CalloutBuilder`.
+- Blocking applies in tests too, before mocks are set — the mock is never reached.
+- A block inside `CalloutBuilderQueueable` fails the job and strands the builders queued behind it. Filter blocked builders out while assembling the `CalloutCollection` when partial progress matters.
+
+`CalloutGuardrailException` extends `Exception`, not `CalloutBuilder.CalloutBuilderException` — catch it separately:
+
+```Java (Apex)
+try {
+    MyResponse result = (MyResponse) builder.getTypedResponseBody();
+} catch (CalloutGuardrailException e) {
+    // blocked before sending — no HTTP context, builder.getError() is null
+} catch (CalloutBuilder.CalloutBuilderException e) {
+    // sent and rejected, or a configuration error
+}
+```
+
+Use a guardrail for a pass/fail check. Subclass instead when behavior wraps the callout — logging, rewriting the request, timing. `CalloutBuilder` is `virtual` with `withEndpoint`, `withMethod`, `withBody`, `withBlobBody`, and `getHttpResponse` overridable; every response variant funnels through `getHttpResponse()`.
+
+---
+
+## Step 6: Test mocks
 
 It's recommended to include `.withMockIfTest(new MyMock())`. This method is a no-op outside of test context. Omitting it means tests will fail with "Callout not allowed" errors unless mocks are set elsewhere. This apporch helps reducing test code clutter when the same mock applies across many tests. If the codebase has the `ViciousMockBase` class, you can also use derived classes here.
 
@@ -212,7 +255,7 @@ The override matches by full URL + HTTP method. Builders targeting other endpoin
 
 ---
 
-## Step 6: File uploads (multipart/form-data)
+## Step 7: File uploads (multipart/form-data)
 
 Use `CalloutHexFormBuilder` for multipart/form-data uploads. The Apex heap limit means files should not exceed ~2 MB in synchronous contexts — warn users about this.
 
@@ -236,7 +279,7 @@ HttpResponse response = new CalloutBuilder('callout:StorageNC')
 
 ---
 
-## Step 7: Async callouts (from triggers)
+## Step 8: Async callouts (from triggers)
 
 Apex forbids synchronous callouts from triggers. Use `CalloutBuilderQueueable`.
 
@@ -307,6 +350,8 @@ When generating response types:
 
 - For other HTTP methods (e.g., `POST`), parameters are included in the body instead, and the URL remains: `https://example.com/test`
 
+- An endpoint that already carries a query string is extended with `&`, not a second `?`: `withEndpoint('/test?a=1')` + `withQueryParameter('b', '2')` → `https://example.com/test?a=1&b=2`
+
 ---
 
 ## Common mistakes to catch and fix
@@ -315,3 +360,5 @@ When generating response types:
 - Passing a class that does not implement `CalloutErrorResponse` to `.withErrorType()` — throws at configuration time, not at callout time
 - Using `withQueryParameters` on a POST that also has `.withBody()` — body wins
 - Omitting `.withMockIfTest()` — tests fail with "Callout not allowed"
+- A guardrail executing the builder it was handed, or expecting the `HttpRequest` or body — only builder state is readable
+- Catching only `CalloutBuilder.CalloutBuilderException` around a guarded callout — `CalloutGuardrailException` escapes it
