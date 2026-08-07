@@ -444,7 +444,7 @@ private class CalloutBuilder_Test {
     @IsTest
     static void testGuardrailBlocksCalloutBeforeSending() {
         CaptureMock mock = new CaptureMock();
-        CalloutBuilder.CalloutBuilderException caught;
+        CalloutGuardrailException caught;
 
         Test.startTest();
             try {
@@ -453,7 +453,7 @@ private class CalloutBuilder_Test {
                     .withGuardrails(new List<CalloutGuardrail>{ new BlockingGuardrail() })
                     .withMockIfTest(mock)
                     .getHttpResponse();
-            } catch (CalloutBuilder.CalloutBuilderException e) {
+            } catch (CalloutGuardrailException e) {
                 caught = e;
             }
         Test.stopTest();
@@ -470,7 +470,7 @@ private class CalloutBuilder_Test {
             new CalloutBuilder('https://example.com')
                 .withEndpoint('/test')
                 .withGuardrails(new List<CalloutGuardrail>{ new RecordingGuardrail('first') })
-                .withGuardrails(new List<CalloutGuardrail>{ new RecordingGuardrail('second') })
+                .withGuardrail(new RecordingGuardrail('second'))
                 .withMockIfTest(mock)
                 .getHttpResponse();
         Test.stopTest();
@@ -478,7 +478,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual(
             new List<String>{ 'first', 'second' },
             guardrailLog,
-            'Guardrails should run in the order attached, accumulating across calls'
+            'Guardrails should run in the order attached, accumulating across calls and across both overloads'
         );
         Assert.isNotNull(mock.capturedRequest, 'A passing chain should let the callout through');
     }
@@ -518,7 +518,7 @@ private class CalloutBuilder_Test {
 
     private class BlockingGuardrail implements CalloutGuardrail {
         public void enforce(CalloutBuilder builder) {
-            throw new CalloutBuilder.CalloutBuilderException('Blocked by test guardrail');
+            throw new CalloutGuardrailException('Blocked by test guardrail');
         }
     }
 

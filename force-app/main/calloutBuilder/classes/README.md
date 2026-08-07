@@ -6,10 +6,10 @@ Establishing unified callout approach with basic response handling backed in.
 
 ## Structure
 
-1. [CalloutBuilder](CalloutBuilder.cls) - main class. `virtual`, so behavior can be added around a callout by subclassing it — every response variant funnels through `getHttpResponse()`. See [GuardedCalloutBuilder](../../guardedCalloutBuilder/classes/README.md).
+1. [CalloutBuilder](CalloutBuilder.cls) - main class. `virtual`, so behavior can be added around a callout by subclassing it — every response variant funnels through `getHttpResponse()`.
 2. [CalloutErrorResponse](CalloutErrorResponse.cls) - interface enabling CalloutBuilder to extract error message from any error object.
 3. [CalloutRetrier](CalloutRetrier.cls) - interface enabling CalloutBuilder to retry a callout and to change something before the new attempt.
-4. [CalloutGuardrail](CalloutGuardrail.cls) - interface for a check that runs before a callout and can block it. Attach implementations with `withGuardrails()`. [CalloutGuardrailException](CalloutGuardrailException.cls) is the exception a guardrail throws to block.
+4. [CalloutGuardrail](CalloutGuardrail.cls) - interface for a check that runs before a callout and can block it. Attach implementations with `withGuardrail()` or `withGuardrails()`. [CalloutGuardrailException](CalloutGuardrailException.cls) is the exception a guardrail throws to block.
 5. [CalloutBuilderQueueable](CalloutBuilderQueueable.cls) - virtual class to run one or many callouts asynchronously, for example, from a trigger.
 6. [CalloutCollection](CalloutCollection.cls) - virtual class which is bundling many CalloutBuilder instances, callout preparation and post processing for [CalloutBuilderQueueable](CalloutCollection.cls).
 7. [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) - a class to build multipart requests to enable sending files. It's used in `withFile()` method of the CalloutBuilder, and may be used separately. **NOTE:** It's resource-intensive and may reach heap limit when processing files of more than 2 Mb in size. It's recommended to send files up to 2 Mb.
@@ -109,7 +109,7 @@ HttpResponse response = new CalloutBuilder('callout:OpenAI_NC')
 
 ### Guardrails
 
-`withGuardrails()` attaches checks that run before the request is constructed. A guardrail blocks the callout by throwing; returning normally allows it. Repeated calls append, and the chain runs in the order attached.
+`withGuardrail()` attaches one check that runs before the request is constructed, `withGuardrails()` a list of them. A guardrail blocks the callout by throwing; returning normally allows it. Repeated calls append, and the chain runs in the order attached.
 
 ```Java (Apex)
 public with sharing class ProductionOnlyGuardrail implements CalloutGuardrail {
@@ -122,13 +122,11 @@ public with sharing class ProductionOnlyGuardrail implements CalloutGuardrail {
 
 new CalloutBuilder('callout:MyService')
     .withEndpoint('/v1/resource')
-    .withGuardrails(new List<CalloutGuardrail>{ new ProductionOnlyGuardrail() })
+    .withGuardrail(new ProductionOnlyGuardrail())
     .getHttpResponse();
 ```
 
 A guardrail reads the request through the builder's accessors — `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `constructFullEndpoint()` — and must not execute the builder it is inspecting; doing so throws `CalloutBuilderException`.
-
-[GuardedCalloutBuilder](../../guardedCalloutBuilder/classes/README.md) builds on this: it resolves a guardrail chain per Named Credential from custom metadata and attaches it automatically.
 
 ---
 

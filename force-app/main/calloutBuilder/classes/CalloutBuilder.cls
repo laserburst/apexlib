@@ -130,6 +130,12 @@ public virtual with sharing class CalloutBuilder {
         return this;
     }
 
+    @SuppressWarnings('PMD.ApexDoc')
+    public CalloutBuilder withGuardrail(CalloutGuardrail guardrail) {
+        this.guardrails.add(guardrail);
+        return this;
+    }
+
     public CalloutBuilder withMaxRetries(Integer maxRetries) {
         this.maxRetries = maxRetries;
         return this;
