@@ -11,10 +11,11 @@ Establishing unified callout approach with basic response handling backed in.
 3. [CalloutRetrier](CalloutRetrier.cls) - interface enabling CalloutBuilder to retry a callout and to change something before the new attempt.
 4. [CalloutGuardrail](CalloutGuardrail.cls) - interface for a check that runs before a callout and can block it. Attach implementations with `withGuardrail()` or `withGuardrails()`. [CalloutGuardrailException](CalloutGuardrailException.cls) is the exception a guardrail throws to block.
 5. [CalloutResponseSanitizer](CalloutResponseSanitizer.cls) - interface for a transformation applied to a validated response before the caller sees it. Attach implementations with `withResponseSanitizer()` or `withResponseSanitizers()`. [CalloutResponseSanitizerException](CalloutResponseSanitizerException.cls) is the exception a sanitizer throws to block.
-6. [CalloutBuilderQueueable](CalloutBuilderQueueable.cls) - virtual class to run one or many callouts asynchronously, for example, from a trigger.
-7. [CalloutCollection](CalloutCollection.cls) - virtual class which is bundling many CalloutBuilder instances, callout preparation and post processing for [CalloutBuilderQueueable](CalloutCollection.cls).
-8. [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) - a class to build multipart requests to enable sending files. It's used in `withFile()` method of the CalloutBuilder, and may be used separately. **NOTE:** It's resource-intensive and may reach heap limit when processing files of more than 2 Mb in size. It's recommended to send files up to 2 Mb.
-9. [MimeType](MimeType.cls) - a class to resolve popular mime types by file extension. It's used by [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) and can be helpful by itself.
+6. [CalloutJsonPathSanitizer](CalloutJsonPathSanitizer.cls) - shipped sanitizer removing JSON nodes matched by bracket-path criteria, e.g. search results in restricted folders.
+7. [CalloutBuilderQueueable](CalloutBuilderQueueable.cls) - virtual class to run one or many callouts asynchronously, for example, from a trigger.
+8. [CalloutCollection](CalloutCollection.cls) - virtual class which is bundling many CalloutBuilder instances, callout preparation and post processing for [CalloutBuilderQueueable](CalloutCollection.cls).
+9. [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) - a class to build multipart requests to enable sending files. It's used in `withFile()` method of the CalloutBuilder, and may be used separately. **NOTE:** It's resource-intensive and may reach heap limit when processing files of more than 2 Mb in size. It's recommended to send files up to 2 Mb.
+10. [MimeType](MimeType.cls) - a class to resolve popular mime types by file extension. It's used by [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) and can be helpful by itself.
 
 ## Examples (illustrative)
 
@@ -151,6 +152,19 @@ new CalloutBuilder('callout:MyService')
 ```
 
 Sanitizers run after validation, so the retrier, the `>= 400` error path, and `withDebugMode(true)` all see the raw response — sanitizing is not log redaction. Error responses are therefore never sanitized, unless `withBypassResponseValidation(true)` lets them through. Throw rather than return a body that could not be parsed. A binary response needs `setBodyAsBlob()`, and a sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilderException`.
+
+For value-based filtering the shipped `CalloutJsonPathSanitizer` needs no custom class. Criteria keys are bracket paths, values mark restricted nodes (a `List` means any-of), and a match removes the nearest enclosing list item — or the leaf property when the path crosses no list:
+
+```Java (Apex)
+new CalloutBuilder('callout:MyService')
+    .withEndpoint('/v1/search')
+    .withResponseSanitizer(new CalloutJsonPathSanitizer(new Map<String, Object>{
+        'results[folder][id]' => new List<String>{ 'F-1', 'F-2' }
+    }))
+    .getResponseBodyMap();
+```
+
+Entries combine with `Match.ANY_ENTRY` by default; pass `Match.ALL_ENTRIES` as the second constructor argument to remove only items matching every entry. A non-JSON body fails closed with `CalloutResponseSanitizerException`.
 
 ---
 

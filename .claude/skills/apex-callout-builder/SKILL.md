@@ -9,7 +9,8 @@ description: >-
   phrases like "callout", "HTTP request in Apex", "named credential", "API
   integration", "CalloutBuilder", "withMockIfTest", "CalloutBuilderQueueable",
   "withFile", "withGuardrail", "CalloutGuardrail", "withResponseSanitizer",
-  "CalloutResponseSanitizer", "sanitize a response", or any question about how
+  "CalloutResponseSanitizer", "CalloutJsonPathSanitizer", "sanitize a
+  response", or any question about how
   to call an external service from Apex.
   Do not wait for the user to name the library explicitly — if they are writing
   Apex that talks to an external API, this skill applies.
@@ -236,6 +237,21 @@ new CalloutBuilder('callout:MyNC')
 - A sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilder.CalloutBuilderException` before the second request is sent. Its own callout needs a separate `CalloutBuilder`.
 - `CalloutCollection.postProcess()` receives the sanitized response. A throw inside `CalloutBuilderQueueable` fails the job and strands the builders queued behind it.
 - `CalloutResponseSanitizerException` extends `Exception` — catch it beside `CalloutGuardrailException`, not under `CalloutBuilder.CalloutBuilderException`.
+
+### Shipped: CalloutJsonPathSanitizer
+
+Before writing a custom sanitizer, check whether declarative value-based removal covers the case:
+
+```Java (Apex)
+new CalloutBuilder('callout:MyNC')
+    .withEndpoint('/v1/search')
+    .withResponseSanitizer(new CalloutJsonPathSanitizer(new Map<String, Object>{
+        'results[folder][id]' => new List<String>{ 'F-1', 'F-2' }   // List value = any-of
+    }))
+    .getResponseBodyMap();
+```
+
+Criteria keys are bracket paths: a non-numeric segment on an array applies to every element, a numeric one indexes it. A match removes the nearest enclosing list item, or the leaf property when the path crosses no list. Entries combine with `Match.ANY_ENTRY` by default; `Match.ALL_ENTRIES` (second constructor argument) removes only items matching every entry. Strings match case-sensitively, scalar types must match the deserialized JSON type, and a non-JSON body throws `CalloutResponseSanitizerException`.
 
 ---
 
