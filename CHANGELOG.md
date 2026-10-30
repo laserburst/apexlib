@@ -1,5 +1,11 @@
 # Changelog
 
+## October 2026
+
+### Changed
+
+- **License** — apexlib is licensed under Apache 2.0 instead of MIT ([LICENSE](LICENSE))
+
 ## July 2026
 
 ### Added
