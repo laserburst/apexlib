@@ -82,6 +82,12 @@ public with sharing class MimeType {
             'xz' => 'application/x-xz'
         };
 
+    public static final Map<String, String> EMAIL_EXTENSION_TO_MIME_TYPE =
+        new Map<String, String>{
+            'eml' => 'message/rfc822',
+            'msg' => 'application/vnd.ms-outlook'
+        };
+
     public static final Map<String, String> EXTENSION_TO_MIME_TYPE = new Map<String, String>();
     static {
         EXTENSION_TO_MIME_TYPE.putAll(IMAGE_EXTENSION_TO_MIME_TYPE);
@@ -90,6 +96,7 @@ public with sharing class MimeType {
         EXTENSION_TO_MIME_TYPE.putAll(VIDEO_EXTENSION_TO_MIME_TYPE);
         EXTENSION_TO_MIME_TYPE.putAll(FONT_EXTENSION_TO_MIME_TYPE);
         EXTENSION_TO_MIME_TYPE.putAll(ARCHIVE_EXTENSION_TO_MIME_TYPE);
+        EXTENSION_TO_MIME_TYPE.putAll(EMAIL_EXTENSION_TO_MIME_TYPE);
     }
 
     public static String getByFileNameWithExtension(String fileNameWithExtension) {
@@ -98,7 +105,7 @@ public with sharing class MimeType {
         }
         String fileExtension = fileNameWithExtension.subStringAfterLast('.');
         if (String.isBlank(fileExtension)) {
-            throw new IllegalArgumentException('File name contains no extension: ' + fileNameWithExtension);
+            return FALLBACK_MIME_TYPE;
         }
         return getByExtension(fileExtension);
     }

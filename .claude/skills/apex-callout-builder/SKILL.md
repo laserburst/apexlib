@@ -300,7 +300,7 @@ The override matches by resolved full URL + HTTP method: a key built with `withE
 
 ## Step 8: File uploads (multipart/form-data)
 
-Use `CalloutHexFormBuilder` for multipart/form-data uploads. The Apex heap limit means files should not exceed ~2 MB in synchronous contexts — warn users about this.
+Use `CalloutHexFormBuilder` for multipart/form-data uploads. Files should not exceed ~5 MB: the whole form must fit the callout request size limit (10 MB in synchronous Apex since Winter '27, 6 MB in orgs on older limits) — warn users about this.
 
 ```Java (Apex)
 CalloutHexFormBuilder form = CalloutHexFormBuilder.build()

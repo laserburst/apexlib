@@ -6,6 +6,7 @@
 
 - **`CalloutBuilder.withPathParameter()` / `withPathParameters()` / `getPathParameters()`** — `{name}` placeholders in the endpoint are filled with encoded values, each kept within one path segment ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **`ViciousMockBase.getRequests()` / `getLastRequest()` / `buildResponse()`** — a mock records the requests it answers; override `buildResponse()` to answer from the request ([ViciousMockBase.cls](force-app/main/viciousMockery/classes/ViciousMockBase.cls))
+- **Email MIME types** — `MimeType` maps `eml` and `msg` ([MimeType.cls](force-app/main/calloutBuilder/classes/MimeType.cls))
 
 ### Changed
 
@@ -13,6 +14,8 @@
 - **Improved endpoint safety** ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **`getEndpoint()` / `constructFullEndpoint()`** — return the endpoint with placeholders resolved ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **`ViciousMockery.cast()`** — returns the `ViciousMockery` instance it registers ([ViciousMockery.cls](force-app/main/viciousMockery/classes/ViciousMockery.cls))
+- **Multipart heap** — `CalloutHexFormBuilder` keeps one hex copy of each file, and files over 5 MB no longer fail with `StringException` ([CalloutHexFormBuilder.cls](force-app/main/calloutBuilder/classes/CalloutHexFormBuilder.cls))
+- **File names without an extension** — `MimeType.getByFileNameWithExtension()` returns `application/octet-stream` instead of throwing ([MimeType.cls](force-app/main/calloutBuilder/classes/MimeType.cls))
 
 ## August 2026
 
