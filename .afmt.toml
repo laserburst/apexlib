@@ -3,3 +3,9 @@ max_width = 120
 
 # Indentation size in spaces
 indent_size = 4
+
+brace_style = "k_and_r"             # or "allman"
+wrap_single_statements = true
+indent_style = "space"              # or "tab"
+javadoc_star_column = "offset"      # or "flush"
+normalize_annotation_casing = true
