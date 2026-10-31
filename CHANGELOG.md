@@ -5,12 +5,14 @@
 ### Added
 
 - **`CalloutBuilder.withPathParameter()` / `withPathParameters()` / `getPathParameters()`** — `{name}` placeholders in the endpoint are filled with encoded values, each kept within one path segment ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **`ViciousMockBase.getRequests()` / `getLastRequest()` / `buildResponse()`** — a mock records the requests it answers; override `buildResponse()` to answer from the request ([ViciousMockBase.cls](force-app/main/viciousMockery/classes/ViciousMockBase.cls))
 
 ### Changed
 
 - **License** — apexlib is licensed under Apache 2.0 instead of MIT ([LICENSE](LICENSE))
 - **Improved endpoint safety** ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **`getEndpoint()` / `constructFullEndpoint()`** — return the endpoint with placeholders resolved ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **`ViciousMockery.cast()`** — returns the `ViciousMockery` instance it registers ([ViciousMockery.cls](force-app/main/viciousMockery/classes/ViciousMockery.cls))
 
 ## August 2026
 

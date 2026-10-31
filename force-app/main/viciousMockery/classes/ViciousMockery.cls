@@ -32,10 +32,12 @@ public with sharing virtual class ViciousMockery extends ViciousMockBase {
         }
     }
 
-    public static void cast(Integer code) {
+    public static ViciousMockery cast(Integer code) {
+        ViciousMockery mock = new ViciousMockery(code);
         if (Test.isRunningTest()) {
-            Test.setMock(HttpCalloutMock.class, new ViciousMockery(code));
+            Test.setMock(HttpCalloutMock.class, mock);
         }
+        return mock;
     }
 
     public virtual override String getBodyString() {

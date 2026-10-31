@@ -252,7 +252,7 @@ new CalloutBuilder('callout:MyNC')
 
 ## Step 7: Test mocks
 
-It's recommended to include `.withMockIfTest(new MyMock())`. This method is a no-op outside of test context. Omitting it means tests will fail with "Callout not allowed" errors unless mocks are set elsewhere. This apporch helps reducing test code clutter when the same mock applies across many tests. If the codebase has the `ViciousMockBase` class, you can also use derived classes here.
+It's recommended to include `.withMockIfTest(new MyMock())`. This method is a no-op outside of test context. Omitting it means tests will fail with "Callout not allowed" errors unless mocks are set elsewhere. This apporch helps reducing test code clutter when the same mock applies across many tests. If the codebase has the `ViciousMockBase` class, you can also use derived classes here. They record the requests they answer: assert on `getLastRequest()` or `getRequests()` rather than hand-writing a capture mock.
 
 ### Inline mock
 
