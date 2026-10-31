@@ -529,17 +529,18 @@ private class CalloutBuilder_Test {
     }
 
     @IsTest
-    static void testSanitizerMutatesBodyBeforeTypedResponse() {
+    static void testSanitizerMutatesTypedBody() {
         Test.startTest();
             DummyResponse res = (DummyResponse) new CalloutBuilder('callout:Test')
                 .withEndpoint('/test')
                 .withSuccessType(DummyResponse.class)
-                .withResponseSanitizer(new ReplacingSanitizer('{"value":"Sanitized"}'))
+                .withResponseSanitizer(new ScrubbingSanitizer())
                 .withMockIfTest(new SuccessMock())
                 .getTypedResponseBody();
         Test.stopTest();
 
         Assert.areEqual('Sanitized', res.value, 'A sanitized body should reach the typed response');
+        Assert.areEqual(1, sanitized.size(), 'Only the parsed body should be sanitized, not the HttpResponse');
     }
 
     @IsTest
@@ -603,12 +604,36 @@ private class CalloutBuilder_Test {
     }
 
     @IsTest
+    static void testSanitizerBlocksFormItDoesNotOverride() {
+        CalloutResponseSanitizer sanitizer = new UnsupportingSanitizer();
+        Integer blocked = 0;
+
+        try {
+            sanitizer.sanitize(new HttpResponse());
+        } catch (CalloutResponseSanitizerException e) {
+            blocked++;
+        }
+        try {
+            sanitizer.sanitize(new Map<String, Object>());
+        } catch (CalloutResponseSanitizerException e) {
+            blocked++;
+        }
+        try {
+            sanitizer.sanitize(new DummyResponse(), DummyResponse.class);
+        } catch (CalloutResponseSanitizerException e) {
+            blocked++;
+        }
+
+        Assert.areEqual(3, blocked, 'Every overload not overridden should block');
+    }
+
+    @IsTest
     static void testErrorResponseIsNotSanitized() {
         Test.startTest();
             try {
                 new CalloutBuilder('callout:ErrorTest')
                     .withEndpoint('/fail')
-                    .withResponseSanitizer(new ReplacingSanitizer('{"message":"scrubbed"}'))
+                    .withResponseSanitizer(new ScrubbingSanitizer())
                     .withMockIfTest(new ErrorMock())
                     .getHttpResponse();
                 Assert.fail('Expected error not thrown');
@@ -617,7 +642,7 @@ private class CalloutBuilder_Test {
             }
         Test.stopTest();
 
-        Assert.isTrue(sanitizerLog.isEmpty(), 'Sanitizers should not run on a response that fails validation');
+        Assert.isTrue(sanitized.isEmpty(), 'Sanitizers should not run on a response that fails validation');
     }
 
     @IsTest
@@ -626,7 +651,7 @@ private class CalloutBuilder_Test {
             Map<String, Object> resMap = new CalloutBuilder('callout:ErrorTest')
                 .withEndpoint('/fail')
                 .withBypassResponseValidation(true)
-                .withResponseSanitizer(new ReplacingSanitizer('{"message":"scrubbed"}'))
+                .withResponseSanitizer(new ScrubbingSanitizer())
                 .withMockIfTest(new ErrorMock())
                 .getResponseBodyMap();
         Test.stopTest();
@@ -638,43 +663,50 @@ private class CalloutBuilder_Test {
         );
     }
 
-    private static List<String> sanitizerLog = new List<String>();
+    private static List<Object> sanitized = new List<Object>();
 
-    private class AppendingSanitizer implements CalloutResponseSanitizer {
+    private class AppendingSanitizer extends CalloutResponseSanitizer {
         private final String name;
 
         private AppendingSanitizer(String name) {
             this.name = name;
         }
 
-        public void sanitize(HttpResponse response) {
+        public override void sanitize(HttpResponse response) {
             response.setBody(response.getBody() + this.name);
         }
     }
 
-    private class ReplacingSanitizer implements CalloutResponseSanitizer {
-        private final String newBody;
-
-        private ReplacingSanitizer(String newBody) {
-            this.newBody = newBody;
+    private class ScrubbingSanitizer extends CalloutResponseSanitizer {
+        public override void sanitize(HttpResponse response) {
+            sanitized.add(response);
         }
 
-        public void sanitize(HttpResponse response) {
-            sanitizerLog.add('replaced');
-            response.setBody(this.newBody);
+        public override void sanitize(Map<String, Object> body) {
+            sanitized.add(body);
+            body.put('message', 'scrubbed');
+        }
+
+        public override void sanitize(Object body, System.Type successType) {
+            Assert.areEqual(DummyResponse.class, successType, 'The success type should be passed along');
+            sanitized.add(body);
+            ((DummyResponse) body).value = 'Sanitized';
         }
     }
 
-    private class BlockingSanitizer implements CalloutResponseSanitizer {
-        public void sanitize(HttpResponse response) {
+    private class UnsupportingSanitizer extends CalloutResponseSanitizer {
+    }
+
+    private class BlockingSanitizer extends CalloutResponseSanitizer {
+        public override void sanitize(HttpResponse response) {
             throw new CalloutResponseSanitizerException('Blocked by test sanitizer');
         }
     }
 
-    private class RecursiveSanitizer implements CalloutResponseSanitizer {
+    private class RecursiveSanitizer extends CalloutResponseSanitizer {
         public CalloutBuilder builder;
 
-        public void sanitize(HttpResponse response) {
+        public override void sanitize(HttpResponse response) {
             this.builder.getHttpResponse();
         }
     }

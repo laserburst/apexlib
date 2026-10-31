@@ -205,20 +205,18 @@ try {
 }
 ```
 
-Use a guardrail for a pass/fail check. Subclass instead when behavior wraps the callout — logging, rewriting the request, timing. `CalloutBuilder` is `virtual` with `withEndpoint`, `withMethod`, `withBody`, `withBlobBody`, and `getHttpResponse` overridable; every response variant funnels through `getHttpResponse()`.
+Use a guardrail for a pass/fail check. Subclass instead when behavior wraps the callout — logging, rewriting the request, timing. `CalloutBuilder` is `virtual` with `withEndpoint`, `withMethod`, `withBody`, `withBlobBody`, and `getHttpResponse` overridable; every response variant funnels through `getHttpResponse()`. Under `getResponseBodyMap()` and `getTypedResponseBody()` it returns the response unsanitized, so an override must not cache or log its return value as sanitized.
 
 ---
 
 ## Step 6: Response sanitizers
 
-Guardrails police the request; `CalloutResponseSanitizer` polices the response. Implement one to strip content the caller must not receive — restricted search hits, PII. Rewrite the body with `setBody()`, or throw `CalloutResponseSanitizerException` to block the response.
+Guardrails police the request; `CalloutResponseSanitizer` polices the response. Extend it to strip content the caller must not receive — restricted search hits, PII. Override a `sanitize()` overload per form handled: `sanitize(HttpResponse)` for `getHttpResponse()` / `getResponseBodyAsBlob()`, `sanitize(Map<String, Object>)` for `getResponseBodyMap()`, `sanitize(Object, System.Type)` for `getTypedResponseBody()`. Mutate the argument in place, or throw `CalloutResponseSanitizerException` to block the response.
 
 ```Java (Apex)
-public with sharing class RestrictedFolderSanitizer implements CalloutResponseSanitizer {
-    public void sanitize(HttpResponse response) {
-        Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(response.getBody());
+public with sharing class RestrictedFolderSanitizer extends CalloutResponseSanitizer {
+    public override void sanitize(Map<String, Object> body) {
         body.put('results', this.withoutRestrictedFolders((List<Object>) body.get('results')));
-        response.setBody(JSON.serialize(body));
     }
 }
 
@@ -228,14 +226,14 @@ new CalloutBuilder('callout:MyNC')
     .getResponseBodyMap();
 ```
 
-- Both `with` methods append; the chain runs in attachment order, each sanitizer seeing the previous one's output, and stops at the first throw.
-- One run per execution, after validation, feeding every response variant.
+- Both `with` methods append. The chain runs once per execution, after validation, in attachment order, and stops at the first throw. Every sanitizer works on the instance the caller receives; the map and typed overloads get it already parsed, so never re-parse.
 - `CalloutRetrier.shouldRetry()`, the `>= 400` error path, and `withDebugMode(true)` see the **raw** response. Sanitizing is not log redaction.
-- Error responses are never sanitized, because validation throws first. Under `withBypassResponseValidation(true)` nothing throws, so non-2xx responses reach the chain too — branch on `response.getStatusCode()` when that matters.
-- Fail closed: throw rather than return a body you could not parse.
-- Binary responses need `setBodyAsBlob()`.
+- Error responses are never sanitized, because validation throws first. Under `withBypassResponseValidation(true)` nothing throws, so non-2xx responses reach the chain too — only `sanitize(HttpResponse)` sees `getStatusCode()` to branch on.
+- Fail closed: an overload not overridden blocks the response; inside an override, throw rather than return quietly on a body you cannot handle.
+- A typed sanitizer casts `body` to the success type it was written for, checking `successType` first when it serves several.
+- Binary responses need `setBodyAsBlob()` in `sanitize(HttpResponse)`.
 - A sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilder.CalloutBuilderException` before the second request is sent. Its own callout needs a separate `CalloutBuilder`.
-- `CalloutCollection.postProcess()` receives the sanitized response. A throw inside `CalloutBuilderQueueable` fails the job and strands the builders queued behind it.
+- `CalloutCollection.postProcess()` receives the sanitized response. Queued builders run `getHttpResponse()`, so only `sanitize(HttpResponse)` applies there. A throw inside `CalloutBuilderQueueable` fails the job and strands the builders queued behind it.
 - `CalloutResponseSanitizerException` extends `Exception` — catch it beside `CalloutGuardrailException`, not under `CalloutBuilder.CalloutBuilderException`.
 
 ---
@@ -393,8 +391,5 @@ When generating response types:
 - Passing a class that does not implement `CalloutErrorResponse` to `.withErrorType()` — throws at configuration time, not at callout time
 - Using `withQueryParameters` on a POST that also has `.withBody()` — body wins
 - Omitting `.withMockIfTest()` — tests fail with "Callout not allowed"
-- A guardrail or a sanitizer executing the builder it is inspecting — both are rejected with `CalloutBuilder.CalloutBuilderException`; a guardrail also cannot read the `HttpRequest` or body, only builder state
-- Catching only `CalloutBuilder.CalloutBuilderException` around a guarded or sanitized callout — `CalloutGuardrailException` and `CalloutResponseSanitizerException` escape it
-- Assuming debug logs are sanitized — `withDebugMode(true)` prints the raw body, before any sanitizer runs
-- A sanitizer returning quietly when it cannot parse the body — throw instead, or unfiltered content reaches the caller
-- Expecting the retrier or `builder.getError()` to see sanitized content — both observe the raw response
+- A guardrail executing the builder it was handed, or expecting the `HttpRequest` or body — only builder state is readable
+- Catching only `CalloutBuilder.CalloutBuilderException` around a guarded callout — `CalloutGuardrailException` escapes it

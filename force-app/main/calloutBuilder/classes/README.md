@@ -6,11 +6,11 @@ Establishing unified callout approach with basic response handling backed in.
 
 ## Structure
 
-1. [CalloutBuilder](CalloutBuilder.cls) - main class. `virtual`, so behavior can be added around a callout by subclassing it — every response variant funnels through `getHttpResponse()`.
+1. [CalloutBuilder](CalloutBuilder.cls) - main class. `virtual`, so behavior can be added around a callout by subclassing it — every response variant funnels through `getHttpResponse()`. Under `getResponseBodyMap()` and `getTypedResponseBody()` it returns the response unsanitized.
 2. [CalloutErrorResponse](CalloutErrorResponse.cls) - interface enabling CalloutBuilder to extract error message from any error object.
 3. [CalloutRetrier](CalloutRetrier.cls) - interface enabling CalloutBuilder to retry a callout and to change something before the new attempt.
 4. [CalloutGuardrail](CalloutGuardrail.cls) - interface for a check that runs before a callout and can block it. Attach implementations with `withGuardrail()` or `withGuardrails()`. [CalloutGuardrailException](CalloutGuardrailException.cls) is the exception a guardrail throws to block.
-5. [CalloutResponseSanitizer](CalloutResponseSanitizer.cls) - interface for a transformation applied to a validated response before the caller sees it. Attach implementations with `withResponseSanitizer()` or `withResponseSanitizers()`. [CalloutResponseSanitizerException](CalloutResponseSanitizerException.cls) is the exception a sanitizer throws to block.
+5. [CalloutResponseSanitizer](CalloutResponseSanitizer.cls) - abstract class for a transformation applied to a validated response before the caller sees it. Attach subclasses with `withResponseSanitizer()` or `withResponseSanitizers()`. [CalloutResponseSanitizerException](CalloutResponseSanitizerException.cls) is the exception a sanitizer throws to block.
 6. [CalloutBuilderQueueable](CalloutBuilderQueueable.cls) - virtual class to run one or many callouts asynchronously, for example, from a trigger.
 7. [CalloutCollection](CalloutCollection.cls) - virtual class which is bundling many CalloutBuilder instances, callout preparation and post processing for [CalloutBuilderQueueable](CalloutCollection.cls).
 8. [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) - a class to build multipart requests to enable sending files. It's used in `withFile()` method of the CalloutBuilder, and may be used separately. **NOTE:** It's resource-intensive and may reach heap limit when processing files of more than 2 Mb in size. It's recommended to send files up to 2 Mb.
@@ -133,14 +133,12 @@ A guardrail reads the request through the builder's accessors — `getEndpoint()
 
 ### Response Sanitizers
 
-`withResponseSanitizer()` attaches one transformation applied to the response before the caller sees it, `withResponseSanitizers()` a list of them. A sanitizer rewrites the body with `setBody()`, or blocks the response by throwing. Repeated calls append, the chain runs in the order attached, and each sanitizer sees the previous one's output.
+`withResponseSanitizer()` attaches one transformation applied to the response before the caller sees it, `withResponseSanitizers()` a list of them. A sanitizer extends `CalloutResponseSanitizer` and overrides a `sanitize()` overload for each form it handles: `HttpResponse` for `getHttpResponse()` and `getResponseBodyAsBlob()`, `Map<String, Object>` for `getResponseBodyMap()`, `(Object, System.Type)` for `getTypedResponseBody()`. An override mutates its argument in place, or blocks the response by throwing; a form not overridden is blocked. Repeated calls append, and the chain runs in the order attached on one shared instance, so the body is parsed once and each sanitizer sees the previous one's output.
 
 ```Java (Apex)
-public with sharing class RestrictedFolderSanitizer implements CalloutResponseSanitizer {
-    public void sanitize(HttpResponse response) {
-        Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(response.getBody());
+public with sharing class RestrictedFolderSanitizer extends CalloutResponseSanitizer {
+    public override void sanitize(Map<String, Object> body) {
         body.put('results', this.withoutRestrictedFolders((List<Object>) body.get('results')));
-        response.setBody(JSON.serialize(body));
     }
 }
 
@@ -150,7 +148,7 @@ new CalloutBuilder('callout:MyService')
     .getResponseBodyMap();
 ```
 
-Sanitizers run after validation, so the retrier, the `>= 400` error path, and `withDebugMode(true)` all see the raw response — sanitizing is not log redaction. Error responses are therefore never sanitized, unless `withBypassResponseValidation(true)` lets them through. Throw rather than return a body that could not be parsed. A binary response needs `setBodyAsBlob()`, and a sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilderException`.
+Sanitizers run after validation, so the retrier, the `>= 400` error path, and `withDebugMode(true)` all see the raw response — sanitizing is not log redaction. Error responses are therefore never sanitized, unless `withBypassResponseValidation(true)` lets them through. Throw rather than return quietly on a body the sanitizer cannot handle. A binary response needs `setBodyAsBlob()` in the `HttpResponse` overload, and a sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilderException`.
 
 ---
 

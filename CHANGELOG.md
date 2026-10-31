@@ -10,7 +10,7 @@
 
 ### Added
 
-- **`CalloutBuilder.withResponseSanitizer()` / `withResponseSanitizers()`** — `CalloutResponseSanitizer` implementations rewrite or block a validated response before the caller sees it ([CalloutResponseSanitizer.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizer.cls))
+- **`CalloutBuilder.withResponseSanitizer()` / `withResponseSanitizers()`** — `CalloutResponseSanitizer` subclasses mutate or block a validated response before the caller sees it — the `HttpResponse`, or the body parsed once for `getResponseBodyMap()` / `getTypedResponseBody()`; a form a subclass does not override is blocked ([CalloutResponseSanitizer.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizer.cls))
 
 ## July 2026
 

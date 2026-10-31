@@ -47,6 +47,7 @@ public virtual with sharing class CalloutBuilder {
 
     private List<CalloutResponseSanitizer> responseSanitizers = new List<CalloutResponseSanitizer>();
     private Boolean sanitizingResponse = false;
+    private Boolean parsingResponseBody = false;
 
     // CalloutErrorResponse implementation
     private System.Type errorResponseImplType;
@@ -247,7 +248,9 @@ public virtual with sharing class CalloutBuilder {
         this.attempt = 0;
 
         this.validateResponse();
-        this.sanitizeResponse();
+        if (!this.parsingResponseBody) {
+            this.sanitizeResponse(this.response);
+        }
         return this.response;
     }
 
@@ -257,8 +260,10 @@ public virtual with sharing class CalloutBuilder {
     * @return response body as Map<String, Object>
     */
     public Map<String, Object> getResponseBodyMap() {
-        this.getHttpResponse();
-        return (Map<String, Object>) JSON.deserializeUntyped(this.response.getBody());
+        HttpResponse response = this.getUnsanitizedHttpResponse();
+        Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(response.getBody());
+        this.sanitizeResponse(body);
+        return body;
     }
 
     /**
@@ -270,8 +275,10 @@ public virtual with sharing class CalloutBuilder {
         if (this.successType == null) {
             throw new CalloutBuilderException('getTypedResponseBody expects this.successType to be set');
         }
-        this.getHttpResponse();
-        return JSON.deserialize(this.response.getBody(), this.successType);
+        HttpResponse response = this.getUnsanitizedHttpResponse();
+        Object body = JSON.deserialize(response.getBody(), this.successType);
+        this.sanitizeTypedResponse(body);
+        return body;
     }
 
     /**
@@ -279,8 +286,7 @@ public virtual with sharing class CalloutBuilder {
     * @return response body as Blob
     */
     public Blob getResponseBodyAsBlob() {
-        this.getHttpResponse();
-        return this.response.getBodyAsBlob();
+        return this.getHttpResponse().getBodyAsBlob();
     }
 
     /**
@@ -361,11 +367,42 @@ public virtual with sharing class CalloutBuilder {
         }
     }
 
-    private void sanitizeResponse() {
+    private HttpResponse getUnsanitizedHttpResponse() {
+        this.parsingResponseBody = true;
+        try {
+            return this.getHttpResponse();
+        } finally {
+            this.parsingResponseBody = false;
+        }
+    }
+
+    private void sanitizeResponse(HttpResponse response) {
         this.sanitizingResponse = true;
         try {
             for (CalloutResponseSanitizer sanitizer : this.responseSanitizers) {
-                sanitizer.sanitize(this.response);
+                sanitizer.sanitize(response);
+            }
+        } finally {
+            this.sanitizingResponse = false;
+        }
+    }
+
+    private void sanitizeResponse(Map<String, Object> body) {
+        this.sanitizingResponse = true;
+        try {
+            for (CalloutResponseSanitizer sanitizer : this.responseSanitizers) {
+                sanitizer.sanitize(body);
+            }
+        } finally {
+            this.sanitizingResponse = false;
+        }
+    }
+
+    private void sanitizeTypedResponse(Object body) {
+        this.sanitizingResponse = true;
+        try {
+            for (CalloutResponseSanitizer sanitizer : this.responseSanitizers) {
+                sanitizer.sanitize(body, this.successType);
             }
         } finally {
             this.sanitizingResponse = false;
