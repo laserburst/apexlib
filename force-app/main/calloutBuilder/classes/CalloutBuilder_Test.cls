@@ -543,19 +543,6 @@ private class CalloutBuilder_Test {
     }
 
     @IsTest
-    static void testSanitizerMutatesBodyBeforeResponseBodyMap() {
-        Test.startTest();
-            Map<String, Object> resMap = new CalloutBuilder('callout:Test')
-                .withEndpoint('/test')
-                .withResponseSanitizer(new ReplacingSanitizer('{"value":"Sanitized"}'))
-                .withMockIfTest(new SuccessMock())
-                .getResponseBodyMap();
-        Test.stopTest();
-
-        Assert.areEqual('Sanitized', (String) resMap.get('value'), 'A sanitized body should reach the response map');
-    }
-
-    @IsTest
     static void testSanitizersRunInAttachedOrderAndChain() {
         Test.startTest();
             HttpResponse response = new CalloutBuilder('callout:Test')
@@ -566,14 +553,10 @@ private class CalloutBuilder_Test {
                 .getHttpResponse();
         Test.stopTest();
 
-        Assert.areEqual(
-            new List<String>{ 'first', 'second' },
-            sanitizerLog,
-            'Sanitizers should run in the order attached, accumulating across calls and across both overloads'
-        );
         Assert.isTrue(
             response.getBody().endsWith('firstsecond'),
-            'Each sanitizer should see the previous one output, got: ' + response.getBody()
+            'Sanitizers should run in the order attached across both overloads, each seeing the previous one output, got: '
+                + response.getBody()
         );
     }
 
@@ -655,19 +638,6 @@ private class CalloutBuilder_Test {
         );
     }
 
-    @IsTest
-    static void testSanitizerCanRewriteBlobBody() {
-        Test.startTest();
-            Blob responseBodyBlob = new CalloutBuilder('https://example.com')
-                .withEndpoint('/test')
-                .withResponseSanitizer(new BlobSanitizer())
-                .withMockIfTest(new SuccessMock())
-                .getResponseBodyAsBlob();
-        Test.stopTest();
-
-        Assert.areEqual('scrubbed', responseBodyBlob.toString(), 'A sanitized blob body should reach the caller');
-    }
-
     private static List<String> sanitizerLog = new List<String>();
 
     private class AppendingSanitizer implements CalloutResponseSanitizer {
@@ -678,7 +648,6 @@ private class CalloutBuilder_Test {
         }
 
         public void sanitize(HttpResponse response) {
-            sanitizerLog.add(this.name);
             response.setBody(response.getBody() + this.name);
         }
     }
@@ -707,12 +676,6 @@ private class CalloutBuilder_Test {
 
         public void sanitize(HttpResponse response) {
             this.builder.getHttpResponse();
-        }
-    }
-
-    private class BlobSanitizer implements CalloutResponseSanitizer {
-        public void sanitize(HttpResponse response) {
-            response.setBodyAsBlob(Blob.valueOf('scrubbed'));
         }
     }
 

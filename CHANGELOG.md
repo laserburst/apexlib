@@ -6,6 +6,12 @@
 
 - **License** — apexlib is licensed under Apache 2.0 instead of MIT ([LICENSE](LICENSE))
 
+## August 2026
+
+### Added
+
+- **`CalloutBuilder.withResponseSanitizer()` / `withResponseSanitizers()`** — `CalloutResponseSanitizer` implementations rewrite or block a validated response before the caller sees it ([CalloutResponseSanitizer.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizer.cls))
+
 ## July 2026
 
 ### Added
