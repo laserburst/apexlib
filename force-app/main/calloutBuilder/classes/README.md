@@ -39,6 +39,17 @@ ExampleResponse.DialogToken tokenResponse = (ExampleResponse.DialogToken)cb.getT
 
 [Full Example](example/ExampleApi.cls)
 
+### Path Parameters
+
+`withPathParameter()` fills a `{name}` placeholder with the value encoded as one path segment; pass it unencoded.
+
+```Java (Apex)
+new CalloutBuilder('callout:MyService')
+    .withEndpoint('/items/{id}')
+    .withPathParameter('id', itemId)
+    .getHttpResponse();
+```
+
 ### Response Body Map With Query Parameters
 
 ```Java (Apex)

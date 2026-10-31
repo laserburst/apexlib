@@ -9,9 +9,8 @@ description: >-
   phrases like "callout", "HTTP request in Apex", "named credential", "API
   integration", "CalloutBuilder", "withMockIfTest", "CalloutBuilderQueueable",
   "withFile", "withGuardrail", "CalloutGuardrail", "withResponseSanitizer",
-  "CalloutResponseSanitizer", "sanitize a
-  response", or any question about how
-  to call an external service from Apex.
+  "CalloutResponseSanitizer", "withPathParameter", "sanitize a response", or
+  any question about how to call an external service from Apex.
   Do not wait for the user to name the library explicitly — if they are writing
   Apex that talks to an external API, this skill applies.
 ---
@@ -59,9 +58,21 @@ ReturnType result = (ReturnType)cb.getTypedResponseBody();
 
 Pass either a named credential alias (`'callout:MyNC'`) or a full base URL (`'https://api.example.com'`). Named credentials are always preferred in production — they keep auth out of Apex.
 
-### Endpoint slash handling
+### Endpoint and path parameters
 
-`withEndpoint` strips one leading slash when the base URL already ends with a slash. Be explicit: use `'callout:MyNC'` (no trailing slash) with `withEndpoint('/path')` (leading slash).
+`withEndpoint` stores exactly one leading slash, whatever the base URL ends with, so `withEndpoint('path')` and `withEndpoint('/path')` are equivalent; write the leading slash. It throws on `#`, and on `\` or a `.` / `..` segment in the path.
+
+Never concatenate values into the endpoint — they are sent unencoded. Use a `{name}` placeholder and `withPathParameter`; the value is passed raw and encoded as one path segment:
+
+```Java (Apex)
+new CalloutBuilder('callout:MyNC')
+    .withEndpoint('/customers/{customerId}/orders/{orderId}')
+    .withPathParameter('customerId', customerId)
+    .withPathParameter('orderId', orderId)    // withPathParameters(Map) for many
+    .getResponseBodyMap();
+```
+
+Every placeholder needs a parameter and every parameter a placeholder; a mismatch, or a blank, `.` or `..` value, throws `CalloutBuilder.CalloutBuilderException` before the callout. A placeholder also works in the endpoint's own query string (`'/search?q={term}'`), which is the only encoded URL query for non-GET methods.
 
 ### Body serialization
 
@@ -188,7 +199,7 @@ new CalloutBuilder('callout:MyNC')
 ```
 
 - Both `with` methods append; the chain runs in attachment order and stops at the first throw. Chain position is irrelevant — guardrails run at execution time.
-- One run per execution, inside every response variant, before the request is built and before retries. A guardrail reads builder state — `getNcOrBaseUrl()`, `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `constructFullEndpoint()` — never the `HttpRequest` or the body. The two map accessors return copies.
+- One run per execution, inside every response variant, before the request is built and before retries. A guardrail reads builder state — `getNcOrBaseUrl()`, `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `getPathParameters()`, `constructFullEndpoint()` — never the `HttpRequest` or the body. `getEndpoint()` is the resolved endpoint, placeholders filled; the three map accessors return copies, `getPathParameters()` with raw values.
 - A guardrail must not execute the builder it receives; doing so throws `CalloutBuilder.CalloutBuilderException`. Its own callout needs a separate `CalloutBuilder`.
 - Blocking applies in tests too, before mocks are set — the mock is never reached.
 - A block inside `CalloutBuilderQueueable` fails the job and strands the builders queued behind it. Filter blocked builders out while assembling the `CalloutCollection` when partial progress matters.
@@ -283,7 +294,7 @@ static void testPaymentError() {
 }
 ```
 
-The override matches by full URL + HTTP method. Builders targeting other endpoints are unaffected.
+The override matches by resolved full URL + HTTP method: a key built with `withEndpoint('/charge/ch_1')` matches `withEndpoint('/charge/{id}').withPathParameter('id', 'ch_1')`. Builders targeting other endpoints are unaffected.
 
 ---
 
@@ -347,7 +358,8 @@ public class OrderSyncCollection extends CalloutCollection {
         for (Order__c o : orders) {
             builders.add(
                 new CalloutBuilder('callout:OrdersNC')
-                    .withEndpoint('/orders/' + o.ExternalId__c)
+                    .withEndpoint('/orders/{id}')
+                    .withPathParameter('id', o.ExternalId__c)
                     .withMethod('PATCH')
                     .withBody(new OrderPayload(o))
                     .withMockIfTest(new OrderSyncMock())
@@ -378,6 +390,10 @@ When generating response types:
 
 ## URL Behavior
 
+- `withEndpoint()` stores exactly one leading `/` unless the endpoint is blank or starts with `?`, and the base URL's trailing `/` is not doubled: `callout:MyNC` + `items` → `callout:MyNC/items`.
+
+- `withEndpoint()` throws on `#` anywhere, and on `\` or a `.` / `..` segment (also as `%2e`) in the path.
+
 - For `GET` requests, query parameters _(UTF-8 encoded)_ are appended to the URL: `https://example.com/test?param1=value1&param2=value2&param3=value3`
 
 - For other HTTP methods (e.g., `POST`), parameters are included in the body instead, and the URL remains: `https://example.com/test`
@@ -391,6 +407,8 @@ When generating response types:
 - `getTypedResponseBody()` without `.withSuccessType()` set — throws immediately
 - Passing a class that does not implement `CalloutErrorResponse` to `.withErrorType()` — throws at configuration time, not at callout time
 - Using `withQueryParameters` on a POST that also has `.withBody()` — body wins
+- Concatenating values into `withEndpoint()` (`'/orders/' + id`) — sent unencoded, so `/`, `?` or `&` in a value changes the request and `#`, `\` or `..` makes `withEndpoint()` throw; use `'/orders/{id}'` with `withPathParameter('id', id)`
+- Encoding a path parameter value before passing it — it is encoded again (`%2F` becomes `%252F`)
 - Omitting `.withMockIfTest()` — tests fail with "Callout not allowed"
 - A guardrail executing the builder it was handed, or expecting the `HttpRequest` or body — only builder state is readable
 - Catching only `CalloutBuilder.CalloutBuilderException` around a guarded callout — `CalloutGuardrailException` escapes it

@@ -7,7 +7,8 @@ public with sharing class ExampleApi {
 
     public static String createDialogToken(Integer customerId) {
         CalloutBuilder cb = new CalloutBuilder(NC)
-            .withEndpoint('work/api/v2/customers/' + customerId + '/dialog-tokens')
+            .withEndpoint('/work/api/v2/customers/{customerId}/dialog-tokens')
+            .withPathParameter('customerId', String.valueOf(customerId))
             .withMethod('POST')
             .withHeader('key', 'value')
             .withHeaders(new Map<String, String>{ 'key_2' => 'value_2' })

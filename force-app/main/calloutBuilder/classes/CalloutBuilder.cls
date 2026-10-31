@@ -23,7 +23,7 @@ public virtual with sharing class CalloutBuilder {
     private static final Map<CalloutBuilder, HttpCalloutMock> BUILDER_TO_MOCK_OVERRIDE = new Map<CalloutBuilder, HttpCalloutMock>();
 
     private String ncOrBaseUrl;
-    private String endpoint;
+    private CalloutEndpoint endpoint = new CalloutEndpoint();
     private String method = 'GET';
     private Object body;
 
@@ -61,19 +61,30 @@ public virtual with sharing class CalloutBuilder {
     // Optional setters
 
     /**
-     * @description withEndpoint sets the right part of the URL,
-     * but not parameters.
-     * It knows that there is one redundant slash in the URL like this:
-     * https://example.com//test, so the request will be sent to
-     * https://example.com/test
-     * It won't help when a redundant slash comes from Named Credential.
-     * For the same reason, it won't add any slash to not harm.
+     * @description withEndpoint sets the URL part after the base URL, stored with exactly one
+     * leading '/' unless blank or starting with '?'. It must not contain '#'; its path must not
+     * contain '\' nor a '.' or '..' segment, also as %2e. Concatenated values are sent unencoded:
+     * use {name} placeholders with withPathParameter().
      */
     public virtual CalloutBuilder withEndpoint(String endpoint) {
-        if (endpoint?.startsWith('/') && this.ncOrBaseUrl?.endsWith('/')) {
-            endpoint = endpoint.removeStart('/');
+        this.endpoint.setTemplate(endpoint);
+        return this;
+    }
+
+    /**
+     * @description withPathParameter replaces every {name} in the endpoint with value
+     * percent-encoded as one path segment; pass value unencoded.
+     * Every placeholder needs a parameter and every parameter a placeholder.
+     */
+    public CalloutBuilder withPathParameter(String name, String value) {
+        this.endpoint.putParameter(name, value);
+        return this;
+    }
+
+    public CalloutBuilder withPathParameters(Map<String, String> pathParameters) {
+        for (String name : pathParameters.keySet()) {
+            this.withPathParameter(name, pathParameters.get(name));
         }
-        this.endpoint = endpoint;
         return this;
     }
 
@@ -293,7 +304,7 @@ public virtual with sharing class CalloutBuilder {
      * @return base URL + endpoint + query parameters (if any and if GET method)
      */
     public String constructFullEndpoint() {
-        String fullEndpoint = String.isNotBlank(this.endpoint) ? this.ncOrBaseUrl + this.endpoint : this.ncOrBaseUrl;
+        String fullEndpoint = this.endpoint.joinTo(this.ncOrBaseUrl);
 
         if (this.method == 'GET' && !this.queryParameters.isEmpty()) {
             String separator = fullEndpoint?.contains('?') == true ? '&' : '?';
@@ -313,9 +324,12 @@ public virtual with sharing class CalloutBuilder {
         return this.ncOrBaseUrl;
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
+    /**
+     * @description getEndpoint returns the endpoint as sent: placeholders resolved,
+     * without the base URL and withQueryParameter() parameters
+     */
     public String getEndpoint() {
-        return this.endpoint;
+        return this.endpoint.resolve();
     }
 
     @SuppressWarnings('PMD.ApexDoc')
@@ -326,6 +340,11 @@ public virtual with sharing class CalloutBuilder {
     @SuppressWarnings('PMD.ApexDoc')
     public Map<String, String> getQueryParameters() {
         return new Map<String, String>(this.queryParameters);
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public Map<String, String> getPathParameters() {
+        return this.endpoint.getParameters();
     }
 
     @SuppressWarnings('PMD.ApexDoc')
@@ -349,6 +368,7 @@ public virtual with sharing class CalloutBuilder {
         if (String.isBlank(this.method)) {
             throw new CalloutBuilderException('HTTP method must be provided');
         }
+        this.endpoint.resolve(); // placeholders must resolve before guardrails read the endpoint
         this.enforceGuardrails();
     }
 

@@ -282,6 +282,42 @@ private class CalloutBuilder_Test {
                     .withEndpoint('/test');
         Test.stopTest();
         Assert.areEqual('https://example.com/test', cb.constructFullEndpoint(), 'Unexpected endpoint');
+        Assert.areEqual('/test', cb.getEndpoint(), 'The endpoint should keep its leading slash');
+    }
+
+    @IsTest
+    static void testUnfilledPlaceholderThrowsBeforeGuardrails() {
+        CaptureMock mock = new CaptureMock();
+        String message;
+        try {
+            new CalloutBuilder('callout:Test')
+                .withEndpoint('/items/{id}')
+                .withGuardrail(new BlockingGuardrail())
+                .withMockIfTest(mock)
+                .getHttpResponse();
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            message = e.getMessage();
+        }
+        Assert.areEqual(
+            'Endpoint has a placeholder without a path parameter: /items/{id}',
+            message,
+            'Placeholders should resolve before guardrails run'
+        );
+        Assert.isNull(mock.capturedRequest, 'No request should be sent');
+    }
+
+    @IsTest
+    static void testPathParametersBeforeQueryParameters() {
+        CalloutBuilder search = new CalloutBuilder('callout:Test')
+            .withEndpoint('/search?q={term}')
+            .withPathParameters(new Map<String, String>{ 'term' => 'a b&c' })
+            .withQueryParameter('page', '2');
+        Assert.areEqual(
+            'callout:Test/search?q=a%20b%26c&page=2',
+            search.constructFullEndpoint(),
+            'A placeholder in the query should resolve before query parameters are appended'
+        );
+        Assert.areEqual('a b&c', search.getPathParameters().get('term'), 'getPathParameters should return raw values');
     }
 
     @isTest
