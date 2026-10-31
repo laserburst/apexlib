@@ -481,7 +481,7 @@ public virtual with sharing class CalloutBuilder {
         }
         if (this.response.getStatusCode() >= 400) {
             CalloutBuilderException ex = new CalloutBuilderException(this.response, this.errorResponseImplType);
-            this.error = ex.getParsedError();
+            this.error = ex.getError();
             throw ex;
         }
     }
@@ -577,7 +577,7 @@ public virtual with sharing class CalloutBuilder {
             this.setMessage(this.extractMessage(response, errorType));
         }
 
-        private CalloutErrorResponse getParsedError() {
+        public CalloutErrorResponse getError() {
             return this.error;
         }
 

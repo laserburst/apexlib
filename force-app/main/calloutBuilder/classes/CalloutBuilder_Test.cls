@@ -61,6 +61,7 @@ private class CalloutBuilder_Test {
             Assert.isTrue(e.getMessage().contains('Something went wrong'), 'Unexpected error message');
             Assert.isNotNull(builder.getError(), 'Expected deserialized error');
             Assert.isInstanceOfType(builder.getError(), DummyErrorResponse.class, 'Expected DummyErrorResponse instance');
+            Assert.isInstanceOfType(e.getError(), DummyErrorResponse.class, 'Expected the exception to carry the parsed error');
         }
     }
 

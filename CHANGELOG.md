@@ -7,6 +7,7 @@
 - **`CalloutBuilder.withPathParameter()` / `withPathParameters()` / `getPathParameters()`** — `{name}` placeholders in the endpoint are filled with encoded values, each kept within one path segment ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **`ViciousMockBase.getRequests()` / `getLastRequest()` / `buildResponse()`** — a mock records the requests it answers; override `buildResponse()` to answer from the request ([ViciousMockBase.cls](force-app/main/viciousMockery/classes/ViciousMockBase.cls))
 - **Email MIME types** — `MimeType` maps `eml` and `msg` ([MimeType.cls](force-app/main/calloutBuilder/classes/MimeType.cls))
+- **`CalloutBuilderException.getError()`** — returns the parsed `withErrorType()` error from a caught exception ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 
 ### Changed
 
