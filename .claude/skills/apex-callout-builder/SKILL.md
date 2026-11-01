@@ -227,6 +227,7 @@ new CalloutBuilder('callout:MyNC')
 ```
 
 - Both `with` methods append. The chain runs once per execution, after validation, in attachment order, and stops at the first throw. Every sanitizer works on the instance the caller receives; the map and typed overloads get it already parsed, so never re-parse.
+- To reuse a set of sanitizers, bundle them: `.withResponseSanitizer(new CalloutResponseSanitizerChain().add(new A()).add(new B()))`.
 - `CalloutRetrier.shouldRetry()`, the `>= 400` error path, and `withDebugMode(true)` see the **raw** response. Sanitizing is not log redaction.
 - Error responses are never sanitized, because validation throws first. Under `withBypassResponseValidation(true)` nothing throws, so non-2xx responses reach the chain too — only `sanitize(HttpResponse)` sees `getStatusCode()` to branch on.
 - Fail closed: an overload not overridden blocks the response; inside an override, throw rather than return quietly on a body you cannot handle.

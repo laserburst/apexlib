@@ -45,8 +45,7 @@ public virtual with sharing class CalloutBuilder {
     private List<CalloutGuardrail> guardrails = new List<CalloutGuardrail>();
     private Boolean enforcingGuardrails = false;
 
-    private List<CalloutResponseSanitizer> responseSanitizers = new List<CalloutResponseSanitizer>();
-    private Boolean sanitizingResponse = false;
+    private final CalloutResponseSanitizerChain responseSanitizers = new CalloutResponseSanitizerChain();
     private Boolean parsingResponseBody = false;
 
     // CalloutErrorResponse implementation
@@ -249,7 +248,7 @@ public virtual with sharing class CalloutBuilder {
 
         this.validateResponse();
         if (!this.parsingResponseBody) {
-            this.sanitizeResponse(this.response);
+            this.responseSanitizers.sanitize(this.response);
         }
         return this.response;
     }
@@ -262,7 +261,7 @@ public virtual with sharing class CalloutBuilder {
     public Map<String, Object> getResponseBodyMap() {
         HttpResponse response = this.getRawHttpResponse();
         Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(response.getBody());
-        this.sanitizeResponse(body);
+        this.responseSanitizers.sanitize(body);
         return body;
     }
 
@@ -277,7 +276,7 @@ public virtual with sharing class CalloutBuilder {
         }
         HttpResponse response = this.getRawHttpResponse();
         Object body = JSON.deserialize(response.getBody(), this.successType);
-        this.sanitizeTypedResponse(body);
+        this.responseSanitizers.sanitize(body, this.successType);
         return body;
     }
 
@@ -340,8 +339,8 @@ public virtual with sharing class CalloutBuilder {
     * @description it checks if required fields are set.
     */
     private void validateBeforeCall() {
-        // not in sanitizeResponse(): re-entry must be rejected before the request is sent
-        if (this.sanitizingResponse) {
+        // not in the chain: re-entry must be rejected before the request is sent
+        if (this.responseSanitizers.isRunning()) {
             throw new CalloutBuilderException('A response sanitizer must not execute the callout it is sanitizing.');
         }
         if (String.isBlank(this.ncOrBaseUrl)) {
@@ -373,39 +372,6 @@ public virtual with sharing class CalloutBuilder {
             return this.getHttpResponse();
         } finally {
             this.parsingResponseBody = false;
-        }
-    }
-
-    private void sanitizeResponse(HttpResponse response) {
-        this.sanitizingResponse = true;
-        try {
-            for (CalloutResponseSanitizer sanitizer : this.responseSanitizers) {
-                sanitizer.sanitize(response);
-            }
-        } finally {
-            this.sanitizingResponse = false;
-        }
-    }
-
-    private void sanitizeResponse(Map<String, Object> body) {
-        this.sanitizingResponse = true;
-        try {
-            for (CalloutResponseSanitizer sanitizer : this.responseSanitizers) {
-                sanitizer.sanitize(body);
-            }
-        } finally {
-            this.sanitizingResponse = false;
-        }
-    }
-
-    private void sanitizeTypedResponse(Object body) {
-        this.sanitizingResponse = true;
-        try {
-            for (CalloutResponseSanitizer sanitizer : this.responseSanitizers) {
-                sanitizer.sanitize(body, this.successType);
-            }
-        } finally {
-            this.sanitizingResponse = false;
         }
     }
 
