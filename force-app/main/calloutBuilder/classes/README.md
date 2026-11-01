@@ -1,5 +1,19 @@
 # CalloutBuilder
 
+## Contents
+
+- [Purpose](#purpose)
+- [Structure](#structure)
+- [Examples (illustrative)](#examples-illustrative)
+  - [Concrete Type](#concrete-type)
+  - [Path Parameters](#path-parameters)
+  - [Response Body Map With Query Parameters](#response-body-map-with-query-parameters)
+  - [Sending Files](#sending-files-openai-assistants-api-example)
+  - [Guardrails](#guardrails)
+  - [Response Sanitizers](#response-sanitizers)
+  - [Error Handling](#error-handling)
+  - [Mock Overrides](#mock-overrides)
+
 ## Purpose
 
 Establishing unified callout approach with basic response handling backed in.
@@ -92,7 +106,7 @@ Map<String, Object> responseBody = cb.getResponseBodyMap();
 
 If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters — whatever the body's type.
 
-A body is serialized to JSON and, when no Content-Type is set, sent as `application/json`. A `String` body is sent as-is when a non-JSON Content-Type is set, a `Dom.Document` body is sent as XML (`application/xml` unless a Content-Type is set), and a `withBlobBody()` body as `application/octet-stream` unless a Content-Type is set. `getXmlResponseBody()` returns an XML response as a `Dom.Document`:
+A `String` body is sent as-is when a non-JSON Content-Type is set, and a `Dom.Document` body is sent as XML. `getXmlResponseBody()` returns an XML response as a `Dom.Document`:
 
 ```Java (Apex)
 Dom.Document response = new CalloutBuilder('callout:OrdersApi')
