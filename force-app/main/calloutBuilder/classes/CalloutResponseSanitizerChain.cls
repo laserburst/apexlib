@@ -62,4 +62,16 @@ public with sharing class CalloutResponseSanitizerChain extends CalloutResponseS
             this.running = false;
         }
     }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public override void sanitize(Dom.Document body) {
+        this.running = true;
+        try {
+            for (CalloutResponseSanitizer sanitizer : this.sanitizers) {
+                sanitizer.sanitize(body);
+            }
+        } finally {
+            this.running = false;
+        }
+    }
 }

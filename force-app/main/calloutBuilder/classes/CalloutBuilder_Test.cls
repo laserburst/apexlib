@@ -249,6 +249,70 @@ private class CalloutBuilder_Test {
     }
 
     @isTest
+    static void testBodyFollowsContentType() {
+        CaptureMock xmlMock = new CaptureMock();
+        CaptureMock jsonMock = new CaptureMock();
+        CaptureMock defaultMock = new CaptureMock();
+        CaptureMock documentMock = new CaptureMock();
+        CaptureMock blobMock = new CaptureMock();
+        Dom.Document document = new Dom.Document();
+        document.createRootElement('item', null, null).addTextNode('kept');
+
+        Test.startTest();
+            new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withMethod('POST')
+                .withHeader('content-type', 'text/xml; charset=utf-8')
+                .withBody('<a/>')
+                .withMockIfTest(xmlMock)
+                .getHttpResponse();
+            new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withMethod('POST')
+                .withHeader('Content-Type', 'application/vnd.api+json')
+                .withBody('x')
+                .withMockIfTest(jsonMock)
+                .getHttpResponse();
+            new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withMethod('POST')
+                .withBody(new Map<String, Object>{ 'a' => 1 })
+                .withMockIfTest(defaultMock)
+                .getHttpResponse();
+            new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withMethod('POST')
+                .withBody(document)
+                .withMockIfTest(documentMock)
+                .getHttpResponse();
+            new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withMethod('POST')
+                .withBlobBody(Blob.valueOf('x'))
+                .withMockIfTest(blobMock)
+                .getHttpResponse();
+        Test.stopTest();
+        Assert.areEqual('<a/>', xmlMock.capturedRequest.getBody(), 'A String body with a non-JSON Content-Type should be sent as-is');
+        Assert.areEqual('"x"', jsonMock.capturedRequest.getBody(), 'A String body with a +json Content-Type should be serialized');
+        Assert.areEqual(
+            'application/json',
+            defaultMock.capturedRequest.getHeader('Content-Type'),
+            'A serialized body without a Content-Type should default to JSON'
+        );
+        Assert.areEqual(document.toXmlString(), documentMock.capturedRequest.getBody(), 'A Dom.Document body should be sent as XML');
+        Assert.areEqual(
+            'application/xml',
+            documentMock.capturedRequest.getHeader('Content-Type'),
+            'A Dom.Document body without a Content-Type should default to XML'
+        );
+        Assert.areEqual(
+            'application/octet-stream',
+            blobMock.capturedRequest.getHeader('Content-Type'),
+            'A blob body without a Content-Type should default to binary'
+        );
+    }
+
+    @isTest
     static void testWithQueryParameterError() {
         try {
             Test.startTest();
@@ -581,6 +645,20 @@ private class CalloutBuilder_Test {
     }
 
     @IsTest
+    static void testSanitizerMutatesDocumentBody() {
+        Test.startTest();
+            Dom.Document res = new CalloutBuilder('callout:Test')
+                .withEndpoint('/test')
+                .withResponseSanitizer(new ScrubbingSanitizer())
+                .withMockIfTest(new XmlMock())
+                .getXmlResponseBody();
+        Test.stopTest();
+
+        Assert.areEqual(1, sanitized.size(), 'Only the parsed body should be sanitized, not the HttpResponse');
+        Assert.isNotNull(res.getRootElement().getChildElement('scrubbed', null), 'A sanitized body should reach the caller');
+    }
+
+    @IsTest
     static void testSanitizersRunInAttachedOrderAndChain() {
         Test.startTest();
             HttpResponse response = new CalloutBuilder('callout:Test')
@@ -660,8 +738,13 @@ private class CalloutBuilder_Test {
         } catch (CalloutResponseSanitizerException e) {
             blocked++;
         }
+        try {
+            sanitizer.sanitize(new Dom.Document());
+        } catch (CalloutResponseSanitizerException e) {
+            blocked++;
+        }
 
-        Assert.areEqual(3, blocked, 'Every overload not overridden should block');
+        Assert.areEqual(4, blocked, 'Every overload not overridden should block');
     }
 
     @IsTest
@@ -729,6 +812,11 @@ private class CalloutBuilder_Test {
             sanitized.add(body);
             ((DummyResponse) body).value = 'Sanitized';
         }
+
+        public override void sanitize(Dom.Document body) {
+            sanitized.add(body);
+            body.getRootElement().addChildElement('scrubbed', null, null);
+        }
     }
 
     private class UnsupportingSanitizer extends CalloutResponseSanitizer {
@@ -754,6 +842,17 @@ private class CalloutBuilder_Test {
             HttpResponse res = new HttpResponse();
             res.setHeader('Content-Type', 'application/json');
             res.setBody('{"value": "Success"}');
+            res.setStatusCode(200);
+            return res;
+        }
+    }
+
+    // A mock class to simulate a successful callout with an XML body
+    class XmlMock implements HttpCalloutMock {
+        public HTTPResponse respond(HTTPRequest req) {
+            HttpResponse res = new HttpResponse();
+            res.setHeader('Content-Type', 'application/xml');
+            res.setBody('<item><value>Success</value></item>');
             res.setStatusCode(200);
             return res;
         }

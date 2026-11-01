@@ -22,6 +22,11 @@ public abstract with sharing class CalloutResponseSanitizer {
         throw unsupported(successType.getName());
     }
 
+    @SuppressWarnings('PMD.ApexDoc')
+    public virtual void sanitize(Dom.Document body) {
+        throw unsupported('Dom.Document');
+    }
+
     private static CalloutResponseSanitizerException unsupported(String responseType) {
         return new CalloutResponseSanitizerException('Sanitizer does not support ' + responseType);
     }

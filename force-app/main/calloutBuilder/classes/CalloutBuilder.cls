@@ -292,6 +292,18 @@ public virtual with sharing class CalloutBuilder {
     }
 
     /**
+     * @description It makes a callout, validates response
+     * and parses its body as XML
+     * @return response body as Dom.Document
+     */
+    public Dom.Document getXmlResponseBody() {
+        HttpResponse response = this.getRawHttpResponse();
+        Dom.Document body = response.getBodyDocument();
+        this.responseSanitizers.sanitize(body);
+        return body;
+    }
+
+    /**
     * @description It makes a callout, validates response
     * @return response body as Blob
     */
@@ -423,17 +435,53 @@ public virtual with sharing class CalloutBuilder {
     /**
      * @description attachBody sets body of the request, in precedence order:
      * 1. blob
-     * 2. JSON (a body always wins over query parameters)
-     * 3. query parameters (if any and if method is not GET)
+     * 2. XML (Dom.Document)
+     * 3. String as-is, when Content-Type is set and is not JSON
+     * 4. JSON (a body always wins over query parameters)
+     * 5. query parameters (if any and if method is not GET)
      */
     private void attachBody() {
         if (this.hasBlobBody && this.body != null) {
             this.request.setBodyAsBlob((Blob) this.body);
+            this.defaultContentType('application/octet-stream');
+        } else if (this.body instanceof Dom.Document) {
+            // not setBodyDocument(): getBody() would then return an empty string
+            this.request.setBody(((Dom.Document) this.body).toXmlString());
+            this.defaultContentType('application/xml');
+        } else if (this.body instanceof String && !this.hasJsonContentType()) {
+            this.request.setBody((String) this.body);
         } else if (this.body != null) {
             this.request.setBody(JSON.serialize(this.body, this.suppressApexObjectNulls));
+            this.defaultContentType('application/json');
         } else if (!this.queryParameters.isEmpty() && this.method != 'GET') {
             this.request.setBody(this.getEncodedQueryParameters());
         }
+    }
+
+    // without a Content-Type, Salesforce sends application/x-www-form-urlencoded
+    private void defaultContentType(String mediaType) {
+        if (this.getContentType() == null) {
+            this.request.setHeader('Content-Type', mediaType);
+        }
+    }
+
+    // no Content-Type means JSON
+    private Boolean hasJsonContentType() {
+        String contentType = this.getContentType();
+        if (contentType == null || contentType == 'application/json') {
+            return true;
+        }
+        String mediaType = contentType.substringBefore(';').trim().toLowerCase();
+        return mediaType == 'application/json' || mediaType.endsWith('+json');
+    }
+
+    private String getContentType() {
+        for (String header : this.headersMap.keySet()) {
+            if (header.equalsIgnoreCase('Content-Type')) {
+                return this.headersMap.get(header);
+            }
+        }
+        return null;
     }
 
     private void attachHeaders() {

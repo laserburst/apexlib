@@ -6,7 +6,7 @@ Establishing unified callout approach with basic response handling backed in.
 
 ## Structure
 
-1. [CalloutBuilder](CalloutBuilder.cls) - main class. `virtual`, so behavior can be added around a callout by subclassing it — every response variant funnels through `getHttpResponse()`. Under `getResponseBodyMap()` and `getTypedResponseBody()` it returns the response unsanitized.
+1. [CalloutBuilder](CalloutBuilder.cls) - main class. `virtual`, so behavior can be added around a callout by subclassing it — every response variant funnels through `getHttpResponse()`. Under `getResponseBodyMap()`, `getTypedResponseBody()` and `getXmlResponseBody()` it returns the response unsanitized.
 2. [CalloutErrorResponse](CalloutErrorResponse.cls) - interface enabling CalloutBuilder to extract error message from any error object.
 3. [CalloutRetrier](CalloutRetrier.cls) - interface enabling CalloutBuilder to retry a callout and to change something before the new attempt.
 4. [CalloutGuardrail](CalloutGuardrail.cls) - interface for a check that runs before a callout and can block it. Attach implementations with `withGuardrail()` or `withGuardrails()`. [CalloutGuardrailException](CalloutGuardrailException.cls) is the exception a guardrail throws to block.
@@ -92,6 +92,18 @@ Map<String, Object> responseBody = cb.getResponseBodyMap();
 
 If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters — whatever the body's type.
 
+A body is serialized to JSON and, when no Content-Type is set, sent as `application/json`. A `String` body is sent as-is when a non-JSON Content-Type is set, a `Dom.Document` body is sent as XML (`application/xml` unless a Content-Type is set), and a `withBlobBody()` body as `application/octet-stream` unless a Content-Type is set. `getXmlResponseBody()` returns an XML response as a `Dom.Document`:
+
+```Java (Apex)
+Dom.Document response = new CalloutBuilder('callout:OrdersApi')
+    .withEndpoint('/orders')
+    .withMethod('POST')
+    .withHeader('Content-Type', 'application/xml')
+    .withBody('<order><id>' + orderId.escapeXml() + '</id></order>')
+    .getXmlResponseBody();
+String status = response.getRootElement().getChildElement('status', null).getText();
+```
+
 ### Sending Files _(OpenAI Assistants API Example)_
 
 Build the multipart form with `CalloutHexFormBuilder`, then pass it to `.withFile()`:
@@ -144,7 +156,7 @@ A guardrail reads the request through the builder's accessors — `getEndpoint()
 
 ### Response Sanitizers
 
-`withResponseSanitizer()` attaches one transformation applied to the response before the caller sees it, `withResponseSanitizers()` a list of them. A sanitizer extends `CalloutResponseSanitizer` and overrides a `sanitize()` overload for each form it handles: `HttpResponse` for `getHttpResponse()` and `getResponseBodyAsBlob()`, `Map<String, Object>` for `getResponseBodyMap()`, `(Object, System.Type)` for `getTypedResponseBody()`. An override mutates its argument in place, or blocks the response by throwing; a form not overridden is blocked. Repeated calls append, and the chain runs in the order attached on one shared instance, so the body is parsed once and each sanitizer sees the previous one's output.
+`withResponseSanitizer()` attaches one transformation applied to the response before the caller sees it, `withResponseSanitizers()` a list of them. A sanitizer extends `CalloutResponseSanitizer` and overrides a `sanitize()` overload for each form it handles: `HttpResponse` for `getHttpResponse()` and `getResponseBodyAsBlob()`, `Map<String, Object>` for `getResponseBodyMap()`, `(Object, System.Type)` for `getTypedResponseBody()`, `Dom.Document` for `getXmlResponseBody()`. An override mutates its argument in place, or blocks the response by throwing; a form not overridden is blocked. Repeated calls append, and the chain runs in the order attached on one shared instance, so the body is parsed once and each sanitizer sees the previous one's output.
 
 ```Java (Apex)
 public with sharing class RestrictedFolderSanitizer extends CalloutResponseSanitizer {

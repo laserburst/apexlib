@@ -30,6 +30,7 @@ Before writing any code, determine which execution method the user needs. This c
 | Response maps to a known Apex class | `getTypedResponseBody()` |
 | Response structure is unknown or varies | `getResponseBodyMap()` |
 | Need headers, status code, or raw body | `getHttpResponse()` |
+| Response is XML | `getXmlResponseBody()` |
 | Downloading binary content | `getResponseBodyAsBlob()` |
 | Callout from a trigger or batch context | `CalloutBuilderQueueable` |
 
@@ -76,7 +77,7 @@ Every placeholder needs a parameter and every parameter a placeholder; a mismatc
 
 ### Body serialization
 
-`withBody(Object)` serializes the object to JSON via `JSON.serialize`. To omit null fields, chain `.withSuppressApexObjectNulls(true)`. Pass a raw `String` to `withBody` only when you have already serialized the payload or it is not JSON (e.g., XML). Use `withBlobBody(Blob)` for binary bodies. For file uploads expecting multipart/form-data, use `withFile()`.
+`withBody(Object)` serializes the object to JSON via `JSON.serialize` and, when no Content-Type is set, sends `Content-Type: application/json`. To omit null fields, chain `.withSuppressApexObjectNulls(true)`. A `String` body is serialized too, unless a non-JSON Content-Type is set: then it is sent as-is, so XML, CSV or form-encoded strings need `withHeader('Content-Type', ...)`. A `Dom.Document` body is sent as XML, with `Content-Type: application/xml` unless one is set. Use `withBlobBody(Blob)` for binary bodies; it sends `Content-Type: application/octet-stream` unless one is set. For file uploads expecting multipart/form-data, use `withFile()`.
 
 ### Query parameters
 
@@ -216,13 +217,13 @@ try {
 }
 ```
 
-Use a guardrail for a pass/fail check. Subclass instead when behavior wraps the callout — logging, rewriting the request, timing. `CalloutBuilder` is `virtual` with `withEndpoint`, `withMethod`, `withBody`, `withBlobBody`, and `getHttpResponse` overridable; every response variant funnels through `getHttpResponse()`. Under `getResponseBodyMap()` and `getTypedResponseBody()` it returns the response unsanitized, so an override must not cache or log its return value as sanitized.
+Use a guardrail for a pass/fail check. Subclass instead when behavior wraps the callout — logging, rewriting the request, timing. `CalloutBuilder` is `virtual` with `withEndpoint`, `withMethod`, `withBody`, `withBlobBody`, and `getHttpResponse` overridable; every response variant funnels through `getHttpResponse()`. Under `getResponseBodyMap()`, `getTypedResponseBody()` and `getXmlResponseBody()` it returns the response unsanitized, so an override must not cache or log its return value as sanitized.
 
 ---
 
 ## Step 6: Response sanitizers
 
-Guardrails police the request; `CalloutResponseSanitizer` polices the response. Extend it to strip content the caller must not receive — restricted search hits, PII. Override a `sanitize()` overload per form handled: `sanitize(HttpResponse)` for `getHttpResponse()` / `getResponseBodyAsBlob()`, `sanitize(Map<String, Object>)` for `getResponseBodyMap()`, `sanitize(Object, System.Type)` for `getTypedResponseBody()`. Mutate the argument in place, or throw `CalloutResponseSanitizerException` to block the response.
+Guardrails police the request; `CalloutResponseSanitizer` polices the response. Extend it to strip content the caller must not receive — restricted search hits, PII. Override a `sanitize()` overload per form handled: `sanitize(HttpResponse)` for `getHttpResponse()` / `getResponseBodyAsBlob()`, `sanitize(Map<String, Object>)` for `getResponseBodyMap()`, `sanitize(Object, System.Type)` for `getTypedResponseBody()`, `sanitize(Dom.Document)` for `getXmlResponseBody()`. Mutate the argument in place, or throw `CalloutResponseSanitizerException` to block the response.
 
 ```Java (Apex)
 public with sharing class RestrictedFolderSanitizer extends CalloutResponseSanitizer {
@@ -237,7 +238,7 @@ new CalloutBuilder('callout:MyNC')
     .getResponseBodyMap();
 ```
 
-- Both `with` methods append. The chain runs once per execution, after validation, in attachment order, and stops at the first throw. Every sanitizer works on the instance the caller receives; the map and typed overloads get it already parsed, so never re-parse.
+- Both `with` methods append. The chain runs once per execution, after validation, in attachment order, and stops at the first throw. Every sanitizer works on the instance the caller receives; the map, typed and `Dom.Document` overloads get it already parsed, so never re-parse.
 - To reuse a set of sanitizers, bundle them: `.withResponseSanitizer(new CalloutResponseSanitizerChain().add(new A()).add(new B()))`.
 - `CalloutRetrier.shouldRetry()`, the `>= 400` error path, and `withDebugMode(true)` see the **raw** response. Sanitizing is not log redaction.
 - Error responses are never sanitized, because validation throws first. Under `withBypassResponseValidation(true)` nothing throws, so non-2xx responses reach the chain too — only `sanitize(HttpResponse)` sees `getStatusCode()` to branch on.
