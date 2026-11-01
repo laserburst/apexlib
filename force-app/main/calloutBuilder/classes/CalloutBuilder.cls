@@ -260,7 +260,7 @@ public virtual with sharing class CalloutBuilder {
     * @return response body as Map<String, Object>
     */
     public Map<String, Object> getResponseBodyMap() {
-        HttpResponse response = this.getUnsanitizedHttpResponse();
+        HttpResponse response = this.getRawHttpResponse();
         Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(response.getBody());
         this.sanitizeResponse(body);
         return body;
@@ -275,7 +275,7 @@ public virtual with sharing class CalloutBuilder {
         if (this.successType == null) {
             throw new CalloutBuilderException('getTypedResponseBody expects this.successType to be set');
         }
-        HttpResponse response = this.getUnsanitizedHttpResponse();
+        HttpResponse response = this.getRawHttpResponse();
         Object body = JSON.deserialize(response.getBody(), this.successType);
         this.sanitizeTypedResponse(body);
         return body;
@@ -367,7 +367,7 @@ public virtual with sharing class CalloutBuilder {
         }
     }
 
-    private HttpResponse getUnsanitizedHttpResponse() {
+    private HttpResponse getRawHttpResponse() {
         this.parsingResponseBody = true;
         try {
             return this.getHttpResponse();
