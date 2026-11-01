@@ -259,7 +259,9 @@ public virtual with sharing class CalloutBuilder {
         this.validateBeforeCall();
         this.constructRequest();
         this.setMockIfTest();
-        this.debugRequest();
+        if (this.debugMode) {
+            CalloutDebug.log(this.request, this.headersMap);
+        }
 
         do {
             this.attempt++;
@@ -540,7 +542,9 @@ public virtual with sharing class CalloutBuilder {
     }
 
     private void validateResponse() {
-        this.debugResponse();
+        if (this.debugMode) {
+            CalloutDebug.log(this.response);
+        }
         if (this.bypassResponseValidation) {
             return;
         }
@@ -557,80 +561,6 @@ public virtual with sharing class CalloutBuilder {
 
     private Boolean canRetry() {
         return this.retrier != null && this.maxRetries >= this.attempt;
-    }
-
-    private void debugRequest() {
-        if (!this.debugMode) {
-            return;
-        }
-        debug('-- Request debug start --');
-        debug('Request endpoint: ' + this.request.getEndpoint());
-        debug('Request method: ' + this.request.getMethod());
-        if (this.isDebugableBody(this.request.getHeader('Content-Type'))) {
-            debug('Request body: \n' + this.request.getBody());
-        } else {
-            debug('Skip verbose request body debugging. Content-Type: ' + this.request.getHeader('Content-Type'));
-        }
-
-        debug('Request headers size: ' + this.headersMap.size());
-        for (String header : this.headersMap.keySet()) {
-            debug('Request header: ' + header + ': ' + this.headersMap.get(header));
-        }
-        debug('-- Request debug end --');
-    }
-
-    private void debugResponse() {
-        if (!this.debugMode) {
-            return;
-        }
-        debug('-- Response debug start --');
-        debug('Response status code: ' + this.response.getStatusCode());
-        debug('Response status: ' + this.response.getStatus());
-
-        if (this.isDebugableBody(this.response.getHeader('Content-Type'))) {
-            debug('Response body: \n' + this.response.getBody());
-        } else {
-            debug('Skip verbose response body debugging. Content-Type: ' + this.response.getHeader('Content-Type'));
-        }
-
-        List<String> responseHeaderKeys = this.response.getHeaderKeys();
-        debug('Response headers size: ' + responseHeaderKeys.size());
-        for (String header : responseHeaderKeys) {
-            debug('Response header: ' + header + ': ' + this.response.getHeader(header));
-        }
-        debug('-- Response debug end --');
-    }
-
-    /**
-     * @description Set of content types that should be debugged.
-     * There is no point in debugging binary or cryptic content types.
-     */
-    private final Set<String> debugableContentTypes = new Set<String>{
-        'application/json',
-        'application/xml',
-        'text/xml',
-        'text/plain',
-        'text/html'
-    };
-
-    private Boolean isDebugableBody(String contentType) {
-        if (contentType == null) {
-            return true;
-        }
-        if (debugableContentTypes.contains(contentType.toLowerCase())) {
-            return true;
-        }
-        for (String debugableContentType : debugableContentTypes) {
-            if (contentType.toLowerCase().contains(debugableContentType)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void debug(String log) {
-        log = 'CalloutBuilder: ' + log;
-        System.debug(LoggingLevel.DEBUG, log);
     }
 
     @SuppressWarnings('PMD.ApexDoc')

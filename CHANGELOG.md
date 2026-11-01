@@ -29,6 +29,8 @@
   | `Dom.Document` | `application/xml` |
   | Blob | `application/octet-stream` |
 
+- **Debug mode** — refactored into `CalloutDebug` ([CalloutDebug.cls](force-app/main/calloutBuilder/classes/CalloutDebug.cls))
+
 ## August 2026
 
 ### Added
