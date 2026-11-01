@@ -9,6 +9,8 @@
 - **Email MIME types** — `MimeType` maps `eml` and `msg` ([MimeType.cls](force-app/main/calloutBuilder/classes/MimeType.cls))
 - **`CalloutBuilderException.getError()`** — returns the parsed `withErrorType()` error from a caught exception ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **XML bodies** — `withBody()` sends a `Dom.Document` as XML, `getXmlResponseBody()` returns the response as a `Dom.Document`, and `CalloutResponseSanitizer.sanitize(Dom.Document)` covers that form ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls), [CalloutResponseSanitizer.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizer.cls))
+- **XML responses** — `getTypedResponseBody()`, `getResponseBodyMap()` and `withErrorType()` read a response with an XML Content-Type as XML; `withResponseParser()` sets a custom `CalloutResponseParser` ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls), [CalloutResponseParser.cls](force-app/main/calloutBuilder/classes/CalloutResponseParser.cls), [CalloutJsonParser.cls](force-app/main/calloutBuilder/classes/CalloutJsonParser.cls))
+- **`CalloutXmlParser`** — parses XML into a `Dom.Document` that keeps CDATA content, a `Map<String, Object>` or an Apex type; subclasses can override `toKey()` and `toValue()` ([CalloutXmlParser.cls](force-app/main/calloutBuilder/classes/CalloutXmlParser.cls))
 
 ### Changed
 

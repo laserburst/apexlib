@@ -30,11 +30,22 @@ Before writing any code, determine which execution method the user needs. This c
 | Response maps to a known Apex class | `getTypedResponseBody()` |
 | Response structure is unknown or varies | `getResponseBodyMap()` |
 | Need headers, status code, or raw body | `getHttpResponse()` |
-| Response is XML | `getXmlResponseBody()` |
+| Response is XML | `getTypedResponseBody()` or `getResponseBodyMap()`, plus `withResponseParser()` when List fields need hints; `getXmlResponseBody()` for the raw `Dom.Document` |
 | Downloading binary content | `getResponseBodyAsBlob()` |
 | Callout from a trigger or batch context | `CalloutBuilderQueueable` |
 
 Prefer `getTypedResponseBody()` when the API contract is known — it gives compile-time safety and clean downstream code. `getResponseBodyMap()` loses type safety; only recommend it when the response shape genuinely cannot be modeled.
+
+For XML, `getTypedResponseBody()`, `getResponseBodyMap()` and the `withErrorType()` error parse a response whose Content-Type is `application/xml`, `text/xml` or `+xml` with a default `CalloutXmlParser`. The header name and value are matched ignoring case and parameters. `withResponseParser(parser)` sets a custom parser, which is then used for every response, whatever its Content-Type; use one to name List elements or to apply a subclass. Typed XML errors and the sanitizer's typed and Map forms work the same as for JSON. Without an XML Content-Type and without a custom parser, an XML body fails JSON parsing with `System.JSONException`. `getXmlResponseBody()` returns a `Dom.Document` and keeps CDATA text. For an XML string from elsewhere, use `CalloutXmlParser.load(xml)` rather than `Dom.Document.load()`, which drops CDATA content. `new CalloutXmlParser().deserializeUntyped(doc)` returns a `Map<String, Object>`, and `.deserialize(doc, MyType.class)` returns an Apex type. Both also accept a `Dom.XmlNode`, which is how to convert one deep subtree. The rules:
+
+- Name every List field with `withListElements(new Set<String>{ ... })`, using XML element names. An element that occurs once otherwise becomes an object, and `JSON.deserialize` rejects it for a List field.
+- Child elements win over attributes of the same name, and namespace prefixes are dropped. `xsi:` attributes such as `xsi:nil` and `xsi:type` don't become keys, so an `xsi:nil` element becomes null.
+- `true` and `false` become Booleans, and blank text becomes null. Numbers and ISO dates convert from text into `Integer`, `Decimal` and `Date` fields.
+- Text next to attributes or child elements goes under the key `text`.
+- `deserialize()` turns keys into valid Apex names: `_Value` becomes `Value`, and `unit-price` becomes `unit_price`.
+- Apex classes for `deserialize()` can't have `Object` or `List<Object>` fields, because `JSON.deserialize` rejects them. Type the parts you need and leave the rest out.
+- `withResponseParser()` takes any `CalloutResponseParser`, the abstract class `CalloutJsonParser` and `CalloutXmlParser` extend. Extend it yourself for another format, or extend `CalloutJsonParser` for JSON that needs custom handling.
+- For API-specific conventions, extend `CalloutXmlParser` and override `protected toValue(String name, String text)` to convert the text of named elements or attributes (for example, `Y`/`N` indicator fields into Booleans) or `protected toKey(String name, Boolean apexKeys)` to rename keys. Call `super` for everything else, and pass the subclass to `withResponseParser()`.
 
 ---
 

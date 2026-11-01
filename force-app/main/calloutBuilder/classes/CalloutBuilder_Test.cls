@@ -656,6 +656,41 @@ private class CalloutBuilder_Test {
 
         Assert.areEqual(1, sanitized.size(), 'Only the parsed body should be sanitized, not the HttpResponse');
         Assert.isNotNull(res.getRootElement().getChildElement('scrubbed', null), 'A sanitized body should reach the caller');
+        Assert.areEqual('a <b> & c', res.getRootElement().getChildElement('note', null).getText(), 'CDATA content should be kept');
+    }
+
+    @IsTest
+    static void testXmlResponsesAndErrors() {
+        String message;
+        Test.startTest();
+            DummyResponse typed = (DummyResponse) new CalloutBuilder('callout:Test')
+                .withEndpoint('/test')
+                .withSuccessType(DummyResponse.class)
+                .withMockIfTest(new XmlMock())
+                .getTypedResponseBody();
+            Map<String, Object> custom = new CalloutBuilder('callout:Test')
+                .withEndpoint('/test')
+                .withResponseParser(new CalloutXmlParser().withListElements(new Set<String>{ 'value' }))
+                .withMockIfTest(new XmlMock())
+                .getResponseBodyMap();
+            try {
+                new CalloutBuilder('callout:Test')
+                    .withEndpoint('/test')
+                    .withErrorType(DummyErrorResponse.class)
+                    .withMockIfTest(new XmlErrorMock())
+                    .getHttpResponse();
+            } catch (CalloutBuilder.CalloutBuilderException e) {
+                message = e.getMessage();
+            }
+        Test.stopTest();
+
+        Assert.areEqual('Success', typed.value, 'An XML Content-Type should select the default parser');
+        Assert.areEqual(new List<Object>{ 'Success' }, custom.get('value'), 'A custom parser should be used');
+        Assert.areEqual(
+            'Something went wrong',
+            message,
+            'A lowercase XML Content-Type with parameters should parse the error into the error type'
+        );
     }
 
     @IsTest
@@ -852,8 +887,19 @@ private class CalloutBuilder_Test {
         public HTTPResponse respond(HTTPRequest req) {
             HttpResponse res = new HttpResponse();
             res.setHeader('Content-Type', 'application/xml');
-            res.setBody('<item><value>Success</value></item>');
+            res.setBody('<item><value>Success</value><note>a <![CDATA[<b> & c]]></note></item>');
             res.setStatusCode(200);
+            return res;
+        }
+    }
+
+    // A mock class to simulate a failed callout with an XML error
+    class XmlErrorMock implements HttpCalloutMock {
+        public HTTPResponse respond(HTTPRequest req) {
+            HttpResponse res = new HttpResponse();
+            res.setHeader('content-type', 'text/xml; charset=utf-8');
+            res.setBody('<error><message>Something went wrong</message></error>');
+            res.setStatusCode(400);
             return res;
         }
     }

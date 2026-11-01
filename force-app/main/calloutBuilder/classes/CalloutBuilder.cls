@@ -47,6 +47,7 @@ public virtual with sharing class CalloutBuilder {
 
     private final CalloutResponseSanitizerChain responseSanitizers = new CalloutResponseSanitizerChain();
     private Boolean parsingResponseBody = false;
+    private CalloutResponseParser customParser;
 
     // CalloutErrorResponse implementation
     private System.Type errorResponseImplType;
@@ -233,6 +234,15 @@ public virtual with sharing class CalloutBuilder {
         return this;
     }
 
+    /**
+     * @description withResponseParser sets how getTypedResponseBody(), getResponseBodyMap() and the withErrorType()
+     * error read the body; without one, an XML Content-Type selects CalloutXmlParser and any other CalloutJsonParser
+     */
+    public CalloutBuilder withResponseParser(CalloutResponseParser parser) {
+        this.customParser = parser;
+        return this;
+    }
+
     public CalloutBuilder withTimeout(Integer timeout) {
         this.timeout = timeout;
         return this;
@@ -266,12 +276,12 @@ public virtual with sharing class CalloutBuilder {
 
     /**
     * @description It makes a callout, validates response
-    * and converts its body JSON into Map<String, Object>
+    * and parses its body into Map<String, Object>
     * @return response body as Map<String, Object>
     */
     public Map<String, Object> getResponseBodyMap() {
         HttpResponse response = this.getRawHttpResponse();
-        Map<String, Object> body = (Map<String, Object>) JSON.deserializeUntyped(response.getBody());
+        Map<String, Object> body = this.getParser(response).deserializeUntyped(response.getBody());
         this.responseSanitizers.sanitize(body);
         return body;
     }
@@ -286,7 +296,7 @@ public virtual with sharing class CalloutBuilder {
             throw new CalloutBuilderException('getTypedResponseBody expects this.successType to be set');
         }
         HttpResponse response = this.getRawHttpResponse();
-        Object body = JSON.deserialize(response.getBody(), this.successType);
+        Object body = this.getParser(response).deserialize(response.getBody(), this.successType);
         this.responseSanitizers.sanitize(body, this.successType);
         return body;
     }
@@ -298,7 +308,7 @@ public virtual with sharing class CalloutBuilder {
      */
     public Dom.Document getXmlResponseBody() {
         HttpResponse response = this.getRawHttpResponse();
-        Dom.Document body = response.getBodyDocument();
+        Dom.Document body = CalloutXmlParser.load(response.getBody()); // not getBodyDocument(): it drops CDATA content
         this.responseSanitizers.sanitize(body);
         return body;
     }
@@ -405,6 +415,13 @@ public virtual with sharing class CalloutBuilder {
         } finally {
             this.parsingResponseBody = false;
         }
+    }
+
+    private CalloutResponseParser getParser(HttpResponse response) {
+        if (this.customParser != null) {
+            return this.customParser;
+        }
+        return CalloutResponseParser.forResponse(response);
     }
 
     private void constructRequest() {
@@ -528,7 +545,11 @@ public virtual with sharing class CalloutBuilder {
             return;
         }
         if (this.response.getStatusCode() >= 400) {
-            CalloutBuilderException ex = new CalloutBuilderException(this.response, this.errorResponseImplType);
+            CalloutBuilderException ex = new CalloutBuilderException(
+                this.response,
+                this.errorResponseImplType,
+                this.getParser(this.response)
+            );
             this.error = ex.getError();
             throw ex;
         }
@@ -620,9 +641,13 @@ public virtual with sharing class CalloutBuilder {
         private CalloutErrorResponse error;
 
         public CalloutBuilderException(HttpResponse response, System.Type errorType) {
+            this(response, errorType, CalloutResponseParser.forResponse(response));
+        }
+
+        public CalloutBuilderException(HttpResponse response, System.Type errorType, CalloutResponseParser parser) {
             this.code = response.getStatusCode();
             this.status = response.getStatus();
-            this.setMessage(this.extractMessage(response, errorType));
+            this.setMessage(this.extractMessage(response, errorType, parser));
         }
 
         public CalloutErrorResponse getError() {
@@ -634,14 +659,14 @@ public virtual with sharing class CalloutBuilder {
          * a blank body falls back to the HTTP status text,
          * a parsed error object overrides it when getErrorMessage() is non-blank
          */
-        private String extractMessage(HttpResponse response, System.Type errorType) {
+        private String extractMessage(HttpResponse response, System.Type errorType, CalloutResponseParser parser) {
             String body = response.getBody();
             if (String.isBlank(body)) {
                 return response.getStatus();
             }
             if (errorType != null) {
                 try {
-                    this.error = (CalloutErrorResponse) JSON.deserialize(body, errorType);
+                    this.error = (CalloutErrorResponse) parser.deserialize(body, errorType);
                     String errorMessage = this.error.getErrorMessage();
                     if (String.isNotBlank(errorMessage)) {
                         return errorMessage;
