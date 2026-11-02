@@ -33,6 +33,17 @@ private class MyMock extends ViciousMockery {
 }
 ```
 
+### Inspecting requests
+
+A mock records every request it answers: `getRequests()` returns them in call order, `getLastRequest()` returns null when the mock was never called.
+
+```java
+ViciousMockery mock = ViciousMockery.cast(201);
+// callout under test
+Assert.areEqual('POST', mock.getLastRequest().getMethod());
+Assert.areEqual(1, mock.getRequests().size());
+```
+
 ---
 
 ## ViciousMockBase
@@ -73,6 +84,22 @@ public virtual class MyMock extends ViciousMockBase {
 
 ```java
 Test.setMock(HttpCalloutMock.class, new MyMock.Success());
+```
+
+### Example — answer by call number
+
+Override `buildResponse()` to answer from the request or the call number:
+
+```java
+private class RetryAfterNotFound extends ViciousMockBase {
+    protected override HttpResponse buildResponse(HttpRequest req) {
+        HttpResponse res = super.buildResponse(req);
+        if (this.getRequests().size() == 1) {
+            res.setStatusCode(404);
+        }
+        return res;
+    }
+}
 ```
 
 ### Example — blob body

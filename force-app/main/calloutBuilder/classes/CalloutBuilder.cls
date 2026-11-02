@@ -23,7 +23,7 @@ public virtual with sharing class CalloutBuilder {
     private static final Map<CalloutBuilder, HttpCalloutMock> BUILDER_TO_MOCK_OVERRIDE = new Map<CalloutBuilder, HttpCalloutMock>();
 
     private String ncOrBaseUrl;
-    private String endpoint;
+    private CalloutEndpoint endpoint = new CalloutEndpoint();
     private String method = 'GET';
     private Object body;
 
@@ -45,6 +45,10 @@ public virtual with sharing class CalloutBuilder {
     private List<CalloutGuardrail> guardrails = new List<CalloutGuardrail>();
     private Boolean enforcingGuardrails = false;
 
+    private final CalloutResponseSanitizerChain responseSanitizers = new CalloutResponseSanitizerChain();
+    private Boolean parsingResponseBody = false;
+    private CalloutResponseParser customParser;
+
     // CalloutErrorResponse implementation
     private System.Type errorResponseImplType;
     private CalloutErrorResponse error;
@@ -58,19 +62,30 @@ public virtual with sharing class CalloutBuilder {
     // Optional setters
 
     /**
-     * @description withEndpoint sets the right part of the URL,
-     * but not parameters.
-     * It knows that there is one redundant slash in the URL like this:
-     * https://example.com//test, so the request will be sent to
-     * https://example.com/test
-     * It won't help when a redundant slash comes from Named Credential.
-     * For the same reason, it won't add any slash to not harm.
+     * @description withEndpoint sets the URL part after the base URL, stored with exactly one
+     * leading '/' unless blank or starting with '?'. It must not contain '#'; its path must not
+     * contain '\' nor a '.' or '..' segment, also as %2e. Concatenated values are sent unencoded:
+     * use {name} placeholders with withPathParameter().
      */
     public virtual CalloutBuilder withEndpoint(String endpoint) {
-        if (endpoint?.startsWith('/') && this.ncOrBaseUrl?.endsWith('/')) {
-            endpoint = endpoint.removeStart('/');
+        this.endpoint.setTemplate(endpoint);
+        return this;
+    }
+
+    /**
+     * @description withPathParameter replaces every {name} in the endpoint with value
+     * percent-encoded as one path segment; pass value unencoded.
+     * Every placeholder needs a parameter and every parameter a placeholder.
+     */
+    public CalloutBuilder withPathParameter(String name, String value) {
+        this.endpoint.putParameter(name, value);
+        return this;
+    }
+
+    public CalloutBuilder withPathParameters(Map<String, String> pathParameters) {
+        for (String name : pathParameters.keySet()) {
+            this.withPathParameter(name, pathParameters.get(name));
         }
-        this.endpoint = endpoint;
         return this;
     }
 
@@ -133,6 +148,23 @@ public virtual with sharing class CalloutBuilder {
     @SuppressWarnings('PMD.ApexDoc')
     public CalloutBuilder withGuardrail(CalloutGuardrail guardrail) {
         this.guardrails.add(guardrail);
+        return this;
+    }
+
+    /**
+     * @description withResponseSanitizers adds transformations applied to a
+     * validated response before the caller sees it;
+     * a sanitizer blocks the response by throwing
+     * @param sanitizers appended to any already attached
+     */
+    public CalloutBuilder withResponseSanitizers(List<CalloutResponseSanitizer> sanitizers) {
+        this.responseSanitizers.addAll(sanitizers);
+        return this;
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
+    public CalloutBuilder withResponseSanitizer(CalloutResponseSanitizer sanitizer) {
+        this.responseSanitizers.add(sanitizer);
         return this;
     }
 
@@ -202,6 +234,15 @@ public virtual with sharing class CalloutBuilder {
         return this;
     }
 
+    /**
+     * @description withResponseParser sets how getTypedResponseBody(), getResponseBodyMap() and the withErrorType()
+     * error read the body; without one, an XML Content-Type selects CalloutXmlParser and any other CalloutJsonParser
+     */
+    public CalloutBuilder withResponseParser(CalloutResponseParser parser) {
+        this.customParser = parser;
+        return this;
+    }
+
     public CalloutBuilder withTimeout(Integer timeout) {
         this.timeout = timeout;
         return this;
@@ -218,7 +259,9 @@ public virtual with sharing class CalloutBuilder {
         this.validateBeforeCall();
         this.constructRequest();
         this.setMockIfTest();
-        this.debugRequest();
+        if (this.debugMode) {
+            CalloutDebug.log(this.request, this.headersMap);
+        }
 
         do {
             this.attempt++;
@@ -227,17 +270,22 @@ public virtual with sharing class CalloutBuilder {
         this.attempt = 0;
 
         this.validateResponse();
+        if (!this.parsingResponseBody) {
+            this.responseSanitizers.sanitize(this.response);
+        }
         return this.response;
     }
 
     /**
     * @description It makes a callout, validates response
-    * and converts its body JSON into Map<String, Object>
+    * and parses its body into Map<String, Object>
     * @return response body as Map<String, Object>
     */
     public Map<String, Object> getResponseBodyMap() {
-        this.getHttpResponse();
-        return (Map<String, Object>) JSON.deserializeUntyped(this.response.getBody());
+        HttpResponse response = this.getRawHttpResponse();
+        Map<String, Object> body = this.getParser(response).deserializeUntyped(response.getBody());
+        this.responseSanitizers.sanitize(body);
+        return body;
     }
 
     /**
@@ -249,8 +297,22 @@ public virtual with sharing class CalloutBuilder {
         if (this.successType == null) {
             throw new CalloutBuilderException('getTypedResponseBody expects this.successType to be set');
         }
-        this.getHttpResponse();
-        return JSON.deserialize(this.response.getBody(), this.successType);
+        HttpResponse response = this.getRawHttpResponse();
+        Object body = this.getParser(response).deserialize(response.getBody(), this.successType);
+        this.responseSanitizers.sanitize(body, this.successType);
+        return body;
+    }
+
+    /**
+     * @description It makes a callout, validates response
+     * and parses its body as XML
+     * @return response body as Dom.Document
+     */
+    public Dom.Document getXmlResponseBody() {
+        HttpResponse response = this.getRawHttpResponse();
+        Dom.Document body = CalloutXmlParser.load(response.getBody()); // not getBodyDocument(): it drops CDATA content
+        this.responseSanitizers.sanitize(body);
+        return body;
     }
 
     /**
@@ -258,8 +320,7 @@ public virtual with sharing class CalloutBuilder {
     * @return response body as Blob
     */
     public Blob getResponseBodyAsBlob() {
-        this.getHttpResponse();
-        return this.response.getBodyAsBlob();
+        return this.getHttpResponse().getBodyAsBlob();
     }
 
     /**
@@ -267,7 +328,7 @@ public virtual with sharing class CalloutBuilder {
      * @return base URL + endpoint + query parameters (if any and if GET method)
      */
     public String constructFullEndpoint() {
-        String fullEndpoint = String.isNotBlank(this.endpoint) ? this.ncOrBaseUrl + this.endpoint : this.ncOrBaseUrl;
+        String fullEndpoint = this.endpoint.joinTo(this.ncOrBaseUrl);
 
         if (this.method == 'GET' && !this.queryParameters.isEmpty()) {
             String separator = fullEndpoint?.contains('?') == true ? '&' : '?';
@@ -287,9 +348,12 @@ public virtual with sharing class CalloutBuilder {
         return this.ncOrBaseUrl;
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
+    /**
+     * @description getEndpoint returns the endpoint as sent: placeholders resolved,
+     * without the base URL and withQueryParameter() parameters
+     */
     public String getEndpoint() {
-        return this.endpoint;
+        return this.endpoint.resolve();
     }
 
     @SuppressWarnings('PMD.ApexDoc')
@@ -303,6 +367,11 @@ public virtual with sharing class CalloutBuilder {
     }
 
     @SuppressWarnings('PMD.ApexDoc')
+    public Map<String, String> getPathParameters() {
+        return this.endpoint.getParameters();
+    }
+
+    @SuppressWarnings('PMD.ApexDoc')
     public CalloutErrorResponse getError() {
         return this.error;
     }
@@ -313,12 +382,17 @@ public virtual with sharing class CalloutBuilder {
     * @description it checks if required fields are set.
     */
     private void validateBeforeCall() {
+        // not in the chain: re-entry must be rejected before the request is sent
+        if (this.responseSanitizers.isRunning()) {
+            throw new CalloutBuilderException('A response sanitizer must not execute the callout it is sanitizing.');
+        }
         if (String.isBlank(this.ncOrBaseUrl)) {
             throw new CalloutBuilderException('NC or base URL must be provided');
         }
         if (String.isBlank(this.method)) {
             throw new CalloutBuilderException('HTTP method must be provided');
         }
+        this.endpoint.resolve(); // placeholders must resolve before guardrails read the endpoint
         this.enforceGuardrails();
     }
 
@@ -334,6 +408,22 @@ public virtual with sharing class CalloutBuilder {
         } finally {
             this.enforcingGuardrails = false;
         }
+    }
+
+    private HttpResponse getRawHttpResponse() {
+        this.parsingResponseBody = true;
+        try {
+            return this.getHttpResponse();
+        } finally {
+            this.parsingResponseBody = false;
+        }
+    }
+
+    private CalloutResponseParser getParser(HttpResponse response) {
+        if (this.customParser != null) {
+            return this.customParser;
+        }
+        return CalloutResponseParser.forResponse(response);
     }
 
     private void constructRequest() {
@@ -364,17 +454,53 @@ public virtual with sharing class CalloutBuilder {
     /**
      * @description attachBody sets body of the request, in precedence order:
      * 1. blob
-     * 2. JSON (a body always wins over query parameters)
-     * 3. query parameters (if any and if method is not GET)
+     * 2. XML (Dom.Document)
+     * 3. String as-is, when Content-Type is set and is not JSON
+     * 4. JSON (a body always wins over query parameters)
+     * 5. query parameters (if any and if method is not GET)
      */
     private void attachBody() {
         if (this.hasBlobBody && this.body != null) {
             this.request.setBodyAsBlob((Blob) this.body);
+            this.defaultContentType('application/octet-stream');
+        } else if (this.body instanceof Dom.Document) {
+            // not setBodyDocument(): getBody() would then return an empty string
+            this.request.setBody(((Dom.Document) this.body).toXmlString());
+            this.defaultContentType('application/xml');
+        } else if (this.body instanceof String && !this.hasJsonContentType()) {
+            this.request.setBody((String) this.body);
         } else if (this.body != null) {
             this.request.setBody(JSON.serialize(this.body, this.suppressApexObjectNulls));
+            this.defaultContentType('application/json');
         } else if (!this.queryParameters.isEmpty() && this.method != 'GET') {
             this.request.setBody(this.getEncodedQueryParameters());
         }
+    }
+
+    // without a Content-Type, Salesforce sends application/x-www-form-urlencoded
+    private void defaultContentType(String mediaType) {
+        if (this.getContentType() == null) {
+            this.request.setHeader('Content-Type', mediaType);
+        }
+    }
+
+    // no Content-Type means JSON
+    private Boolean hasJsonContentType() {
+        String contentType = this.getContentType();
+        if (contentType == null || contentType == 'application/json') {
+            return true;
+        }
+        String mediaType = contentType.substringBefore(';').trim().toLowerCase();
+        return mediaType == 'application/json' || mediaType.endsWith('+json');
+    }
+
+    private String getContentType() {
+        for (String header : this.headersMap.keySet()) {
+            if (header.equalsIgnoreCase('Content-Type')) {
+                return this.headersMap.get(header);
+            }
+        }
+        return null;
     }
 
     private void attachHeaders() {
@@ -416,93 +542,25 @@ public virtual with sharing class CalloutBuilder {
     }
 
     private void validateResponse() {
-        this.debugResponse();
+        if (this.debugMode) {
+            CalloutDebug.log(this.response);
+        }
         if (this.bypassResponseValidation) {
             return;
         }
         if (this.response.getStatusCode() >= 400) {
-            CalloutBuilderException ex = new CalloutBuilderException(this.response, this.errorResponseImplType);
-            this.error = ex.getParsedError();
+            CalloutBuilderException ex = new CalloutBuilderException(
+                this.response,
+                this.errorResponseImplType,
+                this.getParser(this.response)
+            );
+            this.error = ex.getError();
             throw ex;
         }
     }
 
     private Boolean canRetry() {
         return this.retrier != null && this.maxRetries >= this.attempt;
-    }
-
-    private void debugRequest() {
-        if (!this.debugMode) {
-            return;
-        }
-        debug('-- Request debug start --');
-        debug('Request endpoint: ' + this.request.getEndpoint());
-        debug('Request method: ' + this.request.getMethod());
-        if (this.isDebugableBody(this.request.getHeader('Content-Type'))) {
-            debug('Request body: \n' + this.request.getBody());
-        } else {
-            debug('Skip verbose request body debugging. Content-Type: ' + this.request.getHeader('Content-Type'));
-        }
-
-        debug('Request headers size: ' + this.headersMap.size());
-        for (String header : this.headersMap.keySet()) {
-            debug('Request header: ' + header + ': ' + this.headersMap.get(header));
-        }
-        debug('-- Request debug end --');
-    }
-
-    private void debugResponse() {
-        if (!this.debugMode) {
-            return;
-        }
-        debug('-- Response debug start --');
-        debug('Response status code: ' + this.response.getStatusCode());
-        debug('Response status: ' + this.response.getStatus());
-
-        if (this.isDebugableBody(this.response.getHeader('Content-Type'))) {
-            debug('Response body: \n' + this.response.getBody());
-        } else {
-            debug('Skip verbose response body debugging. Content-Type: ' + this.response.getHeader('Content-Type'));
-        }
-
-        List<String> responseHeaderKeys = this.response.getHeaderKeys();
-        debug('Response headers size: ' + responseHeaderKeys.size());
-        for (String header : responseHeaderKeys) {
-            debug('Response header: ' + header + ': ' + this.response.getHeader(header));
-        }
-        debug('-- Response debug end --');
-    }
-
-    /**
-     * @description Set of content types that should be debugged.
-     * There is no point in debugging binary or cryptic content types.
-     */
-    private final Set<String> debugableContentTypes = new Set<String>{
-        'application/json',
-        'application/xml',
-        'text/xml',
-        'text/plain',
-        'text/html'
-    };
-
-    private Boolean isDebugableBody(String contentType) {
-        if (contentType == null) {
-            return true;
-        }
-        if (debugableContentTypes.contains(contentType.toLowerCase())) {
-            return true;
-        }
-        for (String debugableContentType : debugableContentTypes) {
-            if (contentType.toLowerCase().contains(debugableContentType)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void debug(String log) {
-        log = 'CalloutBuilder: ' + log;
-        System.debug(LoggingLevel.DEBUG, log);
     }
 
     @SuppressWarnings('PMD.ApexDoc')
@@ -513,12 +571,16 @@ public virtual with sharing class CalloutBuilder {
         private CalloutErrorResponse error;
 
         public CalloutBuilderException(HttpResponse response, System.Type errorType) {
-            this.code = response.getStatusCode();
-            this.status = response.getStatus();
-            this.setMessage(this.extractMessage(response, errorType));
+            this(response, errorType, CalloutResponseParser.forResponse(response));
         }
 
-        private CalloutErrorResponse getParsedError() {
+        public CalloutBuilderException(HttpResponse response, System.Type errorType, CalloutResponseParser parser) {
+            this.code = response.getStatusCode();
+            this.status = response.getStatus();
+            this.setMessage(this.extractMessage(response, errorType, parser));
+        }
+
+        public CalloutErrorResponse getError() {
             return this.error;
         }
 
@@ -527,14 +589,14 @@ public virtual with sharing class CalloutBuilder {
          * a blank body falls back to the HTTP status text,
          * a parsed error object overrides it when getErrorMessage() is non-blank
          */
-        private String extractMessage(HttpResponse response, System.Type errorType) {
+        private String extractMessage(HttpResponse response, System.Type errorType, CalloutResponseParser parser) {
             String body = response.getBody();
             if (String.isBlank(body)) {
                 return response.getStatus();
             }
             if (errorType != null) {
                 try {
-                    this.error = (CalloutErrorResponse) JSON.deserialize(body, errorType);
+                    this.error = (CalloutErrorResponse) parser.deserialize(body, errorType);
                     String errorMessage = this.error.getErrorMessage();
                     if (String.isNotBlank(errorMessage)) {
                         return errorMessage;

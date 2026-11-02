@@ -8,8 +8,9 @@ description: >-
   jobs, file uploads, retry logic, error handling, and test mocks. Trigger on
   phrases like "callout", "HTTP request in Apex", "named credential", "API
   integration", "CalloutBuilder", "withMockIfTest", "CalloutBuilderQueueable",
-  "withFile", "withGuardrail", "CalloutGuardrail", or any question about how to
-  call an external service from Apex.
+  "withFile", "withGuardrail", "CalloutGuardrail", "withResponseSanitizer",
+  "CalloutResponseSanitizer", "withPathParameter", "sanitize a response", or
+  any question about how to call an external service from Apex.
   Do not wait for the user to name the library explicitly — if they are writing
   Apex that talks to an external API, this skill applies.
 ---
@@ -29,10 +30,22 @@ Before writing any code, determine which execution method the user needs. This c
 | Response maps to a known Apex class | `getTypedResponseBody()` |
 | Response structure is unknown or varies | `getResponseBodyMap()` |
 | Need headers, status code, or raw body | `getHttpResponse()` |
+| Response is XML | `getTypedResponseBody()` or `getResponseBodyMap()`, plus `withResponseParser()` when List fields need hints; `getXmlResponseBody()` for the raw `Dom.Document` |
 | Downloading binary content | `getResponseBodyAsBlob()` |
 | Callout from a trigger or batch context | `CalloutBuilderQueueable` |
 
 Prefer `getTypedResponseBody()` when the API contract is known — it gives compile-time safety and clean downstream code. `getResponseBodyMap()` loses type safety; only recommend it when the response shape genuinely cannot be modeled.
+
+For XML, `getTypedResponseBody()`, `getResponseBodyMap()` and the `withErrorType()` error parse a response whose Content-Type is `application/xml`, `text/xml` or `+xml` with a default `CalloutXmlParser`. The header name and value are matched ignoring case and parameters. `withResponseParser(parser)` sets a custom parser, which is then used for every response, whatever its Content-Type; use one to name List elements or to apply a subclass. Typed XML errors and the sanitizer's typed and Map forms work the same as for JSON. Without an XML Content-Type and without a custom parser, an XML body fails JSON parsing with `System.JSONException`. `getXmlResponseBody()` returns a `Dom.Document` and keeps CDATA text. For an XML string from elsewhere, use `CalloutXmlParser.load(xml)` rather than `Dom.Document.load()`, which drops CDATA content. `new CalloutXmlParser().deserializeUntyped(doc)` returns a `Map<String, Object>`, and `.deserialize(doc, MyType.class)` returns an Apex type. Both also accept a `Dom.XmlNode`, which is how to convert one deep subtree. The rules:
+
+- Name every List field with `withListElements(new Set<String>{ ... })`, using XML element names. An element that occurs once otherwise becomes an object, and `JSON.deserialize` rejects it for a List field.
+- Child elements win over attributes of the same name, and namespace prefixes are dropped. `xsi:` attributes such as `xsi:nil` and `xsi:type` don't become keys, so an `xsi:nil` element becomes null.
+- `true` and `false` become Booleans, and blank text becomes null. Numbers and ISO dates convert from text into `Integer`, `Decimal` and `Date` fields.
+- Text next to attributes or child elements goes under the key `text`.
+- `deserialize()` turns keys into valid Apex names: `_Value` becomes `Value`, and `unit-price` becomes `unit_price`.
+- Apex classes for `deserialize()` can't have `Object` or `List<Object>` fields, because `JSON.deserialize` rejects them. Type the parts you need and leave the rest out.
+- `withResponseParser()` takes any `CalloutResponseParser`, the abstract class `CalloutJsonParser` and `CalloutXmlParser` extend. Extend it yourself for another format, or extend `CalloutJsonParser` for JSON that needs custom handling.
+- For API-specific conventions, extend `CalloutXmlParser` and override `protected toValue(String name, String text)` to convert the text of named elements or attributes (for example, `Y`/`N` indicator fields into Booleans) or `protected toKey(String name, Boolean apexKeys)` to rename keys. Call `super` for everything else, and pass the subclass to `withResponseParser()`.
 
 ---
 
@@ -57,13 +70,25 @@ ReturnType result = (ReturnType)cb.getTypedResponseBody();
 
 Pass either a named credential alias (`'callout:MyNC'`) or a full base URL (`'https://api.example.com'`). Named credentials are always preferred in production — they keep auth out of Apex.
 
-### Endpoint slash handling
+### Endpoint and path parameters
 
-`withEndpoint` strips one leading slash when the base URL already ends with a slash. Be explicit: use `'callout:MyNC'` (no trailing slash) with `withEndpoint('/path')` (leading slash).
+`withEndpoint` stores exactly one leading slash, whatever the base URL ends with, so `withEndpoint('path')` and `withEndpoint('/path')` are equivalent; write the leading slash. It throws on `#`, and on `\` or a `.` / `..` segment in the path.
+
+Never concatenate values into the endpoint — they are sent unencoded. Use a `{name}` placeholder and `withPathParameter`; the value is passed raw and encoded as one path segment:
+
+```Java (Apex)
+new CalloutBuilder('callout:MyNC')
+    .withEndpoint('/customers/{customerId}/orders/{orderId}')
+    .withPathParameter('customerId', customerId)
+    .withPathParameter('orderId', orderId)    // withPathParameters(Map) for many
+    .getResponseBodyMap();
+```
+
+Every placeholder needs a parameter and every parameter a placeholder; a mismatch, or a blank, `.` or `..` value, throws `CalloutBuilder.CalloutBuilderException` before the callout. A placeholder also works in the endpoint's own query string (`'/search?q={term}'`), which is the only encoded URL query for non-GET methods.
 
 ### Body serialization
 
-`withBody(Object)` serializes the object to JSON via `JSON.serialize`. To omit null fields, chain `.withSuppressApexObjectNulls(true)`. Pass a raw `String` to `withBody` only when you have already serialized the payload or it is not JSON (e.g., XML). Use `withBlobBody(Blob)` for binary bodies. For file uploads expecting multipart/form-data, use `withFile()`.
+`withBody(Object)` serializes the object to JSON via `JSON.serialize` and, when no Content-Type is set, sends `Content-Type: application/json`. To omit null fields, chain `.withSuppressApexObjectNulls(true)`. A `String` body is serialized too, unless a non-JSON Content-Type is set: then it is sent as-is, so XML, CSV or form-encoded strings need `withHeader('Content-Type', ...)`. A `Dom.Document` body is sent as XML, with `Content-Type: application/xml` unless one is set. Use `withBlobBody(Blob)` for binary bodies; it sends `Content-Type: application/octet-stream` unless one is set. For file uploads expecting multipart/form-data, use `withFile()`.
 
 ### Query parameters
 
@@ -186,7 +211,7 @@ new CalloutBuilder('callout:MyNC')
 ```
 
 - Both `with` methods append; the chain runs in attachment order and stops at the first throw. Chain position is irrelevant — guardrails run at execution time.
-- One run per execution, inside every response variant, before the request is built and before retries. A guardrail reads builder state — `getNcOrBaseUrl()`, `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `constructFullEndpoint()` — never the `HttpRequest` or the body. The two map accessors return copies.
+- One run per execution, inside every response variant, before the request is built and before retries. A guardrail reads builder state — `getNcOrBaseUrl()`, `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `getPathParameters()`, `constructFullEndpoint()` — never the `HttpRequest` or the body. `getEndpoint()` is the resolved endpoint, placeholders filled; the three map accessors return copies, `getPathParameters()` with raw values.
 - A guardrail must not execute the builder it receives; doing so throws `CalloutBuilder.CalloutBuilderException`. Its own callout needs a separate `CalloutBuilder`.
 - Blocking applies in tests too, before mocks are set — the mock is never reached.
 - A block inside `CalloutBuilderQueueable` fails the job and strands the builders queued behind it. Filter blocked builders out while assembling the `CalloutCollection` when partial progress matters.
@@ -203,13 +228,43 @@ try {
 }
 ```
 
-Use a guardrail for a pass/fail check. Subclass instead when behavior wraps the callout — logging, rewriting the request, timing. `CalloutBuilder` is `virtual` with `withEndpoint`, `withMethod`, `withBody`, `withBlobBody`, and `getHttpResponse` overridable; every response variant funnels through `getHttpResponse()`.
+Use a guardrail for a pass/fail check. Subclass instead when behavior wraps the callout — logging, rewriting the request, timing. `CalloutBuilder` is `virtual` with `withEndpoint`, `withMethod`, `withBody`, `withBlobBody`, and `getHttpResponse` overridable; every response variant funnels through `getHttpResponse()`. Under `getResponseBodyMap()`, `getTypedResponseBody()` and `getXmlResponseBody()` it returns the response unsanitized, so an override must not cache or log its return value as sanitized.
 
 ---
 
-## Step 6: Test mocks
+## Step 6: Response sanitizers
 
-It's recommended to include `.withMockIfTest(new MyMock())`. This method is a no-op outside of test context. Omitting it means tests will fail with "Callout not allowed" errors unless mocks are set elsewhere. This apporch helps reducing test code clutter when the same mock applies across many tests. If the codebase has the `ViciousMockBase` class, you can also use derived classes here.
+Guardrails police the request; `CalloutResponseSanitizer` polices the response. Extend it to strip content the caller must not receive — restricted search hits, PII. Override a `sanitize()` overload per form handled: `sanitize(HttpResponse)` for `getHttpResponse()` / `getResponseBodyAsBlob()`, `sanitize(Map<String, Object>)` for `getResponseBodyMap()`, `sanitize(Object, System.Type)` for `getTypedResponseBody()`, `sanitize(Dom.Document)` for `getXmlResponseBody()`. Mutate the argument in place, or throw `CalloutResponseSanitizerException` to block the response.
+
+```Java (Apex)
+public with sharing class RestrictedFolderSanitizer extends CalloutResponseSanitizer {
+    public override void sanitize(Map<String, Object> body) {
+        body.put('results', this.withoutRestrictedFolders((List<Object>) body.get('results')));
+    }
+}
+
+new CalloutBuilder('callout:MyNC')
+    .withEndpoint('/v1/search')
+    .withResponseSanitizer(new RestrictedFolderSanitizer())   // withResponseSanitizers(List) for many
+    .getResponseBodyMap();
+```
+
+- Both `with` methods append. The chain runs once per execution, after validation, in attachment order, and stops at the first throw. Every sanitizer works on the instance the caller receives; the map, typed and `Dom.Document` overloads get it already parsed, so never re-parse.
+- To reuse a set of sanitizers, bundle them: `.withResponseSanitizer(new CalloutResponseSanitizerChain().add(new A()).add(new B()))`.
+- `CalloutRetrier.shouldRetry()`, the `>= 400` error path, and `withDebugMode(true)` see the **raw** response. Sanitizing is not log redaction.
+- Error responses are never sanitized, because validation throws first. Under `withBypassResponseValidation(true)` nothing throws, so non-2xx responses reach the chain too — only `sanitize(HttpResponse)` sees `getStatusCode()` to branch on.
+- Fail closed: an overload not overridden blocks the response; inside an override, throw rather than return quietly on a body you cannot handle.
+- A typed sanitizer casts `body` to the success type it was written for, checking `successType` first when it serves several.
+- Binary responses need `setBodyAsBlob()` in `sanitize(HttpResponse)`.
+- A sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilder.CalloutBuilderException` before the second request is sent. Its own callout needs a separate `CalloutBuilder`.
+- `CalloutCollection.postProcess()` receives the sanitized response. Queued builders run `getHttpResponse()`, so only `sanitize(HttpResponse)` applies there. A throw inside `CalloutBuilderQueueable` fails the job and strands the builders queued behind it.
+- `CalloutResponseSanitizerException` extends `Exception` — catch it beside `CalloutGuardrailException`, not under `CalloutBuilder.CalloutBuilderException`.
+
+---
+
+## Step 7: Test mocks
+
+It's recommended to include `.withMockIfTest(new MyMock())`. This method is a no-op outside of test context. Omitting it means tests will fail with "Callout not allowed" errors unless mocks are set elsewhere. This apporch helps reducing test code clutter when the same mock applies across many tests. If the codebase has the `ViciousMockBase` class, you can also use derived classes here. They record the requests they answer: assert on `getLastRequest()` or `getRequests()` rather than hand-writing a capture mock.
 
 ### Inline mock
 
@@ -251,13 +306,13 @@ static void testPaymentError() {
 }
 ```
 
-The override matches by full URL + HTTP method. Builders targeting other endpoints are unaffected.
+The override matches by resolved full URL + HTTP method: a key built with `withEndpoint('/charge/ch_1')` matches `withEndpoint('/charge/{id}').withPathParameter('id', 'ch_1')`. Builders targeting other endpoints are unaffected.
 
 ---
 
-## Step 7: File uploads (multipart/form-data)
+## Step 8: File uploads (multipart/form-data)
 
-Use `CalloutHexFormBuilder` for multipart/form-data uploads. The Apex heap limit means files should not exceed ~2 MB in synchronous contexts — warn users about this.
+Use `CalloutHexFormBuilder` for multipart/form-data uploads. Files should not exceed ~5 MB: the whole form must fit the callout request size limit (10 MB in synchronous Apex since Winter '27, 6 MB in orgs on older limits) — warn users about this.
 
 ```Java (Apex)
 CalloutHexFormBuilder form = CalloutHexFormBuilder.build()
@@ -279,7 +334,7 @@ HttpResponse response = new CalloutBuilder('callout:StorageNC')
 
 ---
 
-## Step 8: Async callouts (from triggers)
+## Step 9: Async callouts (from triggers)
 
 Apex forbids synchronous callouts from triggers. Use `CalloutBuilderQueueable`.
 
@@ -315,7 +370,8 @@ public class OrderSyncCollection extends CalloutCollection {
         for (Order__c o : orders) {
             builders.add(
                 new CalloutBuilder('callout:OrdersNC')
-                    .withEndpoint('/orders/' + o.ExternalId__c)
+                    .withEndpoint('/orders/{id}')
+                    .withPathParameter('id', o.ExternalId__c)
                     .withMethod('PATCH')
                     .withBody(new OrderPayload(o))
                     .withMockIfTest(new OrderSyncMock())
@@ -346,6 +402,10 @@ When generating response types:
 
 ## URL Behavior
 
+- `withEndpoint()` stores exactly one leading `/` unless the endpoint is blank or starts with `?`, and the base URL's trailing `/` is not doubled: `callout:MyNC` + `items` → `callout:MyNC/items`.
+
+- `withEndpoint()` throws on `#` anywhere, and on `\` or a `.` / `..` segment (also as `%2e`) in the path.
+
 - For `GET` requests, query parameters _(UTF-8 encoded)_ are appended to the URL: `https://example.com/test?param1=value1&param2=value2&param3=value3`
 
 - For other HTTP methods (e.g., `POST`), parameters are included in the body instead, and the URL remains: `https://example.com/test`
@@ -359,6 +419,8 @@ When generating response types:
 - `getTypedResponseBody()` without `.withSuccessType()` set — throws immediately
 - Passing a class that does not implement `CalloutErrorResponse` to `.withErrorType()` — throws at configuration time, not at callout time
 - Using `withQueryParameters` on a POST that also has `.withBody()` — body wins
+- Concatenating values into `withEndpoint()` (`'/orders/' + id`) — sent unencoded, so `/`, `?` or `&` in a value changes the request and `#`, `\` or `..` makes `withEndpoint()` throw; use `'/orders/{id}'` with `withPathParameter('id', id)`
+- Encoding a path parameter value before passing it — it is encoded again (`%2F` becomes `%252F`)
 - Omitting `.withMockIfTest()` — tests fail with "Callout not allowed"
 - A guardrail executing the builder it was handed, or expecting the `HttpRequest` or body — only builder state is readable
 - Catching only `CalloutBuilder.CalloutBuilderException` around a guarded callout — `CalloutGuardrailException` escapes it

@@ -6,7 +6,7 @@ private with sharing class ViciousMockery_Test {
         Integer statusCode = 429;
         String expectedBody = ViciousMockery.CODE_TO_BODY.get(statusCode);
 
-        ViciousMockery.cast(statusCode);
+        ViciousMockery mock = ViciousMockery.cast(statusCode);
 
         HttpRequest req = new HttpRequest();
         req.setEndpoint('https://mock.vicious.com');
@@ -16,6 +16,7 @@ private with sharing class ViciousMockery_Test {
 
         Assert.areEqual(statusCode, res.getStatusCode(), 'Expected status code to match mock');
         Assert.areEqual(expectedBody, res.getBody(), 'Expected body to match mapped quote');
+        Assert.areEqual(1, mock.getRequests().size(), 'cast() should return the registered mock');
     }
 
     @IsTest

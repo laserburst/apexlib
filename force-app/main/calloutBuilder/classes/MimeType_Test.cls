@@ -25,6 +25,14 @@ private class MimeType_Test {
     }
 
     @isTest
+    static void testFileNameWithoutExtension() {
+        Test.startTest();
+        String mimeType = MimeType.getByFileNameWithExtension('LICENSE');
+        Test.stopTest();
+        Assert.areEqual('application/octet-stream', mimeType);
+    }
+
+    @isTest
     static void testCaps() {
         Test.startTest();
         String mimeType = MimeType.getByFileNameWithExtension('test.PDF');

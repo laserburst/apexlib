@@ -2,9 +2,40 @@
 
 ## October 2026
 
+### Added
+
+- **`CalloutBuilder.withPathParameter()` / `withPathParameters()` / `getPathParameters()`** — `{name}` placeholders in the endpoint are filled with encoded values, each kept within one path segment ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **`ViciousMockBase.getRequests()` / `getLastRequest()` / `buildResponse()`** — a mock records the requests it answers; override `buildResponse()` to answer from the request ([ViciousMockBase.cls](force-app/main/viciousMockery/classes/ViciousMockBase.cls))
+- **Email MIME types** — `MimeType` maps `eml` and `msg` ([MimeType.cls](force-app/main/calloutBuilder/classes/MimeType.cls))
+- **`CalloutBuilderException.getError()`** — returns the parsed `withErrorType()` error from a caught exception ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **XML bodies** — `withBody()` sends a `Dom.Document` as XML, `getXmlResponseBody()` returns the response as a `Dom.Document`, and `CalloutResponseSanitizer.sanitize(Dom.Document)` covers that form ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls), [CalloutResponseSanitizer.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizer.cls))
+- **XML responses** — `getTypedResponseBody()`, `getResponseBodyMap()` and `withErrorType()` read a response with an XML Content-Type as XML; `withResponseParser()` sets a custom `CalloutResponseParser` ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls), [CalloutResponseParser.cls](force-app/main/calloutBuilder/classes/CalloutResponseParser.cls), [CalloutJsonParser.cls](force-app/main/calloutBuilder/classes/CalloutJsonParser.cls))
+- **`CalloutXmlParser`** — parses XML into a `Dom.Document` that keeps CDATA content, a `Map<String, Object>` or an Apex type; subclasses can override `toKey()` and `toValue()` ([CalloutXmlParser.cls](force-app/main/calloutBuilder/classes/CalloutXmlParser.cls))
+
 ### Changed
 
 - **License** — apexlib is licensed under Apache 2.0 instead of MIT ([LICENSE](LICENSE))
+- **Improved endpoint safety** ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **`getEndpoint()` / `constructFullEndpoint()`** — return the endpoint with placeholders resolved ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **`ViciousMockery.cast()`** — returns the `ViciousMockery` instance it registers ([ViciousMockery.cls](force-app/main/viciousMockery/classes/ViciousMockery.cls))
+- **Multipart heap** — `CalloutHexFormBuilder` keeps one hex copy of each file, and files over 5 MB no longer fail with `StringException` ([CalloutHexFormBuilder.cls](force-app/main/calloutBuilder/classes/CalloutHexFormBuilder.cls))
+- **File names without an extension** — `MimeType.getByFileNameWithExtension()` returns `application/octet-stream` instead of throwing ([MimeType.cls](force-app/main/calloutBuilder/classes/MimeType.cls))
+- **String bodies** — sent as-is when the Content-Type is set and is not JSON, instead of as a quoted JSON string ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **Default Content-Type** — when no Content-Type is set, the body type picks it instead of Salesforce's `application/x-www-form-urlencoded` ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+
+  | Body | Content-Type |
+  | --- | --- |
+  | JSON | `application/json` |
+  | `Dom.Document` | `application/xml` |
+  | Blob | `application/octet-stream` |
+
+- **Debug mode** — refactored into `CalloutDebug` ([CalloutDebug.cls](force-app/main/calloutBuilder/classes/CalloutDebug.cls))
+
+## August 2026
+
+### Added
+
+- **`CalloutBuilder.withResponseSanitizer()` / `withResponseSanitizers()`** — `CalloutResponseSanitizer` subclasses mutate or block a validated response before the caller sees it — the `HttpResponse`, or the body parsed once for `getResponseBodyMap()` / `getTypedResponseBody()`; a form a subclass does not override is blocked, and `CalloutResponseSanitizerChain` runs several sanitizers as one ([CalloutResponseSanitizer.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizer.cls), [CalloutResponseSanitizerChain.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizerChain.cls))
 
 ## July 2026
 
