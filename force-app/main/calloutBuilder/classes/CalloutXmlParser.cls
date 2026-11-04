@@ -11,7 +11,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     private static final String XSI_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-instance';
     // JSON.deserialize() matches field names ignoring case; a fixed locale keeps 'I' from becoming a dotless 'ı'
     private static final String FIELD_NAME_LOCALE = 'en';
-    private static final MapTarget MAP_TARGET = new MapTarget();
+    private static final Target MAP_TARGET = new Target();
     private static final ApexTarget UNKNOWN_FIELD = new ApexTarget();
 
     private final Set<String> listElements = new Set<String>();
@@ -81,7 +81,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     }
 
     // runs the type's constructor and getters on every call, and they may throw anything
-    private static ApexTarget learnFromType(System.Type apexType) {
+    private static ApexTarget toApexTarget(System.Type apexType) {
         try {
             Object instance = apexType.newInstance();
             return new ApexTarget(JSON.deserializeUntyped(JSON.serialize(instance)));
@@ -90,16 +90,16 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         }
     }
 
-    private Boolean isListElement(String name, String key) {
+    private Boolean isNamedListElement(String name, String key) {
         return this.listElements.contains(name) || this.listElements.contains(key);
     }
 
     private Map<String, Object> toApexMap(Dom.XmlNode element, System.Type apexType) {
-        return this.toMap(element, learnFromType(apexType));
+        return this.toMap(element, toApexTarget(apexType));
     }
 
-    private Map<String, Object> toMap(Dom.XmlNode element, MapTarget target) {
-        Object value = this.convert(element, target);
+    private Map<String, Object> toMap(Dom.XmlNode element, Target target) {
+        Object value = this.toElementValue(element, target);
         if (value instanceof Map<String, Object>) {
             return (Map<String, Object>) value;
         }
@@ -107,14 +107,14 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     }
 
     // getName() and getAttributeKeyAt() leave out namespace prefixes
-    private Object convert(Dom.XmlNode element, MapTarget target) {
+    private Object toElementValue(Dom.XmlNode element, Target target) {
         ElementFields fields = new ElementFields();
         for (Dom.XmlNode child : element.getChildElements()) {
             String name = child.getName();
             String key = target.toFieldName(this.toKey(name));
-            MapTarget childTarget = target.get(key);
-            Object value = this.convert(child, childTarget);
-            if (childTarget.isList || this.isListElement(name, key)) {
+            Target childTarget = target.get(key);
+            Object value = this.toElementValue(child, childTarget);
+            if (childTarget.isList || this.isNamedListElement(name, key)) {
                 fields.addListElement(key, value);
             } else {
                 fields.addElement(key, value);
@@ -164,20 +164,20 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         return text;
     }
 
-    private virtual class MapTarget {
+    private virtual class Target {
         private Boolean isList = false;
 
         public virtual String toFieldName(String key) {
             return key;
         }
 
-        public virtual MapTarget get(String key) {
+        public virtual Target get(String key) {
             return this;
         }
     }
 
     // knows only the List fields a new instance initializes, at their own path and not inside List elements
-    private class ApexTarget extends MapTarget {
+    private class ApexTarget extends Target {
         private final Map<String, ApexTarget> fields = new Map<String, ApexTarget>();
 
         private ApexTarget() {
@@ -198,7 +198,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
             return key.replaceAll('[^A-Za-z0-9_]', '_').replaceAll('_+', '_').replaceAll('^_|_$', '');
         }
 
-        public override MapTarget get(String key) {
+        public override Target get(String key) {
             return this.fields.get(key.toLowerCase(FIELD_NAME_LOCALE)) ?? UNKNOWN_FIELD;
         }
     }
