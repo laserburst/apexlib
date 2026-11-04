@@ -29,7 +29,7 @@ Establishing unified callout approach with basic response handling backed in.
 7. [CalloutCollection](CalloutCollection.cls) - virtual class which is bundling many CalloutBuilder instances, callout preparation and post processing for [CalloutBuilderQueueable](CalloutCollection.cls).
 8. [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) - a class to build multipart requests to enable sending files. It's used in `withFile()` method of the CalloutBuilder, and may be used separately. **NOTE:** It's recommended to send files up to 5 Mb: the whole form must fit the callout request size limit, which is 10 Mb in synchronous Apex since Winter '27.
 9. [MimeType](MimeType.cls) - a class to resolve popular mime types by file extension. It's used by [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) and can be helpful by itself.
-10. [CalloutResponseParser](CalloutResponseParser.cls) - abstract class for reading a response body into a `Map<String, Object>` or an Apex type. [CalloutJsonParser](CalloutJsonParser.cls) and [CalloutXmlParser](CalloutXmlParser.cls) extend it; `CalloutXmlParser` also loads XML into a `Dom.Document`. Pass one to `withResponseParser()`.
+10. [CalloutResponseParser](CalloutResponseParser.cls) - abstract class for reading a response body into a `Map<String, Object>` or an Apex type. [CalloutJsonParser](CalloutJsonParser.cls) and [CalloutXmlParser](CalloutXmlParser.cls) extend it; `CalloutXmlParser` also loads XML into a `Dom.Document`. Pass one to `withResponseParser()`. A success or error type implements [CalloutXmlDeserializable](CalloutXmlDeserializable.cls) to name the XML elements that are Lists.
 
 ## Examples (illustrative)
 
@@ -107,7 +107,7 @@ Map<String, Object> responseBody = cb.getResponseBodyMap();
 
 If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters — whatever the body's type.
 
-A `String` body is sent as-is when a non-JSON Content-Type is set, and a `Dom.Document` body is sent as XML. `getXmlResponseBody()` returns an XML response as a `Dom.Document`, and `getTypedResponseBody()` reads it into an Apex type:
+A `String` body is sent as-is when a non-JSON Content-Type is set, and a `Dom.Document` body is sent as XML. `getXmlResponseBody()` returns an XML response as a `Dom.Document`, and `getTypedResponseBody()` reads it into an Apex type. Initialize its List fields, `public List<Item> item = new List<Item>();`, so that a single element still becomes a List:
 
 ```Java (Apex)
 Dom.Document response = new CalloutBuilder('callout:OrdersApi')
@@ -121,7 +121,6 @@ String status = response.getRootElement().getChildElement('status', null).getTex
 OrderResponse order = (OrderResponse) new CalloutBuilder('callout:OrdersApi')
     .withEndpoint('/orders/{id}')
     .withPathParameter('id', orderId)
-    .withResponseParser(new CalloutXmlParser().withListElements(new Set<String>{ 'item' }))
     .withSuccessType(OrderResponse.class)
     .getTypedResponseBody();
 ```

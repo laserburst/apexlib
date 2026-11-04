@@ -1,7 +1,9 @@
 /**
  * @description Parses XML into a Dom.Document that keeps CDATA content, a Map<String, Object> or an Apex type.
  * - Child elements and attributes become keys without namespace prefixes; a child element wins over an attribute of the same name.
- * - A repeated element becomes a List; an element named in withListElements() is a List even when it occurs once.
+ * - A repeated element becomes a List. One that occurs once is a List when withListElements() names it,
+ * and under deserialize() also when the type's CalloutXmlDeserializable.getListElements() names it, both at any depth,
+ * or when a new instance of the type initializes that List field, at that field's path only.
  * - An element without attributes and child elements becomes its text: 'true' and 'false' become Booleans, blank text becomes null.
  * - Text next to attributes or child elements is kept under the key 'text'.
  * - xsi attributes, such as xsi:nil and xsi:type, don't become keys.
@@ -16,6 +18,9 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     private static final String CDATA_END = ']]>';
     // xsi:nil and xsi:type describe a value rather than add a field
     private static final String XSI_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-instance';
+    // JSON.deserialize() matches field names ignoring case; a fixed locale keeps 'I' from becoming a dotless 'ı'
+    private static final String FIELD_NAME_LOCALE = 'en';
+    private static final Map<String, Object> NO_TYPE_FIELDS = new Map<String, Object>();
 
     private final Set<String> listElements = new Set<String>();
 
@@ -39,7 +44,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     }
 
     public Map<String, Object> deserializeUntyped(Dom.XmlNode element) {
-        return this.toMap(element, false);
+        return this.toMap(element, new ConversionOptions(false, this.listElements), NO_TYPE_FIELDS);
     }
 
     public override Object deserialize(String body, System.Type apexType) {
@@ -51,7 +56,9 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     }
 
     public Object deserialize(Dom.XmlNode element, System.Type apexType) {
-        return JSON.deserialize(JSON.serialize(this.toMap(element, true)), apexType);
+        ConversionOptions options = new ConversionOptions(true, this.listElements);
+        Map<String, Object> typeFields = learnFromType(apexType, options);
+        return JSON.deserialize(JSON.serialize(this.toMap(element, options, typeFields)), apexType);
     }
 
     // Dom.Document.load() drops CDATA content
@@ -73,18 +80,67 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         return String.join(parts, '');
     }
 
-    private Map<String, Object> toMap(Dom.XmlNode element, Boolean apexKeys) {
-        Object value = this.convert(element, apexKeys);
+    // best effort: a type that can't be instantiated or serialized keeps the named List elements only
+    private static Map<String, Object> learnFromType(System.Type apexType, ConversionOptions options) {
+        try {
+            Object instance = apexType.newInstance();
+            if (instance instanceof CalloutXmlDeserializable) {
+                options.addListElements(((CalloutXmlDeserializable) instance).getListElements());
+            }
+            return toTypeFields((Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(instance)));
+        } catch (Exception e) {
+            return NO_TYPE_FIELDS;
+        }
+    }
+
+    // by lowercased name: a List for an initialized List field, the nested fields of an initialized object
+    private static Map<String, Object> toTypeFields(Map<String, Object> serializedFields) {
+        Map<String, Object> typeFields = new Map<String, Object>();
+        for (String field : serializedFields.keySet()) {
+            Object value = serializedFields.get(field);
+            if (value instanceof List<Object>) {
+                typeFields.put(field.toLowerCase(FIELD_NAME_LOCALE), value);
+            } else if (value instanceof Map<String, Object>) {
+                typeFields.put(field.toLowerCase(FIELD_NAME_LOCALE), toTypeFields((Map<String, Object>) value));
+            }
+        }
+        return typeFields;
+    }
+
+    private static Object getTypeField(Map<String, Object> typeFields, String key) {
+        if (typeFields.isEmpty()) {
+            return null;
+        }
+        return typeFields.get(key.toLowerCase(FIELD_NAME_LOCALE));
+    }
+
+    private static Boolean isListField(Object typeField) {
+        return typeField instanceof List<Object>;
+    }
+
+    private static Map<String, Object> getNestedTypeFields(Object typeField) {
+        if (typeField instanceof Map<String, Object>) {
+            return (Map<String, Object>) typeField;
+        }
+        return NO_TYPE_FIELDS;
+    }
+
+    private Map<String, Object> toMap(Dom.XmlNode element, ConversionOptions options, Map<String, Object> typeFields) {
+        Object value = this.convert(element, options, typeFields);
         if (value instanceof Map<String, Object>) {
             return (Map<String, Object>) value;
         }
         return new Map<String, Object>{ TEXT_KEY => value };
     }
 
-    private Object convert(Dom.XmlNode element, Boolean apexKeys) {
+    private Object convert(Dom.XmlNode element, ConversionOptions options, Map<String, Object> typeFields) {
         Map<String, Object> fields = new Map<String, Object>();
         for (Dom.XmlNode child : element.getChildElements()) {
-            this.add(fields, child.getName(), this.convert(child, apexKeys), apexKeys);
+            String name = child.getName();
+            String key = this.toKey(name, options.apexKeys);
+            Object typeField = getTypeField(typeFields, key);
+            Object value = this.convert(child, options, getNestedTypeFields(typeField));
+            this.add(fields, key, value, options.isListElement(name) || isListField(typeField));
         }
         for (Integer i = 0; i < element.getAttributeCount(); i++) {
             String namespace = element.getAttributeKeyNsAt(i);
@@ -92,7 +148,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
                 continue;
             }
             String name = element.getAttributeKeyAt(i);
-            String key = this.toKey(name, apexKeys);
+            String key = this.toKey(name, options.apexKeys);
             if (!fields.containsKey(key)) {
                 fields.put(key, this.toValue(name, element.getAttributeValue(name, namespace)));
             }
@@ -107,14 +163,13 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         return fields;
     }
 
-    private void add(Map<String, Object> fields, String name, Object value, Boolean apexKeys) {
-        String key = this.toKey(name, apexKeys);
+    private void add(Map<String, Object> fields, String key, Object value, Boolean alwaysList) {
         Object existing = fields.get(key);
         if (existing instanceof List<Object>) {
             ((List<Object>) existing).add(value);
         } else if (fields.containsKey(key)) {
             fields.put(key, new List<Object>{ existing, value });
-        } else if (this.listElements.contains(name)) {
+        } else if (alwaysList) {
             fields.put(key, new List<Object>{ value });
         } else {
             fields.put(key, value);
@@ -140,5 +195,25 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
             return false;
         }
         return text;
+    }
+
+    private class ConversionOptions {
+        public final Boolean apexKeys;
+        private final Set<String> listElements;
+
+        public ConversionOptions(Boolean apexKeys, Set<String> listElements) {
+            this.apexKeys = apexKeys;
+            this.listElements = new Set<String>(listElements);
+        }
+
+        public void addListElements(Set<String> elementNames) {
+            if (elementNames != null) {
+                this.listElements.addAll(elementNames);
+            }
+        }
+
+        public Boolean isListElement(String name) {
+            return this.listElements.contains(name);
+        }
     }
 }
