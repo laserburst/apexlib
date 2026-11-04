@@ -43,16 +43,18 @@ private class CalloutXmlParser_Test {
     @IsTest
     static void testDeserializeToApexType() {
         TypedOrder order =
-            (TypedOrder) new CalloutXmlParser().deserialize(
-                load(
-                    '<order xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" _Id="7" unit-price="5.50">'
-                    + '<paid xsi:type="xsd:boolean">true</paid><discount xsi:nil="true"/>'
-                    + '<Item><qty>2</qty><gift-tag>new</gift-tag></Item>'
-                    + '<shipment><item><qty>3</qty></item><label>fragile</label></shipment>'
-                    + '</order>'
-                ),
-                TypedOrder.class
-            );
+            (TypedOrder) new CalloutXmlParser()
+                .withListElements(new Set<String>{ 'gift_tag' })
+                .deserialize(
+                    load(
+                        '<order xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" _Id="7" unit-price="5.50">'
+                        + '<paid xsi:type="xsd:boolean">true</paid><discount xsi:nil="true"/>'
+                        + '<Item><qty>2</qty><gift-tag>new</gift-tag></Item>'
+                        + '<shipment><item><qty>3</qty></item><label>fragile</label></shipment>'
+                        + '</order>'
+                    ),
+                    TypedOrder.class
+                );
 
         Assert.areEqual(7, order.Id, 'A leading underscore should be removed from a key');
         Assert.areEqual(5.50, order.unit_price, 'A hyphen should become an underscore');
@@ -72,7 +74,7 @@ private class CalloutXmlParser_Test {
         Assert.areEqual(
             new List<String>{ 'new' },
             order.item[0].gift_tag,
-            'An element getListElements() names by its key should be a List'
+            'An element withListElements() names by its key should be a List'
         );
     }
 
@@ -119,17 +121,13 @@ private class CalloutXmlParser_Test {
         return document;
     }
 
-    public class TypedOrder implements CalloutXmlDeserializable {
+    public class TypedOrder {
         public Integer Id;
         public Decimal unit_price;
         public Boolean paid;
         public Decimal discount;
         public List<TypedItem> item = new List<TypedItem>();
         public TypedShipment shipment = new TypedShipment();
-
-        public Set<String> getListElements() {
-            return new Set<String>{ 'gift_tag' };
-        }
     }
 
     public class TypedItem {

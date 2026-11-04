@@ -29,7 +29,7 @@ Establishing unified callout approach with basic response handling backed in.
 7. [CalloutCollection](CalloutCollection.cls) - virtual class which is bundling many CalloutBuilder instances, callout preparation and post processing for [CalloutBuilderQueueable](CalloutCollection.cls).
 8. [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) - a class to build multipart requests to enable sending files. It's used in `withFile()` method of the CalloutBuilder, and may be used separately. **NOTE:** It's recommended to send files up to 5 Mb: the whole form must fit the callout request size limit, which is 10 Mb in synchronous Apex since Winter '27.
 9. [MimeType](MimeType.cls) - a class to resolve popular mime types by file extension. It's used by [CalloutHexFormBuilder](CalloutHexFormBuilder.cls) and can be helpful by itself.
-10. [CalloutResponseParser](CalloutResponseParser.cls) - abstract class for reading a response body into a `Map<String, Object>` or an Apex type. [CalloutJsonParser](CalloutJsonParser.cls) and [CalloutXmlParser](CalloutXmlParser.cls) extend it; `CalloutXmlParser` also loads XML into a `Dom.Document`. Pass one to `withResponseParser()`. A success or error type implements [CalloutXmlDeserializable](CalloutXmlDeserializable.cls) to name the XML elements that are Lists.
+10. [CalloutResponseParser](CalloutResponseParser.cls) - abstract class for reading a response body into a `Map<String, Object>` or an Apex type. [CalloutJsonParser](CalloutJsonParser.cls) and [CalloutXmlParser](CalloutXmlParser.cls) extend it; `CalloutXmlParser` also loads XML into a `Dom.Document`. Pass one to `withResponseParser()`.
 
 ## Examples (illustrative)
 

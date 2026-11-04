@@ -2,9 +2,8 @@
  * @description Parses XML into a Dom.Document that keeps CDATA content, a Map<String, Object> or an Apex type.
  * - Child elements and attributes become keys without namespace prefixes; a child element wins over an attribute of the same name.
  * - A repeated child element becomes a List. One that occurs once is a List when withListElements() names it,
- * by XML name or key, matching case, at any depth; under deserialize() also when the type's
- * CalloutXmlDeserializable.getListElements() does, or when a new instance of the type initializes that List field,
- * at that field's path only.
+ * by XML name or key, matching case, at any depth, or under deserialize() when a new instance of the type
+ * initializes that List field, at that field's path only.
  * - An element without attributes and child elements becomes its text: 'true' and 'false' become Booleans, blank text becomes null.
  * - Text next to attributes or child elements is kept under the key 'text'.
  * - xsi attributes, such as xsi:nil and xsi:type, don't become keys.
@@ -45,7 +44,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     }
 
     public Map<String, Object> deserializeUntyped(Dom.XmlNode element) {
-        return this.toMap(element, new ConversionOptions(false, this.listElements), NO_INITIALIZED_FIELDS);
+        return this.toMap(element, false, NO_INITIALIZED_FIELDS);
     }
 
     public override Object deserialize(String body, System.Type apexType) {
@@ -57,9 +56,8 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     }
 
     public Object deserialize(Dom.XmlNode element, System.Type apexType) {
-        ConversionOptions options = new ConversionOptions(true, this.listElements);
-        Map<String, Object> initializedFields = options.learnFrom(apexType);
-        return JSON.deserialize(JSON.serialize(this.toMap(element, options, initializedFields)), apexType);
+        Map<String, Object> initializedFields = learnFromType(apexType);
+        return JSON.deserialize(JSON.serialize(this.toMap(element, true, initializedFields)), apexType);
     }
 
     // Dom.Document.load() drops CDATA content
@@ -79,6 +77,16 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         }
         parts.add(xml.substring(position));
         return String.join(parts, '');
+    }
+
+    // any Exception: the type's constructor and getters may throw anything
+    private static Map<String, Object> learnFromType(System.Type apexType) {
+        try {
+            Object instance = apexType.newInstance();
+            return toInitializedFields((Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(instance)));
+        } catch (Exception e) {
+            return NO_INITIALIZED_FIELDS;
+        }
     }
 
     private static Map<String, Object> toInitializedFields(Map<String, Object> serializedFields) {
@@ -112,30 +120,33 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         return NO_INITIALIZED_FIELDS;
     }
 
-    private Map<String, Object> toMap(
-        Dom.XmlNode element,
-        ConversionOptions options,
-        Map<String, Object> initializedFields
-    ) {
-        Object value = this.convert(element, options, initializedFields);
+    private Boolean isListElement(String name, String key) {
+        return this.listElements.contains(name) || this.listElements.contains(key);
+    }
+
+    private Map<String, Object> toMap(Dom.XmlNode element, Boolean apexKeys, Map<String, Object> initializedFields) {
+        Object value = this.convert(element, apexKeys, initializedFields);
         if (value instanceof Map<String, Object>) {
             return (Map<String, Object>) value;
         }
         return new Map<String, Object>{ TEXT_KEY => value };
     }
 
-    private Object convert(Dom.XmlNode element, ConversionOptions options, Map<String, Object> initializedFields) {
+    private Object convert(Dom.XmlNode element, Boolean apexKeys, Map<String, Object> initializedFields) {
         Map<String, Object> fields = new Map<String, Object>();
         Boolean hasInitializedFields = !initializedFields.isEmpty();
         for (Dom.XmlNode child : element.getChildElements()) {
             String name = child.getName();
-            String key = this.toKey(name, options.apexKeys);
-            Object initializedField = null;
+            String key = this.toKey(name, apexKeys);
+            Boolean alwaysList = this.isListElement(name, key);
+            Map<String, Object> nestedInitializedFields = NO_INITIALIZED_FIELDS;
             if (hasInitializedFields) {
-                initializedField = getInitializedField(initializedFields, key);
+                Object initializedField = getInitializedField(initializedFields, key);
+                alwaysList = alwaysList || isListField(initializedField);
+                nestedInitializedFields = getNestedInitializedFields(initializedField);
             }
-            Object value = this.convert(child, options, getNestedInitializedFields(initializedField));
-            this.add(fields, key, value, isListField(initializedField) || options.isListElement(name, key));
+            Object value = this.convert(child, apexKeys, nestedInitializedFields);
+            this.add(fields, key, value, alwaysList);
         }
         for (Integer i = 0; i < element.getAttributeCount(); i++) {
             String namespace = element.getAttributeKeyNsAt(i);
@@ -143,7 +154,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
                 continue;
             }
             String name = element.getAttributeKeyAt(i);
-            String key = this.toKey(name, options.apexKeys);
+            String key = this.toKey(name, apexKeys);
             if (!fields.containsKey(key)) {
                 fields.put(key, this.toValue(name, element.getAttributeValue(name, namespace)));
             }
@@ -190,38 +201,5 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
             return false;
         }
         return text;
-    }
-
-    private class ConversionOptions {
-        public final Boolean apexKeys;
-        private final Set<String> listElements;
-
-        public ConversionOptions(Boolean apexKeys, Set<String> listElements) {
-            this.apexKeys = apexKeys;
-            this.listElements = new Set<String>(listElements);
-        }
-
-        // any Exception: the type's constructor, getters and getListElements() may throw anything
-        public Map<String, Object> learnFrom(System.Type apexType) {
-            try {
-                Object instance = apexType.newInstance();
-                if (instance instanceof CalloutXmlDeserializable) {
-                    this.addListElements(((CalloutXmlDeserializable) instance).getListElements());
-                }
-                return toInitializedFields((Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(instance)));
-            } catch (Exception e) {
-                return NO_INITIALIZED_FIELDS;
-            }
-        }
-
-        public Boolean isListElement(String name, String key) {
-            return this.listElements.contains(name) || this.listElements.contains(key);
-        }
-
-        private void addListElements(Set<String> elementNames) {
-            if (elementNames != null) {
-                this.listElements.addAll(elementNames);
-            }
-        }
     }
 }
