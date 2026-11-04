@@ -48,7 +48,9 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     }
 
     public override Object deserialize(String body, System.Type apexType) {
-        return this.deserialize(load(body), apexType);
+        // not the Dom.Document overload: it would hold the tree and the JSON string on the heap at once
+        Map<String, Object> fields = this.toApexMap(load(body).getRootElement(), apexType);
+        return JSON.deserialize(JSON.serialize(fields), apexType);
     }
 
     public Object deserialize(Dom.Document document, System.Type apexType) {
@@ -56,8 +58,8 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     }
 
     public Object deserialize(Dom.XmlNode element, System.Type apexType) {
-        Map<String, Object> initializedFields = learnFromType(apexType);
-        return JSON.deserialize(JSON.serialize(this.toMap(element, true, initializedFields)), apexType);
+        Map<String, Object> fields = this.toApexMap(element, apexType);
+        return JSON.deserialize(JSON.serialize(fields), apexType);
     }
 
     // Dom.Document.load() drops CDATA content
@@ -122,6 +124,10 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
 
     private Boolean isListElement(String name, String key) {
         return this.listElements.contains(name) || this.listElements.contains(key);
+    }
+
+    private Map<String, Object> toApexMap(Dom.XmlNode element, System.Type apexType) {
+        return this.toMap(element, true, learnFromType(apexType));
     }
 
     private Map<String, Object> toMap(Dom.XmlNode element, Boolean apexKeys, Map<String, Object> initializedFields) {
