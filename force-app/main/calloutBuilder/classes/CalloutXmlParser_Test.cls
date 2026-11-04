@@ -151,7 +151,7 @@ private class CalloutXmlParser_Test {
     private class IndicatorParser extends CalloutXmlParser {
         private final Set<String> indicators = new Set<String>{ 'Paid', 'Shipped' };
 
-        protected override String toKey(String name, Boolean apexKeys) {
+        protected override String toKey(String name) {
             return name.toLowerCase();
         }
 

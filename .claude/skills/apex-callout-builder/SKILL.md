@@ -48,7 +48,7 @@ For XML, `getTypedResponseBody()`, `getResponseBodyMap()` and the `withErrorType
 - `deserialize()` turns keys into valid Apex names: `_Value` becomes `Value`, and `unit-price` becomes `unit_price`.
 - Apex classes for `deserialize()` can't have `Object` or `List<Object>` fields, because `JSON.deserialize` rejects them. Type the parts you need and leave the rest out.
 - `withResponseParser()` takes any `CalloutResponseParser`, the abstract class `CalloutJsonParser` and `CalloutXmlParser` extend. Extend it yourself for another format, or extend `CalloutJsonParser` for JSON that needs custom handling.
-- For API-specific conventions, extend `CalloutXmlParser` and override `protected toValue(String name, String text)` to convert the text of named elements or attributes (for example, `Y`/`N` indicator fields into Booleans) or `protected toKey(String name, Boolean apexKeys)` to rename keys. Call `super` for everything else, and pass the subclass to `withResponseParser()`.
+- For API-specific conventions, extend `CalloutXmlParser` and override `protected toValue(String name, String text)` to convert the text of named elements or attributes (for example, `Y`/`N` indicator fields into Booleans) or `protected toKey(String name)` to rename keys, which `deserialize()` then turns into Apex names. Call `super` for everything else, and pass the subclass to `withResponseParser()`.
 
 ---
 
