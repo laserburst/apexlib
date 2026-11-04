@@ -1,18 +1,9 @@
 /**
- * @description Parses XML into a Dom.Document that keeps CDATA content, a Map<String, Object> or an Apex type.
- * - Child elements and attributes become keys without namespace prefixes; a child element wins over an attribute of the same name.
- * - A repeated child element becomes a List. One that occurs once is a List when withListElements() names it,
- * by XML name or key, matching case, at any depth, or under deserialize() when a new instance of the type
- * initializes that List field, at that field's path only.
- * - An element without attributes and child elements becomes its text: 'true' and 'false' become Booleans, blank text becomes null.
- * - Text next to attributes or child elements is kept under the key 'text'.
- * - xsi attributes, such as xsi:nil and xsi:type, don't become keys.
- * - deserialize() turns keys into Apex names: unit-price becomes unit_price, and _Value becomes Value.
- * - Subclasses override toKey() to name keys, which deserialize() then turns into Apex names,
- * and toValue() to convert the text of a named element or attribute.
+ * @description Parses XML into a Map<String, Object> or an Apex type.
  * @team Laserburst
  */
 public virtual class CalloutXmlParser extends CalloutResponseParser {
+    // text next to attributes or child elements, and a root's text when it has neither
     private static final String TEXT_KEY = 'text';
     private static final String CDATA_START = '<![CDATA[';
     private static final String CDATA_END = ']]>';
@@ -25,12 +16,20 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
 
     private final Set<String> listElements = new Set<String>();
 
+    /**
+     * @description load returns a Dom.Document that keeps CDATA content, which Dom.Document.load() drops
+     */
     public static Dom.Document load(String xml) {
         Dom.Document document = new Dom.Document();
         document.load(escapeCdata(xml));
         return document;
     }
 
+    /**
+     * @description withListElements makes an element that occurs once a List when elementNames holds its
+     * XML name or key, such as line-item or, under deserialize(), line_item, matching case at any depth.
+     * XML has no array marker, so without it such an element becomes an object or a value.
+     */
     public CalloutXmlParser withListElements(Set<String> elementNames) {
         this.listElements.addAll(elementNames);
         return this;
@@ -63,7 +62,6 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         return JSON.deserialize(JSON.serialize(fields), apexType);
     }
 
-    // Dom.Document.load() drops CDATA content
     private static String escapeCdata(String xml) {
         List<String> parts = new List<String>();
         Integer position = 0;
@@ -82,7 +80,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         return String.join(parts, '');
     }
 
-    // any Exception: the type's constructor and getters may throw anything
+    // runs the type's constructor and getters on every call, and they may throw anything
     private static ApexTarget learnFromType(System.Type apexType) {
         try {
             Object instance = apexType.newInstance();
@@ -108,6 +106,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         return new Map<String, Object>{ TEXT_KEY => value };
     }
 
+    // getName() and getAttributeKeyAt() leave out namespace prefixes
     private Object convert(Dom.XmlNode element, MapTarget target) {
         ElementFields fields = new ElementFields();
         for (Dom.XmlNode child : element.getChildElements()) {
@@ -140,15 +139,22 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         return fields.values;
     }
 
+    /**
+     * @description toKey names the key of an element or attribute; deserialize() then turns it into an Apex name
+     */
     protected virtual String toKey(String name) {
         return name;
     }
 
-    // String == ignores case, so 'TRUE' must not become a Boolean
+    /**
+     * @description toValue converts the text of a named element or attribute:
+     * 'true' and 'false' become Booleans, and blank text becomes null
+     */
     protected virtual Object toValue(String name, String text) {
         if (String.isBlank(text)) {
             return null;
         }
+        // String == ignores case, so 'TRUE' must not become a Boolean
         if (text.equals('true')) {
             return true;
         }
@@ -170,6 +176,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         }
     }
 
+    // knows only the List fields a new instance initializes, at their own path and not inside List elements
     private class ApexTarget extends MapTarget {
         private final Map<String, ApexTarget> fields = new Map<String, ApexTarget>();
 
@@ -186,6 +193,7 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
             }
         }
 
+        // unit-price becomes unit_price, and _Value becomes Value
         public override String toFieldName(String key) {
             return key.replaceAll('[^A-Za-z0-9_]', '_').replaceAll('_+', '_').replaceAll('^_|_$', '');
         }
