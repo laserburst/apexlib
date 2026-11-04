@@ -47,7 +47,7 @@ private class CalloutXmlParser_Test {
                 load(
                     '<order xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" _Id="7" unit-price="5.50">'
                     + '<paid xsi:type="xsd:boolean">true</paid><discount xsi:nil="true"/>'
-                    + '<Item><qty>2</qty><tag>new</tag></Item>'
+                    + '<Item><qty>2</qty><gift-tag>new</gift-tag></Item>'
                     + '<shipment><item><qty>3</qty></item><label>fragile</label></shipment>'
                     + '</order>'
                 ),
@@ -71,8 +71,8 @@ private class CalloutXmlParser_Test {
         Assert.areEqual(3, order.shipment.item.qty, 'A learned List field should apply at its own path only');
         Assert.areEqual(
             new List<String>{ 'new' },
-            order.item[0].tag,
-            'An element getListElements() names should be a List'
+            order.item[0].gift_tag,
+            'An element getListElements() names by its key should be a List'
         );
     }
 
@@ -128,13 +128,13 @@ private class CalloutXmlParser_Test {
         public TypedShipment shipment = new TypedShipment();
 
         public Set<String> getListElements() {
-            return new Set<String>{ 'tag' };
+            return new Set<String>{ 'gift_tag' };
         }
     }
 
     public class TypedItem {
         public Integer qty;
-        public List<String> tag;
+        public List<String> gift_tag;
     }
 
     public class TypedShipment {
