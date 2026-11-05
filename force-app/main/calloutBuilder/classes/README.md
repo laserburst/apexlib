@@ -8,6 +8,7 @@
   - [Concrete Type](#concrete-type)
   - [Path Parameters](#path-parameters)
   - [Response Body Map With Query Parameters](#response-body-map-with-query-parameters)
+  - [XML](#xml)
   - [Sending Files](#sending-files-openai-assistants-api-example)
   - [Guardrails](#guardrails)
   - [Response Sanitizers](#response-sanitizers)
@@ -105,9 +106,37 @@ Map<String, Object> responseBody = cb.getResponseBodyMap();
 
 #### Request Body Note
 
-If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters — whatever the body's type.
+If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters — whatever the body's type. A `String` body is sent as-is when a non-JSON Content-Type is set.
 
-A `String` body is sent as-is when a non-JSON Content-Type is set, and a `Dom.Document` body is sent as XML. `getXmlResponseBody()` returns an XML response as a `Dom.Document`, and `getTypedResponseBody()` reads it into an Apex type. Initialize its List fields, `public List<Item> item = new List<Item>();`, so that a single element still becomes a List:
+### XML
+
+`getTypedResponseBody()` reads a response with an XML Content-Type into an Apex type:
+
+```xml
+<order id="42">
+    <status>open</status>
+    <item>A-1</item>
+</order>
+```
+
+```Java (Apex)
+public class OrderResponse {
+    public String id;
+    public String status;
+    public List<String> item = new List<String>();
+}
+
+OrderResponse order = (OrderResponse) new CalloutBuilder('callout:OrdersApi')
+    .withEndpoint('/orders/{id}')
+    .withPathParameter('id', orderId)
+    .withSuccessType(OrderResponse.class)
+    .getTypedResponseBody();
+```
+
+- Initialize the type's List fields, **`public List<String> item = new List<String>();`**, so that a single element becomes a List instead of failing deserialization.
+- Even initialized, a List field is `null` when its element is absent.
+
+`getXmlResponseBody()` returns an XML response as a `Dom.Document`. A `Dom.Document` body is sent as XML, and so is a `String` body with an XML Content-Type:
 
 ```Java (Apex)
 Dom.Document response = new CalloutBuilder('callout:OrdersApi')
@@ -117,13 +146,9 @@ Dom.Document response = new CalloutBuilder('callout:OrdersApi')
     .withBody('<order><id>' + orderId.escapeXml() + '</id></order>')
     .getXmlResponseBody();
 String status = response.getRootElement().getChildElement('status', null).getText();
-
-OrderResponse order = (OrderResponse) new CalloutBuilder('callout:OrdersApi')
-    .withEndpoint('/orders/{id}')
-    .withPathParameter('id', orderId)
-    .withSuccessType(OrderResponse.class)
-    .getTypedResponseBody();
 ```
+
+[Full XML Example](example/ExampleXmlApi.cls)
 
 ### Sending Files _(OpenAI Assistants API Example)_
 
