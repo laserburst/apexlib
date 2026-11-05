@@ -44,11 +44,13 @@ private class CalloutXmlParser_Test {
     static void testDeserializeToApexType() {
         TypedOrder order =
             (TypedOrder) new CalloutXmlParser()
-                .withListElements(new Set<String>{ 'item' })
+                .withListElements(new Set<String>{ 'gift_tag' })
                 .deserialize(
                     load(
                         '<order xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" _Id="7" unit-price="5.50">'
-                        + '<paid xsi:type="xsd:boolean">true</paid><discount xsi:nil="true"/><item><qty>2</qty></item>'
+                        + '<paid xsi:type="xsd:boolean">true</paid><discount xsi:nil="true"/>'
+                        + '<Item><qty>2</qty><gift-tag>new</gift-tag></Item>'
+                        + '<shipment><item><qty>3</qty></item><label>fragile</label></shipment>'
                         + '</order>'
                     ),
                     TypedOrder.class
@@ -58,7 +60,36 @@ private class CalloutXmlParser_Test {
         Assert.areEqual(5.50, order.unit_price, 'A hyphen should become an underscore');
         Assert.isTrue(order.paid, 'An xsi:type attribute should not become a key');
         Assert.isNull(order.discount, 'An xsi:nil element should become null');
-        Assert.areEqual(2, order.item[0].qty, 'A list element should deserialize into a List field');
+        Assert.areEqual(
+            2,
+            order.item[0].qty,
+            'An initialized List field should be a List when its element occurs once, matched ignoring case'
+        );
+        Assert.areEqual(
+            new List<String>{ 'fragile' },
+            order.shipment.label,
+            'An initialized List field of an initialized object should be a List'
+        );
+        Assert.areEqual(3, order.shipment.item.qty, 'A learned List field should apply at its own path only');
+        Assert.areEqual(
+            new List<String>{ 'new' },
+            order.item[0].gift_tag,
+            'An element withListElements() names by its key should be a List'
+        );
+    }
+
+    @IsTest
+    static void testDeserializeWithoutNoArgConstructor() {
+        NoDefaultConstructor result =
+            (NoDefaultConstructor) new CalloutXmlParser()
+                .withListElements(new Set<String>{ 'tag' })
+                .deserialize(load('<a><tag>x</tag></a>'), NoDefaultConstructor.class);
+
+        Assert.areEqual(
+            new List<String>{ 'x' },
+            result.tag,
+            'withListElements() should apply without a no-arg constructor'
+        );
     }
 
     @IsTest
@@ -95,17 +126,32 @@ private class CalloutXmlParser_Test {
         public Decimal unit_price;
         public Boolean paid;
         public Decimal discount;
-        public List<TypedItem> item;
+        public List<TypedItem> item = new List<TypedItem>();
+        public TypedShipment shipment = new TypedShipment();
     }
 
     public class TypedItem {
         public Integer qty;
+        public List<String> gift_tag;
+    }
+
+    public class TypedShipment {
+        public TypedItem item;
+        public List<String> label = new List<String>();
+    }
+
+    public class NoDefaultConstructor {
+        public List<String> tag;
+
+        public NoDefaultConstructor(List<String> tag) {
+            this.tag = tag;
+        }
     }
 
     private class IndicatorParser extends CalloutXmlParser {
         private final Set<String> indicators = new Set<String>{ 'Paid', 'Shipped' };
 
-        protected override String toKey(String name, Boolean apexKeys) {
+        protected override String toKey(String name) {
             return name.toLowerCase();
         }
 

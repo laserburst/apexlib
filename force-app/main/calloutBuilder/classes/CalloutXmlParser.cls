@@ -1,30 +1,35 @@
 /**
- * @description Parses XML into a Dom.Document that keeps CDATA content, a Map<String, Object> or an Apex type.
- * - Child elements and attributes become keys without namespace prefixes; a child element wins over an attribute of the same name.
- * - A repeated element becomes a List; an element named in withListElements() is a List even when it occurs once.
- * - An element without attributes and child elements becomes its text: 'true' and 'false' become Booleans, blank text becomes null.
- * - Text next to attributes or child elements is kept under the key 'text'.
- * - xsi attributes, such as xsi:nil and xsi:type, don't become keys.
- * - deserialize() turns keys into Apex names: unit-price becomes unit_price, and _Value becomes Value.
- * - Subclasses override toKey() to name keys (apexKeys is true under deserialize())
- * and toValue() to convert the text of a named element or attribute.
+ * @description Parses XML into a Map<String, Object> or an Apex type.
  * @team Laserburst
  */
 public virtual class CalloutXmlParser extends CalloutResponseParser {
+    // text next to attributes or child elements, and a root's text when it has neither
     private static final String TEXT_KEY = 'text';
     private static final String CDATA_START = '<![CDATA[';
     private static final String CDATA_END = ']]>';
     // xsi:nil and xsi:type describe a value rather than add a field
     private static final String XSI_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-instance';
+    // JSON.deserialize() matches field names ignoring case; a fixed locale keeps 'I' from becoming a dotless 'ı'
+    private static final String FIELD_NAME_LOCALE = 'en';
+    private static final Target MAP_TARGET = new Target();
+    private static final ApexTarget UNKNOWN_FIELD = new ApexTarget();
 
     private final Set<String> listElements = new Set<String>();
 
+    /**
+     * @description load returns a Dom.Document that keeps CDATA content, which Dom.Document.load() drops
+     */
     public static Dom.Document load(String xml) {
         Dom.Document document = new Dom.Document();
         document.load(escapeCdata(xml));
         return document;
     }
 
+    /**
+     * @description withListElements makes an element that occurs once a List when elementNames holds its
+     * XML name or key, such as line-item or, under deserialize(), line_item, matching case at any depth.
+     * XML has no array marker, so without it such an element becomes an object or a value.
+     */
     public CalloutXmlParser withListElements(Set<String> elementNames) {
         this.listElements.addAll(elementNames);
         return this;
@@ -39,11 +44,13 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     }
 
     public Map<String, Object> deserializeUntyped(Dom.XmlNode element) {
-        return this.toMap(element, false);
+        return this.toMap(element, MAP_TARGET);
     }
 
     public override Object deserialize(String body, System.Type apexType) {
-        return this.deserialize(load(body), apexType);
+        // not the Dom.Document overload: it would hold the tree and the JSON string on the heap at once
+        Map<String, Object> fields = this.toApexMap(load(body).getRootElement(), apexType);
+        return JSON.deserialize(JSON.serialize(fields), apexType);
     }
 
     public Object deserialize(Dom.Document document, System.Type apexType) {
@@ -51,10 +58,10 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
     }
 
     public Object deserialize(Dom.XmlNode element, System.Type apexType) {
-        return JSON.deserialize(JSON.serialize(this.toMap(element, true)), apexType);
+        Map<String, Object> fields = this.toApexMap(element, apexType);
+        return JSON.deserialize(JSON.serialize(fields), apexType);
     }
 
-    // Dom.Document.load() drops CDATA content
     private static String escapeCdata(String xml) {
         List<String> parts = new List<String>();
         Integer position = 0;
@@ -73,18 +80,45 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
         return String.join(parts, '');
     }
 
-    private Map<String, Object> toMap(Dom.XmlNode element, Boolean apexKeys) {
-        Object value = this.convert(element, apexKeys);
+    // runs the type's constructor and getters on every call, and they may throw anything
+    private static ApexTarget toApexTarget(System.Type apexType) {
+        try {
+            Object instance = apexType.newInstance();
+            return new ApexTarget(JSON.deserializeUntyped(JSON.serialize(instance)));
+        } catch (Exception e) {
+            return UNKNOWN_FIELD;
+        }
+    }
+
+    private Boolean isNamedListElement(String name, String key) {
+        return this.listElements.contains(name) || this.listElements.contains(key);
+    }
+
+    private Map<String, Object> toApexMap(Dom.XmlNode element, System.Type apexType) {
+        return this.toMap(element, toApexTarget(apexType));
+    }
+
+    private Map<String, Object> toMap(Dom.XmlNode element, Target target) {
+        Object value = this.toElementValue(element, target);
         if (value instanceof Map<String, Object>) {
             return (Map<String, Object>) value;
         }
         return new Map<String, Object>{ TEXT_KEY => value };
     }
 
-    private Object convert(Dom.XmlNode element, Boolean apexKeys) {
-        Map<String, Object> fields = new Map<String, Object>();
+    // getName() and getAttributeKeyAt() leave out namespace prefixes
+    private Object toElementValue(Dom.XmlNode element, Target target) {
+        ElementFields fields = new ElementFields();
         for (Dom.XmlNode child : element.getChildElements()) {
-            this.add(fields, child.getName(), this.convert(child, apexKeys), apexKeys);
+            String name = child.getName();
+            String key = target.toFieldName(this.toKey(name));
+            Target childTarget = target.get(key);
+            Object value = this.toElementValue(child, childTarget);
+            if (childTarget.isList || this.isNamedListElement(name, key)) {
+                fields.addListElement(key, value);
+            } else {
+                fields.addElement(key, value);
+            }
         }
         for (Integer i = 0; i < element.getAttributeCount(); i++) {
             String namespace = element.getAttributeKeyNsAt(i);
@@ -92,47 +126,35 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
                 continue;
             }
             String name = element.getAttributeKeyAt(i);
-            String key = this.toKey(name, apexKeys);
-            if (!fields.containsKey(key)) {
-                fields.put(key, this.toValue(name, element.getAttributeValue(name, namespace)));
-            }
+            String key = target.toFieldName(this.toKey(name));
+            fields.addAttribute(key, this.toValue(name, element.getAttributeValue(name, namespace)));
         }
         String text = element.getText();
-        if (fields.isEmpty()) {
+        if (fields.values.isEmpty()) {
             return this.toValue(element.getName(), text);
         }
         if (String.isNotBlank(text)) {
-            fields.put(TEXT_KEY, this.toValue(element.getName(), text));
+            fields.addText(this.toValue(element.getName(), text));
         }
-        return fields;
+        return fields.values;
     }
 
-    private void add(Map<String, Object> fields, String name, Object value, Boolean apexKeys) {
-        String key = this.toKey(name, apexKeys);
-        Object existing = fields.get(key);
-        if (existing instanceof List<Object>) {
-            ((List<Object>) existing).add(value);
-        } else if (fields.containsKey(key)) {
-            fields.put(key, new List<Object>{ existing, value });
-        } else if (this.listElements.contains(name)) {
-            fields.put(key, new List<Object>{ value });
-        } else {
-            fields.put(key, value);
-        }
+    /**
+     * @description toKey names the key of an element or attribute; deserialize() then turns it into an Apex name
+     */
+    protected virtual String toKey(String name) {
+        return name;
     }
 
-    protected virtual String toKey(String name, Boolean apexKeys) {
-        if (!apexKeys) {
-            return name;
-        }
-        return name.replaceAll('[^A-Za-z0-9_]', '_').replaceAll('_+', '_').replaceAll('^_|_$', '');
-    }
-
-    // String == ignores case, so 'TRUE' must not become a Boolean
+    /**
+     * @description toValue converts the text of a named element or attribute:
+     * 'true' and 'false' become Booleans, and blank text becomes null
+     */
     protected virtual Object toValue(String name, String text) {
         if (String.isBlank(text)) {
             return null;
         }
+        // String == ignores case, so 'TRUE' must not become a Boolean
         if (text.equals('true')) {
             return true;
         }
@@ -140,5 +162,77 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
             return false;
         }
         return text;
+    }
+
+    private virtual class Target {
+        private Boolean isList = false;
+
+        public virtual String toFieldName(String key) {
+            return key;
+        }
+
+        public virtual Target get(String key) {
+            return this;
+        }
+    }
+
+    // knows only the List fields a new instance initializes, at their own path and not inside List elements
+    private class ApexTarget extends Target {
+        private final Map<String, ApexTarget> fields = new Map<String, ApexTarget>();
+
+        private ApexTarget() {
+        }
+
+        private ApexTarget(Object serializedValue) {
+            this.isList = serializedValue instanceof List<Object>;
+            if (serializedValue instanceof Map<String, Object>) {
+                Map<String, Object> serializedFields = (Map<String, Object>) serializedValue;
+                for (String name : serializedFields.keySet()) {
+                    this.fields.put(name.toLowerCase(FIELD_NAME_LOCALE), new ApexTarget(serializedFields.get(name)));
+                }
+            }
+        }
+
+        // unit-price becomes unit_price, and _Value becomes Value
+        public override String toFieldName(String key) {
+            return key.replaceAll('[^A-Za-z0-9_]', '_').replaceAll('_+', '_').replaceAll('^_|_$', '');
+        }
+
+        public override Target get(String key) {
+            return this.fields.get(key.toLowerCase(FIELD_NAME_LOCALE)) ?? UNKNOWN_FIELD;
+        }
+    }
+
+    // child elements first: a child element wins over an attribute of the same name
+    private class ElementFields {
+        private final Map<String, Object> values = new Map<String, Object>();
+
+        private void addElement(String key, Object value) {
+            Object existing = this.values.get(key);
+            if (existing instanceof List<Object>) {
+                ((List<Object>) existing).add(value);
+            } else if (this.values.containsKey(key)) {
+                this.values.put(key, new List<Object>{ existing, value });
+            } else {
+                this.values.put(key, value);
+            }
+        }
+
+        private void addListElement(String key, Object value) {
+            if (!this.values.containsKey(key)) {
+                this.values.put(key, new List<Object>());
+            }
+            this.addElement(key, value);
+        }
+
+        private void addAttribute(String key, Object value) {
+            if (!this.values.containsKey(key)) {
+                this.values.put(key, value);
+            }
+        }
+
+        private void addText(Object value) {
+            this.values.put(TEXT_KEY, value);
+        }
     }
 }
