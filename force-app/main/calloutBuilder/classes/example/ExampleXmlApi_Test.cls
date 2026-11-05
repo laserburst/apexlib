@@ -7,6 +7,7 @@ private with sharing class ExampleXmlApi_Test {
         Test.stopTest();
 
         Assert.areEqual('Ada', customer.name, 'The customer should be read from XML');
+        Assert.areEqual('Prefers <b>email</b> & mornings', customer.note, 'CDATA content should be read as text');
     }
 
     @IsTest

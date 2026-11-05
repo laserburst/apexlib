@@ -4,10 +4,24 @@
  */
 public with sharing class ExampleXmlApi {
     private static final String NC = 'callout:Example';
-    private static final String CUSTOMER = '<customer id="7"><name>Ada</name><city>London</city></customer>';
-    private static final String ORDER = '<order id="42"><status>open</status><item>A-1</item></order>';
-    private static final String ORDERS =
-        '<orders><order id="42"><status>open</status><item>A-1</item></order></orders>';
+    private static final String CUSTOMER = '''
+        <customer id="7">
+            <name>Ada</name>
+            <city>London</city>
+            <note><![CDATA[Prefers <b>email</b> & mornings]]></note>
+        </customer>''';
+    private static final String ORDER = '''
+        <order id="42">
+            <status>open</status>
+            <item>A-1</item>
+        </order>''';
+    private static final String ORDERS = '''
+        <orders>
+            <order id="42">
+                <status>open</status>
+                <item>A-1</item>
+            </order>
+        </orders>''';
 
     // the response's XML Content-Type selects CalloutXmlParser
     public static Customer getCustomer() {
@@ -38,6 +52,8 @@ public with sharing class ExampleXmlApi {
         public String id;
         public String name;
         public String city;
+        // CDATA content arrives as text, markup included
+        public String note;
     }
 
     public class Order {

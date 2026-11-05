@@ -148,6 +148,8 @@ Dom.Document response = new CalloutBuilder('callout:OrdersApi')
 String status = response.getRootElement().getChildElement('status', null).getText();
 ```
 
+CDATA content is read as the element's text, markup included.
+
 [Full XML Example](example/ExampleXmlApi.cls)
 
 ### Sending Files _(OpenAI Assistants API Example)_
