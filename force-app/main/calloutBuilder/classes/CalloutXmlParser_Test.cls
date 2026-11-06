@@ -93,13 +93,15 @@ private class CalloutXmlParser_Test {
     }
 
     @IsTest
-    static void testLoadRejectsUnterminatedCdata() {
-        try {
-            CalloutXmlParser.load('<note><![CDATA[a</note>');
+    static void testLoadRejectsCutBody() {
+        for (String xml : new List<String>{ '<note><![CDATA[a</note>', '<a><b' }) {
+            try {
+                CalloutXmlParser.load(xml);
 
-            Assert.fail('Expected error not thrown');
-        } catch (XmlException e) {
-            Assert.isNotNull(e.getMessage(), 'Unterminated CDATA should fail to load');
+                Assert.fail('Expected error not thrown for ' + xml);
+            } catch (XmlException e) {
+                Assert.isNotNull(e.getMessage(), xml + ' should fail to load');
+            }
         }
     }
 

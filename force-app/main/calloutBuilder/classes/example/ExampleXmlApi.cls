@@ -48,6 +48,15 @@ public with sharing class ExampleXmlApi {
             .getTypedResponseBody();
     }
 
+    public static Order createOrder(NewOrder newOrder) {
+        return (Order) new CalloutBuilder(NC)
+            .withMethod('POST')
+            .withBody(newOrder)
+            .withSuccessType(Order.class)
+            .withMockIfTest(new XmlMock(ORDER))
+            .getTypedResponseBody();
+    }
+
     public class Customer {
         public String id;
         public String name;
@@ -66,6 +75,30 @@ public with sharing class ExampleXmlApi {
 
     public class Orders {
         public List<Order> order = new List<Order>();
+    }
+
+    public class NewOrder implements CalloutXmlSerializable {
+        public String customerId;
+        public String note;
+        public List<NewOrderItem> items = new List<NewOrderItem>();
+
+        public CalloutXmlBuilder toXmlBuilder() {
+            return new CalloutXmlBuilder('order')
+                .withAttribute('customer', this.customerId)
+                .addOptionalValue('note', this.note)
+                .addChildren(this.items);
+        }
+    }
+
+    public class NewOrderItem implements CalloutXmlSerializable {
+        public String sku;
+        public Integer quantity;
+
+        public CalloutXmlBuilder toXmlBuilder() {
+            return new CalloutXmlBuilder('item')
+                .withAttribute('sku', this.sku)
+                .addValue('quantity', this.quantity);
+        }
     }
 
     private class XmlMock implements HttpCalloutMock {

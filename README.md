@@ -11,6 +11,8 @@
 
 It handles what should have been handled for us long ago. Reduce duplication with CalloutBuilder.
 
+XML support: send Apex objects as XML and read XML responses into Apex types.
+
 ```java
 ExampleResponse.DialogToken token = (ExampleResponse.DialogToken)
     new CalloutBuilder('callout:MyNC')

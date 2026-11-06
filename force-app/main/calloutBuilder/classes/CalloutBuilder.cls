@@ -454,7 +454,7 @@ public virtual with sharing class CalloutBuilder {
     /**
      * @description attachBody sets body of the request, in precedence order:
      * 1. blob
-     * 2. XML (Dom.Document)
+     * 2. XML (Dom.Document or CalloutXmlSerializable)
      * 3. String as-is, when Content-Type is set and is not JSON
      * 4. JSON (a body always wins over query parameters)
      * 5. query parameters (if any and if method is not GET)
@@ -466,6 +466,10 @@ public virtual with sharing class CalloutBuilder {
         } else if (this.body instanceof Dom.Document) {
             // not setBodyDocument(): getBody() would then return an empty string
             this.request.setBody(((Dom.Document) this.body).toXmlString());
+            this.defaultContentType('application/xml');
+        } else if (this.body instanceof CalloutXmlSerializable) {
+            CalloutXmlSerializable xmlBody = (CalloutXmlSerializable) this.body;
+            this.request.setBody(xmlBody.toXmlBuilder().toXmlString());
             this.defaultContentType('application/xml');
         } else if (this.body instanceof String && !this.hasJsonContentType()) {
             this.request.setBody((String) this.body);
