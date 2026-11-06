@@ -77,6 +77,8 @@ public virtual class CalloutXmlParser extends CalloutResponseParser {
             start = xml.indexOf(CDATA_START, position);
         }
         parts.add(xml.substring(position));
+        // a body cut inside a new element's name otherwise makes load() throw an uncatchable UnexpectedException
+        parts.add(' ');
         return String.join(parts, '');
     }
 
