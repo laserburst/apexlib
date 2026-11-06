@@ -131,6 +131,8 @@ new CalloutBuilder('callout:OrdersApi').withMethod('POST').withBody(newOrder).ge
 - Values and attributes take a String, a number or a Boolean. Format dates before adding them: the format belongs to the API.
 - A null value gives an empty element or attribute. `addOptionalValue()` and `withOptionalAttribute()` skip a blank value, `addOptionalChild()` skips null content, and `addChildren()` skips a null list.
 - `addChild(content)` and `addChildren()` keep the name the content gives itself, and `addChild(content)` throws on null content. `addChild(name, content)` replaces that name, for one class under several names, and gives an empty element for null content.
+- Content is read when the XML is written, so one object reused for several children sends its last values in all of them. Create one object per child.
+- Content that contains itself throws `CalloutBuilder.CalloutBuilderException` when the XML is written. Pass the object and not `object.toXmlBuilder()`: a builder made early hides the loop, which then ends in a stack limit error that can't be caught.
 - Only `addChild(name)` returns the child, to add to it now or later; every other method returns the same builder.
 - There is no XML declaration unless it is asked for: `.withBody(newOrder.toXmlBuilder().withXmlDeclaration())`.
 

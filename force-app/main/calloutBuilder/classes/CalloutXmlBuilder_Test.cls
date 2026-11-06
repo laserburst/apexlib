@@ -102,6 +102,33 @@ private class CalloutXmlBuilder_Test {
         );
     }
 
+    @IsTest
+    static void testContentThatContainsItself() {
+        Link first = new Link();
+        Link second = new Link();
+        Link third = new Link();
+        first.next = second;
+        second.next = third;
+
+        Assert.areEqual(
+            '<link><link><link></link></link></link>',
+            first.toXmlBuilder().toXmlString(),
+            'Objects that are equal should not count as a loop'
+        );
+
+        third.next = first;
+        try {
+            first.toXmlBuilder().toXmlString();
+            Assert.fail('Expected error not thrown');
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            Assert.areEqual(
+                'XML content contains itself at <link>',
+                e.getMessage(),
+                'A loop should throw an exception that can be caught'
+            );
+        }
+    }
+
     private static String getExpectedOrder() {
         return toCompactXml('''
             <order id="7" status="" channel="web">
@@ -153,6 +180,19 @@ private class CalloutXmlBuilder_Test {
 
         public CalloutXmlBuilder toXmlBuilder() {
             return new CalloutXmlBuilder('part').withAttribute('sku', this.sku);
+        }
+    }
+
+    private class Link implements CalloutXmlSerializable {
+        private Link next;
+
+        public CalloutXmlBuilder toXmlBuilder() {
+            return new CalloutXmlBuilder('link').addOptionalChild(this.next);
+        }
+
+        // every Link equals every other, so that a check by equals() would report a loop
+        public Boolean equals(Object other) {
+            return true;
         }
     }
 }

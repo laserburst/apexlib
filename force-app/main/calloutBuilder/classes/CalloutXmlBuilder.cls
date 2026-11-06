@@ -15,12 +15,18 @@ public class CalloutXmlBuilder implements CalloutXmlSerializable {
     private final List<CalloutXmlBuilder> children = new List<CalloutXmlBuilder>();
     private String text = '';
     private Boolean hasDeclaration = false;
+    // an object added as a child, built while writing so that a loop is found before the uncatchable stack limit
+    private CalloutXmlSerializable content;
 
     /**
      * @description CalloutXmlBuilder starts an element with this name
      */
     public CalloutXmlBuilder(String name) {
         this.name = name;
+    }
+
+    private CalloutXmlBuilder(CalloutXmlSerializable content) {
+        this.content = content;
     }
 
     /**
@@ -110,23 +116,18 @@ public class CalloutXmlBuilder implements CalloutXmlSerializable {
     }
 
     /**
-     * @description addChild adds the element of content under its own name, and throws on null content
+     * @description addChild adds the element of content under its own name, and toXmlString() throws on null content
      */
     public CalloutXmlBuilder addChild(CalloutXmlSerializable content) {
-        this.children.add(content.toXmlBuilder());
+        this.children.add(new CalloutXmlBuilder(content));
         return this;
     }
 
     /**
-     * @description addChild adds a copy of the element of content under this name,
-     * or an empty element for null content
+     * @description addChild adds the element of content under this name, or an empty element for null content
      */
     public CalloutXmlBuilder addChild(String name, CalloutXmlSerializable content) {
-        if (content == null) {
-            this.addChild(name);
-        } else {
-            this.children.add(content.toXmlBuilder().toCopyNamed(name));
-        }
+        this.addChild(name).content = content;
         return this;
     }
 
@@ -200,39 +201,56 @@ public class CalloutXmlBuilder implements CalloutXmlSerializable {
     }
 
     /**
-     * @description toXmlString writes this element and its children, with no formatting between them
+     * @description toXmlString writes this element and its children, with no formatting between them.
+     * Content is read here, not when it is added.
+     * @throws CalloutBuilder.CalloutBuilderException when content contains itself
      */
     public String toXmlString() {
         XmlStreamWriter writer = new XmlStreamWriter();
         if (this.hasDeclaration) {
             writer.writeStartDocument('UTF-8', '1.0');
         }
-        this.writeTo(writer);
+        this.writeElement(writer, this.name, new List<CalloutXmlSerializable>());
         writer.writeEndDocument();
         String xml = writer.getXmlString();
         writer.close();
         return xml;
     }
 
-    // a copy, so that one element can sit under two names
-    private CalloutXmlBuilder toCopyNamed(String name) {
-        CalloutXmlBuilder copy = new CalloutXmlBuilder(name);
-        copy.attributes.putAll(this.attributes);
-        copy.children.addAll(this.children);
-        copy.text = this.text;
-        return copy;
-    }
-
-    private void writeTo(XmlStreamWriter writer) {
-        writer.writeStartElement(null, this.name, null);
+    private void writeElement(XmlStreamWriter writer, String name, List<CalloutXmlSerializable> ancestors) {
+        writer.writeStartElement(null, name, null);
         for (String attribute : this.attributes.keySet()) {
             writer.writeAttribute(null, null, attribute, this.attributes.get(attribute));
         }
         writer.writeCharacters(this.text);
         for (CalloutXmlBuilder child : this.children) {
-            child.writeTo(writer);
+            if (child.content == null) {
+                child.writeElement(writer, child.name, ancestors);
+            } else {
+                child.writeContent(writer, ancestors);
+            }
         }
         writer.writeEndElement();
+    }
+
+    private void writeContent(XmlStreamWriter writer, List<CalloutXmlSerializable> ancestors) {
+        CalloutXmlBuilder element = this.content.toXmlBuilder();
+        String elementName = this.name ?? element.name;
+        this.detectCycleError(ancestors, elementName);
+        ancestors.add(this.content);
+        element.writeElement(writer, elementName, ancestors);
+        ancestors.remove(ancestors.size() - 1);
+    }
+
+    private void detectCycleError(List<CalloutXmlSerializable> ancestors, String elementName) {
+        for (CalloutXmlSerializable ancestor : ancestors) {
+            // by instance, because two equal objects are not a loop
+            if (ancestor === this.content) {
+                throw new CalloutBuilder.CalloutBuilderException(
+                    'XML content contains itself at <' + elementName + '>'
+                );
+            }
+        }
     }
 
     // XmlStreamWriter throws on null, and replaceAll() hits a LimitException on very long text
