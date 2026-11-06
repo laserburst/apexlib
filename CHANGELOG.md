@@ -1,5 +1,11 @@
 # Changelog
 
+## November 2026
+
+### Added
+
+- **`CalloutXmlBuilder` / `CalloutXmlSerializable`** — build an XML request body whose elements keep the order they are added in; `withBody()` sends a `CalloutXmlSerializable` object as XML ([CalloutXmlBuilder.cls](force-app/main/calloutBuilder/classes/CalloutXmlBuilder.cls), [CalloutXmlSerializable.cls](force-app/main/calloutBuilder/classes/CalloutXmlSerializable.cls))
+
 ## October 2026
 
 ### Added

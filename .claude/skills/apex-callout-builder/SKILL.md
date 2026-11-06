@@ -91,7 +91,48 @@ Every placeholder needs a parameter and every parameter a placeholder; a mismatc
 
 ### Body serialization
 
-`withBody(Object)` serializes the object to JSON via `JSON.serialize` and, when no Content-Type is set, sends `Content-Type: application/json`. To omit null fields, chain `.withSuppressApexObjectNulls(true)`. A `String` body is serialized too, unless a non-JSON Content-Type is set: then it is sent as-is, so XML, CSV or form-encoded strings need `withHeader('Content-Type', ...)`. A `Dom.Document` body is sent as XML, with `Content-Type: application/xml` unless one is set. Use `withBlobBody(Blob)` for binary bodies; it sends `Content-Type: application/octet-stream` unless one is set. For file uploads expecting multipart/form-data, use `withFile()`.
+`withBody(Object)` serializes the object to JSON via `JSON.serialize` and, when no Content-Type is set, sends `Content-Type: application/json`. To omit null fields, chain `.withSuppressApexObjectNulls(true)`. A `String` body is serialized too, unless a non-JSON Content-Type is set: then it is sent as-is, so XML, CSV or form-encoded strings need `withHeader('Content-Type', ...)`. A `Dom.Document` or `CalloutXmlSerializable` body is sent as XML, with `Content-Type: application/xml` unless one is set. Use `withBlobBody(Blob)` for binary bodies; it sends `Content-Type: application/octet-stream` unless one is set. For file uploads expecting multipart/form-data, use `withFile()`.
+
+For an XML request, prefer `CalloutXmlBuilder` to string concatenation. A class implementing `CalloutXmlSerializable` builds and names its own element, and goes to `withBody()` as it is. `CalloutXmlBuilder` implements it too:
+
+```Java (Apex)
+public class OrderLine implements CalloutXmlSerializable {
+    public String sku;
+    public Integer quantity;
+
+    public CalloutXmlBuilder toXmlBuilder() {
+        return new CalloutXmlBuilder('line')
+            .withAttribute('sku', this.sku)
+            .addValue('quantity', this.quantity);
+    }
+}
+
+public class NewOrder implements CalloutXmlSerializable {
+    public String note;
+    public Address shipTo;
+    public Address billTo;
+    public List<OrderLine> lines = new List<OrderLine>();
+
+    public CalloutXmlBuilder toXmlBuilder() {
+        return new CalloutXmlBuilder('order')
+            .withAttribute('xmlns:acme', 'urn:acme')
+            .addOptionalValue('acme:note', this.note)
+            .addChild('shipTo', this.shipTo)
+            .addChild('billTo', this.billTo)
+            .addChildren(this.lines);
+    }
+}
+
+new CalloutBuilder('callout:OrdersApi').withMethod('POST').withBody(newOrder).getXmlResponseBody();
+```
+
+- Elements keep the order they are added in, so an element can repeat with another between. `JSON.serialize` does not keep field order, so don't derive XML from it.
+- Names are written as given: a prefix or an `xmlns` declaration goes in the name, and nothing validates them.
+- Values and attributes take a String, a number or a Boolean. Format dates before adding them: the format belongs to the API.
+- A null value gives an empty element or attribute. `addOptionalValue()` and `withOptionalAttribute()` skip a blank value, `addOptionalChild()` skips null content, and `addChildren()` skips a null list.
+- `addChild(content)` and `addChildren()` keep the name the content gives itself, and `addChild(content)` throws on null content. `addChild(name, content)` replaces that name, for one class under several names, and gives an empty element for null content.
+- Only `addChild(name)` returns the child, to add to it now or later; every other method returns the same builder.
+- There is no XML declaration unless it is asked for: `.withBody(newOrder.toXmlBuilder().withXmlDeclaration())`.
 
 ### Query parameters
 

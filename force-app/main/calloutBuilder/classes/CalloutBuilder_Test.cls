@@ -254,6 +254,7 @@ private class CalloutBuilder_Test {
         CaptureMock jsonMock = new CaptureMock();
         CaptureMock defaultMock = new CaptureMock();
         CaptureMock documentMock = new CaptureMock();
+        CaptureMock serializableMock = new CaptureMock();
         CaptureMock blobMock = new CaptureMock();
         Dom.Document document = new Dom.Document();
         document.createRootElement('item', null, null).addTextNode('kept');
@@ -288,6 +289,12 @@ private class CalloutBuilder_Test {
             new CalloutBuilder('https://example.com')
                 .withEndpoint('/test')
                 .withMethod('POST')
+                .withBody(new DummyXmlBody())
+                .withMockIfTest(serializableMock)
+                .getHttpResponse();
+            new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withMethod('POST')
                 .withBlobBody(Blob.valueOf('x'))
                 .withMockIfTest(blobMock)
                 .getHttpResponse();
@@ -304,6 +311,12 @@ private class CalloutBuilder_Test {
             'application/xml',
             documentMock.capturedRequest.getHeader('Content-Type'),
             'A Dom.Document body without a Content-Type should default to XML'
+        );
+        Assert.areEqual('<item>kept</item>', serializableMock.capturedRequest.getBody(), 'A CalloutXmlSerializable body should be sent as XML');
+        Assert.areEqual(
+            'application/xml',
+            serializableMock.capturedRequest.getHeader('Content-Type'),
+            'A CalloutXmlSerializable body without a Content-Type should default to XML'
         );
         Assert.areEqual(
             'application/octet-stream',
@@ -928,6 +941,12 @@ private class CalloutBuilder_Test {
             res.setBody('{"message": "Something went wrong"}');
             res.setStatusCode(400);
             return res;
+        }
+    }
+
+    private class DummyXmlBody implements CalloutXmlSerializable {
+        public CalloutXmlBuilder toXmlBuilder() {
+            return new CalloutXmlBuilder('item').withText('kept');
         }
     }
 
