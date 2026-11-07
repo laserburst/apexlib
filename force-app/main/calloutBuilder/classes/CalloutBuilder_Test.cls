@@ -216,16 +216,26 @@ private class CalloutBuilder_Test {
 
     @IsTest
     static void testWithQueryParametersJoinEndpointQueryString() {
+        String cursor;
         Test.startTest();
             CalloutBuilder cb =
                 new CalloutBuilder('https://example.com')
                     .withEndpoint('/test?a=1')
                     .withQueryParameter('b', '2');
+            CalloutBuilder firstPage =
+                new CalloutBuilder('https://example.com')
+                    .withEndpoint('/test')
+                    .withQueryParameter('cursor', cursor);
         Test.stopTest();
         Assert.areEqual(
             'https://example.com/test?a=1&b=2',
             cb.constructFullEndpoint(),
             'Parameters should extend the existing query string, not start a second one'
+        );
+        Assert.areEqual(
+            'https://example.com/test',
+            firstPage.constructFullEndpoint(),
+            'A null parameter should be left out, with no "?"'
         );
     }
 
@@ -259,6 +269,8 @@ private class CalloutBuilder_Test {
         CaptureMock documentMock = new CaptureMock();
         CaptureMock serializableMock = new CaptureMock();
         CaptureMock blobMock = new CaptureMock();
+        CaptureMock formMock = new CaptureMock();
+        CaptureMock formStringMock = new CaptureMock();
         Dom.Document document = new Dom.Document();
         document.createRootElement('item', null, null).addTextNode('kept');
 
@@ -301,6 +313,20 @@ private class CalloutBuilder_Test {
                 .withBlobBody(Blob.valueOf('x'))
                 .withMockIfTest(blobMock)
                 .getHttpResponse();
+            new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withMethod('POST')
+                .withHeader('Content-Type', 'Application/X-WWW-Form-Urlencoded; charset=UTF-8')
+                .withBody(new Map<String, Object>{ 'a' => new List<Object>{ 'x' } })
+                .withMockIfTest(formMock)
+                .getHttpResponse();
+            new CalloutBuilder('https://example.com')
+                .withEndpoint('/test')
+                .withMethod('POST')
+                .withHeader('Content-Type', 'application/x-www-form-urlencoded')
+                .withBody('a=1&b=2')
+                .withMockIfTest(formStringMock)
+                .getHttpResponse();
         Test.stopTest();
         Assert.areEqual('<a/>', xmlMock.capturedRequest.getBody(), 'A String body with a non-JSON Content-Type should be sent as-is');
         Assert.areEqual('"x"', jsonMock.capturedRequest.getBody(), 'A String body with a +json Content-Type should be serialized');
@@ -326,6 +352,8 @@ private class CalloutBuilder_Test {
             blobMock.capturedRequest.getHeader('Content-Type'),
             'A blob body without a Content-Type should default to binary'
         );
+        Assert.areEqual('a%5B0%5D=x', formMock.capturedRequest.getBody(), 'A Map body with a form Content-Type should be sent as form fields');
+        Assert.areEqual('a=1&b=2', formStringMock.capturedRequest.getBody(), 'A String body with a form Content-Type should be sent as-is');
     }
 
     @IsTest

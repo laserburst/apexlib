@@ -93,6 +93,8 @@ Every placeholder needs a parameter and every parameter a placeholder; a mismatc
 
 `withBody(Object)` serializes the object to JSON via `JSON.serialize` and, when no Content-Type is set, sends `Content-Type: application/json`. To omit null fields, chain `.withSuppressApexObjectNulls(true)`. A `String` body is serialized too, unless a non-JSON Content-Type is set: then it is sent as-is, so XML, CSV or form-encoded strings need `withHeader('Content-Type', ...)`. A `Dom.Document` or `CalloutXmlSerializable` body is sent as XML, with `Content-Type: application/xml` unless one is set. Use `withBlobBody(Blob)` for binary bodies; it sends `Content-Type: application/octet-stream` unless one is set. For file uploads expecting multipart/form-data, use `withFile()`.
 
+With `withHeader('Content-Type', 'application/x-www-form-urlencoded')`, a Map or object body is sent as form fields instead of JSON: a nested field as `a[b]` and a List item as `a[0]`. Keys and values are URL-encoded, so don't encode them yourself. A null field or List item is left out; send `''` for an empty value. Field order isn't kept: when the API needs it, send flat fields with `withQueryParameter()` on a POST without a body, or a String body. Apex can't name a field after a reserved word such as `currency`, so put such a key in a Map. A body other than a Map, an object or a String throws `CalloutBuilderException`.
+
 For an XML request, prefer `CalloutXmlBuilder` to string concatenation. A class implementing `CalloutXmlSerializable` builds and names its own element, and goes to `withBody()` as it is. `CalloutXmlBuilder` implements it too:
 
 ```Java (Apex)
@@ -460,6 +462,8 @@ When generating response types:
 
 - An endpoint that already carries a query string is extended with `&`, not a second `?`: `withEndpoint('/test?a=1')` + `withQueryParameter('b', '2')` → `https://example.com/test?a=1&b=2`
 
+- A `null` value is left out, so a parameter that may be null, such as a page cursor, needs no guard.
+
 ---
 
 ## Common mistakes to catch and fix
@@ -469,6 +473,7 @@ When generating response types:
 - Using `withQueryParameters` on a POST that also has `.withBody()` — body wins
 - Concatenating values into `withEndpoint()` (`'/orders/' + id`) — sent unencoded, so `/`, `?` or `&` in a value changes the request and `#`, `\` or `..` makes `withEndpoint()` throw; use `'/orders/{id}'` with `withPathParameter('id', id)`
 - Encoding a path parameter value before passing it — it is encoded again (`%2F` becomes `%252F`)
+- Concatenating a nested form body (`'items[0][sku]=' + sku`) — values go out unencoded; pass a Map to `withBody()` with the `application/x-www-form-urlencoded` Content-Type
 - Omitting `.withMockIfTest()` — tests fail with "Callout not allowed"
 - A guardrail executing the builder it was handed, or expecting the `HttpRequest` or body — only builder state is readable
 - Catching only `CalloutBuilder.CalloutBuilderException` around a guarded callout — `CalloutGuardrailException` escapes it

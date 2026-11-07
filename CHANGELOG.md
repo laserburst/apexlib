@@ -9,6 +9,8 @@
 ### Changed
 
 - **API version 68.0** — up from 67.0 ([sfdx-project.json](sfdx-project.json))
+- **Form bodies** — with an `application/x-www-form-urlencoded` Content-Type, `withBody()` sends a Map or an object as form fields with bracket keys (`items[0][sku]=A1`) instead of JSON, and throws for any other non-String body ([CalloutUrlEncodedForm.cls](force-app/main/calloutBuilder/classes/CalloutUrlEncodedForm.cls))
+- **Null query parameters** — a null `withQueryParameter()` value is left out instead of throwing `NullPointerException` ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 
 ## October 2026
 

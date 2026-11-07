@@ -8,6 +8,7 @@
   - [Concrete Type](#concrete-type)
   - [Path Parameters](#path-parameters)
   - [Response Body Map With Query Parameters](#response-body-map-with-query-parameters)
+  - [Form Bodies](#form-bodies)
   - [XML](#xml)
   - [Sending Files](#sending-files-openai-assistants-api-example)
   - [Guardrails](#guardrails)
@@ -108,6 +109,34 @@ Map<String, Object> responseBody = cb.getResponseBodyMap();
 #### Request Body Note
 
 If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters — whatever the body's type. A `String` body is sent as-is when a non-JSON Content-Type is set.
+
+### Form Bodies
+
+With the Content-Type `application/x-www-form-urlencoded`, `withBody()` sends a Map or an object as form fields, nested in brackets: `items[0][sku]=A1`.
+
+```Java (Apex)
+public class NewOrder {
+    public List<Item> items = new List<Item>();
+}
+
+public class Item {
+    public String sku;
+    public Integer qty;
+}
+
+new CalloutBuilder('callout:MyService')
+    .withMethod('POST')
+    .withEndpoint('/orders')
+    .withHeader('Content-Type', 'application/x-www-form-urlencoded')
+    .withBody(newOrder) // one Item: sku 'A1', qty 2
+    .getHttpResponse();
+```
+
+```properties
+# sent as items%5B0%5D%5Bsku%5D=A1&items%5B0%5D%5Bqty%5D=2
+items[0][sku]=A1
+items[0][qty]=2
+```
 
 ### XML
 
