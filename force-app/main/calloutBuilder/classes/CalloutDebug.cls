@@ -32,7 +32,6 @@ public with sharing class CalloutDebug {
         write('-- Request debug end --');
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public static void log(HttpResponse response) {
         Map<String, String> headers = new Map<String, String>();
         for (String header : response.getHeaderKeys()) {

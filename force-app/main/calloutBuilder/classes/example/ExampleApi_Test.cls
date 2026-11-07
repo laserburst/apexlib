@@ -11,10 +11,16 @@ private with sharing class ExampleApi_Test {
 
     @IsTest
     static void testAsyncExample() {
-        Test.startTest();
-            ExampleApi.asyncExample();
-        Test.stopTest();
-        // nothing to assert
+        Exception error;
+        try {
+            Test.startTest();
+                ExampleApi.asyncExample();
+            Test.stopTest();
+        } catch (Exception e) {
+            error = e;
+        }
+
+        Assert.isNull(error, 'Should not throw');
     }
 
 }

@@ -7,6 +7,9 @@ public with sharing virtual class CalloutBuilderQueueable implements Queueable, 
     private CalloutCollection callouts;
     private Datetime beginning;
 
+    private static final Long MS_BEFORE_ENQUEUE = 110000;
+    private static final Integer MAX_CALLS_BUFFER = 5;
+
     public CalloutBuilderQueueable(CalloutCollection callouts) {
         this.callouts = callouts;
     }
@@ -36,7 +39,6 @@ public with sharing virtual class CalloutBuilderQueueable implements Queueable, 
         return System.enqueueJob(new CalloutBuilderQueueable(this.callouts));
     }
 
-    private static final Long MS_BEFORE_ENQUEUE = 110000;
     protected Boolean isAlmostTwoMinutesFromBeginning() {
         if (this.beginning == null) {
             return false;
@@ -45,7 +47,6 @@ public with sharing virtual class CalloutBuilderQueueable implements Queueable, 
         return elapsed >= MS_BEFORE_ENQUEUE;
     }
 
-    private static final Integer MAX_CALLS_BUFFER = 5;
     protected Boolean isApproachingCalloutLimit() {
         return Limits.getCallouts() >= (Limits.getLimitCallouts() - MAX_CALLS_BUFFER);
     }

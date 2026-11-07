@@ -1,5 +1,8 @@
 @IsTest
 private class CalloutBuilder_Test {
+    private static List<String> guardrailLog = new List<String>();
+    private static List<Object> sanitized = new List<Object>();
+
     @IsTest
     static void testSuccessfulTypedResponse() {
         Test.startTest();
@@ -616,8 +619,6 @@ private class CalloutBuilder_Test {
         }
     }
 
-    private static List<String> guardrailLog = new List<String>();
-
     private class RecordingGuardrail implements CalloutGuardrail {
         private final String name;
 
@@ -830,8 +831,6 @@ private class CalloutBuilder_Test {
             'Every response the caller sees passes sanitization, including a bypassed error response'
         );
     }
-
-    private static List<Object> sanitized = new List<Object>();
 
     private class AppendingSanitizer extends CalloutResponseSanitizer {
         private final String name;

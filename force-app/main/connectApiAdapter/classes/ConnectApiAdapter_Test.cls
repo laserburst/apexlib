@@ -20,11 +20,16 @@ private with sharing class ConnectApiAdapter_Test {
 
     @IsTest
     static void testRefreshToken() {
-        Test.startTest();
-            ConnectApiAdapter.refreshToken(null, null, null, null);
-        Test.stopTest();
+        Exception error;
+        try {
+            Test.startTest();
+                ConnectApiAdapter.refreshToken(null, null, null, null);
+            Test.stopTest();
+        } catch (Exception e) {
+            error = e;
+        }
 
-        // nothing to assert
+        Assert.isNull(error, 'Should not throw');
     }
 
     @IsTest
@@ -70,11 +75,16 @@ private with sharing class ConnectApiAdapter_Test {
 
     @IsTest
     static void testRefreshTokenSingleParameter() {
-        Test.startTest();
-            ConnectApiAdapter.refreshToken('test');
-        Test.stopTest();
+        Exception error;
+        try {
+            Test.startTest();
+                ConnectApiAdapter.refreshToken('test');
+            Test.stopTest();
+        } catch (Exception e) {
+            error = e;
+        }
 
-        // nothing to assert
+        Assert.isNull(error, 'Should not throw');
     }
 
     @IsTest

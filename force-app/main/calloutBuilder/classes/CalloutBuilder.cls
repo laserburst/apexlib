@@ -21,6 +21,7 @@ MyType response = (MyType)cb.getTypedResponseBody();
 public virtual with sharing class CalloutBuilder {
     @TestVisible
     private static final Map<CalloutBuilder, HttpCalloutMock> BUILDER_TO_MOCK_OVERRIDE = new Map<CalloutBuilder, HttpCalloutMock>();
+    private static final String ENCODING = 'UTF-8';
 
     private String ncOrBaseUrl;
     private CalloutEndpoint endpoint = new CalloutEndpoint();
@@ -145,7 +146,6 @@ public virtual with sharing class CalloutBuilder {
         return this;
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public CalloutBuilder withGuardrail(CalloutGuardrail guardrail) {
         this.guardrails.add(guardrail);
         return this;
@@ -162,7 +162,6 @@ public virtual with sharing class CalloutBuilder {
         return this;
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public CalloutBuilder withResponseSanitizer(CalloutResponseSanitizer sanitizer) {
         this.responseSanitizers.add(sanitizer);
         return this;
@@ -338,12 +337,10 @@ public virtual with sharing class CalloutBuilder {
         return fullEndpoint;
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public String getMethod() {
         return this.method;
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public String getNcOrBaseUrl() {
         return this.ncOrBaseUrl;
     }
@@ -356,22 +353,18 @@ public virtual with sharing class CalloutBuilder {
         return this.endpoint.resolve();
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public Map<String, String> getHeaders() {
         return new Map<String, String>(this.headersMap);
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public Map<String, String> getQueryParameters() {
         return new Map<String, String>(this.queryParameters);
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public Map<String, String> getPathParameters() {
         return this.endpoint.getParameters();
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public CalloutErrorResponse getError() {
         return this.error;
     }
@@ -437,7 +430,6 @@ public virtual with sharing class CalloutBuilder {
         this.attachHeaders();
     }
 
-    private static final String ENCODING = 'UTF-8';
     private String getEncodedQueryParameters() {
         if (this.queryParameters.isEmpty()) {
             return '';
@@ -514,7 +506,9 @@ public virtual with sharing class CalloutBuilder {
     }
 
     private void setMockIfTest() {
-        if (!Test.isRunningTest()) return;
+        if (!Test.isRunningTest()) {
+            return;
+        }
         HttpCalloutMock effectiveMock = this.getEffectiveMock();
         if (effectiveMock != null) {
             Test.setMock(HttpCalloutMock.class, effectiveMock);
@@ -538,10 +532,16 @@ public virtual with sharing class CalloutBuilder {
         if (errorType == null) {
             throw new CalloutBuilderException('Callout error cannot be set to null');
         }
-        try {
-            CalloutErrorResponse errorImpl = (CalloutErrorResponse) errorType.newInstance();
-        } catch (Exception e) {
+        if (!this.isErrorResponseType(errorType)) {
             throw new CalloutBuilderException('Callout error must implement CalloutErrorResponse');
+        }
+    }
+
+    private Boolean isErrorResponseType(System.Type errorType) {
+        try {
+            return errorType.newInstance() instanceof CalloutErrorResponse;
+        } catch (Exception e) {
+            return false;
         }
     }
 
@@ -567,7 +567,6 @@ public virtual with sharing class CalloutBuilder {
         return this.retrier != null && this.maxRetries >= this.attempt;
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public class CalloutBuilderException extends Exception {
         // null when the exception is not caused by an HTTP response
         public final Integer code;
