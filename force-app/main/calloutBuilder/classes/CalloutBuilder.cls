@@ -25,18 +25,17 @@ public virtual with sharing class CalloutBuilder {
     private String ncOrBaseUrl;
     private CalloutEndpoint endpoint = new CalloutEndpoint();
     private String method = 'GET';
-    private Object body;
+    private CalloutBody body = new CalloutBody();
 
     private System.Type successType;
     private Integer timeout; // 120000 is the max timeout
     private Map<String, String> headersMap = new Map<String, String>();
-    private Boolean hasBlobBody = false;
     private Map<String, String> queryParameters = new Map<String, String>();
 
     private HttpRequest request;
+    private String bodyString;
     private HttpResponse response;
     private HttpCalloutMock mock;
-    private Boolean suppressApexObjectNulls = false;
 
     private CalloutRetrier retrier;
     private Integer maxRetries = 1;
@@ -53,6 +52,7 @@ public virtual with sharing class CalloutBuilder {
     private System.Type errorResponseImplType;
     private CalloutErrorResponse error;
     private Boolean bypassResponseValidation = false;
+    private Boolean sanitizedErrors = false;
     private Boolean debugMode = false;
 
     public CalloutBuilder(String ncOrBaseUrl) {
@@ -115,13 +115,12 @@ public virtual with sharing class CalloutBuilder {
     }
 
     public virtual CalloutBuilder withBody(Object body) {
-        this.body = body;
+        this.body.setValue(body);
         return this;
     }
 
     public virtual CalloutBuilder withBlobBody(Object body) {
-        this.hasBlobBody = true;
-        this.body = body; // not withBody(): it is virtual and must not be re-entered by a subclass
+        this.body.setBlobValue(body); // not withBody(): it is virtual and must not be re-entered by a subclass
         return this;
     }
 
@@ -176,6 +175,17 @@ public virtual with sharing class CalloutBuilder {
         return this;
     }
 
+    /**
+     * @description withSanitizedErrors sends an error response through the sanitizers' sanitize(HttpResponse)
+     * before CalloutBuilderException is built from it, so its message and getError() come from the sanitized body.
+     * That overload then also receives error responses from every getter, blank and non-JSON bodies included;
+     * a CalloutResponseSanitizerException withholds the error body, and the exception keeps its code and status
+     */
+    public CalloutBuilder withSanitizedErrors(Boolean sanitizedErrors) {
+        this.sanitizedErrors = sanitizedErrors;
+        return this;
+    }
+
     public CalloutBuilder withDebugMode(Boolean debugMode) {
         this.debugMode = debugMode;
         return this;
@@ -197,7 +207,7 @@ public virtual with sharing class CalloutBuilder {
      * @param  suppressApexObjectNulls if true, null values are omitted from serialization (default: false)
      */
     public CalloutBuilder withSuppressApexObjectNulls(Boolean suppressApexObjectNulls) {
-        this.suppressApexObjectNulls = suppressApexObjectNulls;
+        this.body.suppressApexObjectNulls = suppressApexObjectNulls;
         return this;
     }
 
@@ -254,8 +264,14 @@ public virtual with sharing class CalloutBuilder {
      * @return plain HttpResponse
      */
     public virtual HttpResponse getHttpResponse() {
-        this.validateBeforeCall();
-        this.constructRequest();
+        this.rejectReentry();
+        try {
+            this.validateBeforeCall();
+            this.constructRequest();
+        } finally {
+            // a body in an HttpRequest doesn't count toward the heap limit; a String kept in a field does
+            this.bodyString = null;
+        }
         this.setMockIfTest();
         if (this.debugMode) {
             CalloutDebug.log(this.request, this.headersMap);
@@ -366,20 +382,44 @@ public virtual with sharing class CalloutBuilder {
         return this.endpoint.getParameters();
     }
 
+    /**
+     * @description getBody returns the object passed to withBody() or withBlobBody(), not a copy
+     */
+    public Object getBody() {
+        return this.body.getValue();
+    }
+
+    /**
+     * @description getBodyAsString returns the String sent for the body: XML, a String as-is, form fields or JSON,
+     * or the query parameters of a non-GET request without a body; null for a Blob body or no body
+     */
+    public String getBodyAsString() {
+        if (this.enforcingGuardrails) {
+            return this.bodyString; // serialized once per execution, before the guardrails run
+        }
+        return this.toBodyString();
+    }
+
     public CalloutErrorResponse getError() {
         return this.error;
     }
 
     // implementation details
 
+    // runs before any state is set, so a nested call from a guardrail or sanitizer leaves the outer call intact
+    private void rejectReentry() {
+        if (this.responseSanitizers.isRunning()) {
+            throw new CalloutBuilderException('A response sanitizer must not execute the callout it is sanitizing.');
+        }
+        if (this.enforcingGuardrails) {
+            throw new CalloutBuilderException('A guardrail must not execute the callout it is guarding.');
+        }
+    }
+
     /**
     * @description it checks if required fields are set.
     */
     private void validateBeforeCall() {
-        // not in the chain: re-entry must be rejected before the request is sent
-        if (this.responseSanitizers.isRunning()) {
-            throw new CalloutBuilderException('A response sanitizer must not execute the callout it is sanitizing.');
-        }
         if (String.isBlank(this.ncOrBaseUrl)) {
             throw new CalloutBuilderException('NC or base URL must be provided');
         }
@@ -387,13 +427,11 @@ public virtual with sharing class CalloutBuilder {
             throw new CalloutBuilderException('HTTP method must be provided');
         }
         this.endpoint.resolve(); // placeholders must resolve before guardrails read the endpoint
+        this.bodyString = this.toBodyString();
         this.enforceGuardrails();
     }
 
     private void enforceGuardrails() {
-        if (this.enforcingGuardrails) {
-            throw new CalloutBuilderException('A guardrail must not execute the callout it is guarding.');
-        }
         this.enforcingGuardrails = true;
         try {
             for (CalloutGuardrail guardrail : this.guardrails) {
@@ -438,63 +476,33 @@ public virtual with sharing class CalloutBuilder {
         return new CalloutUrlEncodedForm(this.queryParameters).toString();
     }
 
-    /**
-     * @description attachBody sets body of the request, in precedence order:
-     * 1. blob
-     * 2. XML (Dom.Document or CalloutXmlSerializable)
-     * 3. any other body, by Content-Type: a String as-is, form fields or JSON
-     *    (a body always wins over query parameters)
-     * 4. query parameters (if any and if method is not GET)
-     */
     private void attachBody() {
-        if (this.hasBlobBody && this.body != null) {
-            this.request.setBodyAsBlob((Blob) this.body);
-            this.defaultContentType('application/octet-stream');
-        } else if (this.body instanceof Dom.Document) {
-            // not setBodyDocument(): getBody() would then return an empty string
-            this.request.setBody(((Dom.Document) this.body).toXmlString());
-            this.defaultContentType('application/xml');
-        } else if (this.body instanceof CalloutXmlSerializable) {
-            CalloutXmlSerializable xmlBody = (CalloutXmlSerializable) this.body;
-            this.request.setBody(xmlBody.toXmlBuilder().toXmlString());
-            this.defaultContentType('application/xml');
-        } else if (this.body != null) {
-            this.request.setBody(this.toTextBody());
-            this.defaultContentType('application/json');
-        } else if (!this.queryParameters.isEmpty() && this.method != 'GET') {
-            this.request.setBody(this.getEncodedQueryParameters());
+        if (this.body.isBlob()) {
+            this.request.setBodyAsBlob(this.body.toBlob());
+        } else if (this.bodyString != null) {
+            // the String the guardrails read; setBodyDocument() would leave HttpRequest.getBody() empty
+            this.request.setBody(this.bodyString);
         }
+        this.defaultContentType();
     }
 
-    private String toTextBody() {
-        if (this.body instanceof String && !this.hasJsonContentType()) {
-            return (String) this.body;
+    // a body always wins over query parameters, which a non-GET request without a body sends instead
+    private String toBodyString() {
+        if (!this.body.isEmpty()) {
+            return this.body.toText(this.getContentType());
         }
-        if (this.hasFormContentType()) {
-            return new CalloutUrlEncodedForm(this.body).toString();
+        if (!this.queryParameters.isEmpty() && this.method != 'GET') {
+            return this.getEncodedQueryParameters();
         }
-        return JSON.serialize(this.body, this.suppressApexObjectNulls);
+        return null;
     }
 
-    // without a Content-Type, Salesforce sends application/x-www-form-urlencoded
-    private void defaultContentType(String mediaType) {
-        if (this.getContentType() == null) {
+    // without a Content-Type Salesforce sends application/x-www-form-urlencoded, which query parameters sent as the body rely on
+    private void defaultContentType() {
+        String mediaType = this.body.getDefaultContentType();
+        if (mediaType != null && this.getContentType() == null) {
             this.request.setHeader('Content-Type', mediaType);
         }
-    }
-
-    // no Content-Type means JSON
-    private Boolean hasJsonContentType() {
-        String mediaType = this.getMediaType();
-        return mediaType == null || mediaType == 'application/json' || mediaType.endsWith('+json');
-    }
-
-    private Boolean hasFormContentType() {
-        return this.getMediaType() == 'application/x-www-form-urlencoded';
-    }
-
-    private String getMediaType() {
-        return this.getContentType()?.substringBefore(';').trim().toLowerCase();
     }
 
     private String getContentType() {
@@ -560,6 +568,9 @@ public virtual with sharing class CalloutBuilder {
             return;
         }
         if (this.response.getStatusCode() >= 400) {
+            if (this.sanitizedErrors) {
+                this.sanitizeErrorResponse();
+            }
             CalloutBuilderException ex = new CalloutBuilderException(
                 this.response,
                 this.errorResponseImplType,
@@ -567,6 +578,15 @@ public virtual with sharing class CalloutBuilder {
             );
             this.error = ex.getError();
             throw ex;
+        }
+    }
+
+    // a blocked error body is withheld, so the caller still gets CalloutBuilderException with its code and status
+    private void sanitizeErrorResponse() {
+        try {
+            this.responseSanitizers.sanitize(this.response);
+        } catch (CalloutResponseSanitizerException e) {
+            this.response.setBody('');
         }
     }
 

@@ -261,8 +261,8 @@ new CalloutBuilder('callout:MyNC')
 ```
 
 - Both `with` methods append; the chain runs in attachment order and stops at the first throw. Chain position is irrelevant — guardrails run at execution time.
-- One run per execution, inside every response variant, before the request is built and before retries. A guardrail reads builder state — `getNcOrBaseUrl()`, `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `getPathParameters()`, `constructFullEndpoint()` — never the `HttpRequest` or the body. `getEndpoint()` is the resolved endpoint, placeholders filled; the three map accessors return copies, `getPathParameters()` with raw values.
-- A guardrail must not execute the builder it receives; doing so throws `CalloutBuilder.CalloutBuilderException`. Its own callout needs a separate `CalloutBuilder`.
+- One run per execution, inside every response variant, before the request is built and before retries. A guardrail reads builder state — `getNcOrBaseUrl()`, `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `getPathParameters()`, `getBody()`, `getBodyAsString()`, `constructFullEndpoint()` — never the `HttpRequest`. `getEndpoint()` is the resolved endpoint, placeholders filled. `getBody()` is the object passed to `withBody()` or `withBlobBody()`, as is: cast it for structured checks rather than parsing `getBodyAsString()`, which is the String as it will be sent (null for a Blob body) for checks on the exact payload. The three map accessors return copies, `getPathParameters()` with raw values.
+- A guardrail must not execute or change the builder it receives. Executing it throws `CalloutBuilder.CalloutBuilderException`; a change can alter the request after other guardrails checked it. Its own callout needs a separate `CalloutBuilder`.
 - Blocking applies in tests too, before mocks are set — the mock is never reached.
 - A block inside `CalloutBuilderQueueable` fails the job and strands the builders queued behind it. Filter blocked builders out while assembling the `CalloutCollection` when partial progress matters.
 
@@ -284,7 +284,7 @@ Use a guardrail for a pass/fail check. Subclass instead when behavior wraps the 
 
 ## Step 6: Response sanitizers
 
-Guardrails police the request; `CalloutResponseSanitizer` polices the response. Extend it to strip content the caller must not receive — restricted search hits, PII. Override a `sanitize()` overload per form handled: `sanitize(HttpResponse)` for `getHttpResponse()` / `getResponseBodyAsBlob()`, `sanitize(Map<String, Object>)` for `getResponseBodyMap()`, `sanitize(Object, System.Type)` for `getTypedResponseBody()`, `sanitize(Dom.Document)` for `getXmlResponseBody()`. Mutate the argument in place, or throw `CalloutResponseSanitizerException` to block the response.
+Guardrails police the request; `CalloutResponseSanitizer` polices the response. Extend it to strip content the caller must not receive — restricted search hits, PII. Override a `sanitize()` overload per form handled: `sanitize(HttpResponse)` for `getHttpResponse()` / `getResponseBodyAsBlob()`, `sanitize(Map<String, Object>)` for `getResponseBodyMap()`, `sanitize(Object, System.Type)` for `getTypedResponseBody()`, `sanitize(Dom.Document)` for `getXmlResponseBody()`. Under `withSanitizedErrors(true)`, `sanitize(HttpResponse)` also receives error responses from every getter. Mutate the argument in place, or throw `CalloutResponseSanitizerException` to block the response.
 
 ```Java (Apex)
 public with sharing class RestrictedFolderSanitizer extends CalloutResponseSanitizer {
@@ -301,8 +301,10 @@ new CalloutBuilder('callout:MyNC')
 
 - Both `with` methods append. The chain runs once per execution, after validation, in attachment order, and stops at the first throw. Every sanitizer works on the instance the caller receives; the map, typed and `Dom.Document` overloads get it already parsed, so never re-parse.
 - To reuse a set of sanitizers, bundle them: `.withResponseSanitizer(new CalloutResponseSanitizerChain().add(new A()).add(new B()))`.
-- `CalloutRetrier.shouldRetry()`, the `>= 400` error path, and `withDebugMode(true)` see the **raw** response. Sanitizing is not log redaction.
-- Error responses are never sanitized, because validation throws first. Under `withBypassResponseValidation(true)` nothing throws, so non-2xx responses reach the chain too — only `sanitize(HttpResponse)` sees `getStatusCode()` to branch on.
+- `CalloutRetrier.shouldRetry()` and `withDebugMode(true)` see the **raw** response, and so does the `>= 400` error path unless `withSanitizedErrors(true)` is set. Sanitizing is not log redaction.
+- By default error responses aren't sanitized, because validation throws first: `CalloutBuilderException`'s message is the raw error body, and `getError()` is parsed from it.
+- `withSanitizedErrors(true)` runs `sanitize(HttpResponse)` on a `>= 400` response before the exception is built, whichever getter was called. That overload then also receives blank and non-JSON error bodies; a `CalloutResponseSanitizerException` there withholds the body, and the exception keeps its `code` and `status`.
+- Under `withBypassResponseValidation(true)` nothing throws, so non-2xx responses reach the chain too — only `sanitize(HttpResponse)` sees `getStatusCode()` to branch on.
 - Fail closed: an overload not overridden blocks the response; inside an override, throw rather than return quietly on a body you cannot handle.
 - A typed sanitizer casts `body` to the success type it was written for, checking `successType` first when it serves several.
 - Binary responses need `setBodyAsBlob()` in `sanitize(HttpResponse)`.
@@ -475,5 +477,5 @@ When generating response types:
 - Encoding a path parameter value before passing it — it is encoded again (`%2F` becomes `%252F`)
 - Concatenating a nested form body (`'items[0][sku]=' + sku`) — values go out unencoded; pass a Map to `withBody()` with the `application/x-www-form-urlencoded` Content-Type
 - Omitting `.withMockIfTest()` — tests fail with "Callout not allowed"
-- A guardrail executing the builder it was handed, or expecting the `HttpRequest` or body — only builder state is readable
+- A guardrail executing or changing the builder it was handed, or expecting the `HttpRequest` — only builder state is readable, and the body comes from `getBody()` or `getBodyAsString()`
 - Catching only `CalloutBuilder.CalloutBuilderException` around a guarded callout — `CalloutGuardrailException` escapes it

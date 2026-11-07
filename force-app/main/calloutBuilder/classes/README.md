@@ -249,7 +249,7 @@ new CalloutBuilder('callout:MyService')
     .getHttpResponse();
 ```
 
-A guardrail reads the request through the builder's accessors — `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `constructFullEndpoint()` — and must not execute the builder it is inspecting; doing so throws `CalloutBuilderException`.
+A guardrail reads the request through the builder's accessors — `getEndpoint()`, `getMethod()`, `getHeaders()`, `getQueryParameters()`, `getBody()`, `getBodyAsString()`, `constructFullEndpoint()` — and must not execute or change the builder it is inspecting; executing it throws `CalloutBuilderException`.
 
 ---
 
@@ -270,7 +270,7 @@ new CalloutBuilder('callout:MyService')
     .getResponseBodyMap();
 ```
 
-Sanitizers run after validation, so the retrier, the `>= 400` error path, and `withDebugMode(true)` all see the raw response — sanitizing is not log redaction. Error responses are therefore never sanitized, unless `withBypassResponseValidation(true)` lets them through. Throw rather than return quietly on a body the sanitizer cannot handle. A binary response needs `setBodyAsBlob()` in the `HttpResponse` overload, and a sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilderException`.
+Sanitizers run after validation, so the retrier and `withDebugMode(true)` see the raw response — sanitizing is not log redaction. The `>= 400` error path sees it too, unless `withSanitizedErrors(true)` sends the error response through `sanitize(HttpResponse)` before the exception is built from it, or `withBypassResponseValidation(true)` lets it through as a success. Throw rather than return quietly on a body the sanitizer cannot handle. A binary response needs `setBodyAsBlob()` in the `HttpResponse` overload, and a sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilderException`.
 
 ---
 

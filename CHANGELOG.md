@@ -5,6 +5,8 @@
 ### Added
 
 - **`CalloutXmlBuilder` / `CalloutXmlSerializable`** — build an XML request body whose elements keep the order they are added in; `withBody()` sends a `CalloutXmlSerializable` object as XML ([CalloutXmlBuilder.cls](force-app/main/calloutBuilder/classes/CalloutXmlBuilder.cls), [CalloutXmlSerializable.cls](force-app/main/calloutBuilder/classes/CalloutXmlSerializable.cls))
+- **`CalloutBuilder.getBody()` / `getBodyAsString()`** — return the request body as given to `withBody()` and as it will be sent, so a guardrail can check it ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **`CalloutBuilder.withSanitizedErrors()`** — sends an error response through the response sanitizers before `CalloutBuilderException` is built from it ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 
 ### Changed
 
