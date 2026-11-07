@@ -21,7 +21,6 @@ MyType response = (MyType)cb.getTypedResponseBody();
 public virtual with sharing class CalloutBuilder {
     @TestVisible
     private static final Map<CalloutBuilder, HttpCalloutMock> BUILDER_TO_MOCK_OVERRIDE = new Map<CalloutBuilder, HttpCalloutMock>();
-    private static final String ENCODING = 'UTF-8';
 
     private String ncOrBaseUrl;
     private CalloutEndpoint endpoint = new CalloutEndpoint();
@@ -206,7 +205,7 @@ public virtual with sharing class CalloutBuilder {
      * @description withQueryParameter sets query parameter for the callout
      * Note: If the method is GET, query parameters are added to the URL.
      * If the method is not GET, query parameters are added to the body
-     * (if the body is null).
+     * (if the body is null). A null value leaves the parameter out.
      */
     public CalloutBuilder withQueryParameter(String key, String value) {
         if (String.isBlank(key)) {
@@ -328,12 +327,14 @@ public virtual with sharing class CalloutBuilder {
      */
     public String constructFullEndpoint() {
         String fullEndpoint = this.endpoint.joinTo(this.ncOrBaseUrl);
-
-        if (this.method == 'GET' && !this.queryParameters.isEmpty()) {
-            String separator = fullEndpoint?.contains('?') == true ? '&' : '?';
-            fullEndpoint += separator + this.getEncodedQueryParameters();
+        if (this.method != 'GET') {
+            return fullEndpoint;
         }
-
+        String query = this.getEncodedQueryParameters();
+        if (String.isNotEmpty(query)) {
+            String separator = fullEndpoint?.contains('?') == true ? '&' : '?';
+            fullEndpoint += separator + query;
+        }
         return fullEndpoint;
     }
 
@@ -434,22 +435,16 @@ public virtual with sharing class CalloutBuilder {
         if (this.queryParameters.isEmpty()) {
             return '';
         }
-        List<String> encodedPairs = new List<String>();
-        for (String key : this.queryParameters.keySet()) {
-            String encodedKey = EncodingUtil.urlEncode(key, ENCODING);
-            String encodedValue = EncodingUtil.urlEncode(this.queryParameters.get(key), ENCODING);
-            encodedPairs.add(encodedKey + '=' + encodedValue);
-        }
-        return String.join(encodedPairs, '&');
+        return new CalloutUrlEncodedForm(this.queryParameters).toString();
     }
 
     /**
      * @description attachBody sets body of the request, in precedence order:
      * 1. blob
      * 2. XML (Dom.Document or CalloutXmlSerializable)
-     * 3. String as-is, when Content-Type is set and is not JSON
-     * 4. JSON (a body always wins over query parameters)
-     * 5. query parameters (if any and if method is not GET)
+     * 3. any other body, by Content-Type: a String as-is, form fields or JSON
+     *    (a body always wins over query parameters)
+     * 4. query parameters (if any and if method is not GET)
      */
     private void attachBody() {
         if (this.hasBlobBody && this.body != null) {
@@ -463,14 +458,22 @@ public virtual with sharing class CalloutBuilder {
             CalloutXmlSerializable xmlBody = (CalloutXmlSerializable) this.body;
             this.request.setBody(xmlBody.toXmlBuilder().toXmlString());
             this.defaultContentType('application/xml');
-        } else if (this.body instanceof String && !this.hasJsonContentType()) {
-            this.request.setBody((String) this.body);
         } else if (this.body != null) {
-            this.request.setBody(JSON.serialize(this.body, this.suppressApexObjectNulls));
+            this.request.setBody(this.toTextBody());
             this.defaultContentType('application/json');
         } else if (!this.queryParameters.isEmpty() && this.method != 'GET') {
             this.request.setBody(this.getEncodedQueryParameters());
         }
+    }
+
+    private String toTextBody() {
+        if (this.body instanceof String && !this.hasJsonContentType()) {
+            return (String) this.body;
+        }
+        if (this.hasFormContentType()) {
+            return new CalloutUrlEncodedForm(this.body).toString();
+        }
+        return JSON.serialize(this.body, this.suppressApexObjectNulls);
     }
 
     // without a Content-Type, Salesforce sends application/x-www-form-urlencoded
@@ -482,12 +485,16 @@ public virtual with sharing class CalloutBuilder {
 
     // no Content-Type means JSON
     private Boolean hasJsonContentType() {
-        String contentType = this.getContentType();
-        if (contentType == null || contentType == 'application/json') {
-            return true;
-        }
-        String mediaType = contentType.substringBefore(';').trim().toLowerCase();
-        return mediaType == 'application/json' || mediaType.endsWith('+json');
+        String mediaType = this.getMediaType();
+        return mediaType == null || mediaType == 'application/json' || mediaType.endsWith('+json');
+    }
+
+    private Boolean hasFormContentType() {
+        return this.getMediaType() == 'application/x-www-form-urlencoded';
+    }
+
+    private String getMediaType() {
+        return this.getContentType()?.substringBefore(';').trim().toLowerCase();
     }
 
     private String getContentType() {
