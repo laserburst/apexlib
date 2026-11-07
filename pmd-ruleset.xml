@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<ruleset name="apexlib" xmlns="http://pmd.sourceforge.net/ruleset/2.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+    <description>apexlib conventions</description>
+
+    <!-- Rules adapted from aquivalabs/my-org-butler, MIT licence -->
+
+    <rule name="UseModernAssertClass" language="apex" message="Use the Assert class instead of System.assert methods" class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>3</priority>
+        <properties><property name="xpath"><value><![CDATA[
+
+            //MethodCallExpression[starts-with(lower-case(@FullMethodName), 'system.assert')]
+
+        ]]></value></property></properties>
+    </rule>
+
+    <rule name="TestClassesMustEndWithUnderscoreTest" language="apex" message="Test classes must end with _Test" class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>3</priority>
+        <properties><property name="xpath"><value><![CDATA[
+
+            //UserClass[
+                ModifierNode/Annotation[@Image='IsTest']
+                and not(ends-with(@Image, '_Test'))
+            ]
+
+        ]]></value></property></properties>
+    </rule>
+
+    <rule name="TestClassesShouldBePrivate" language="apex" message="Test classes should be private" class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>3</priority>
+        <properties><property name="xpath"><value><![CDATA[
+
+            //UserClass[
+                ModifierNode/Annotation[@Image='IsTest']
+                and ModifierNode[@Public = true() or @Global = true()]
+            ]
+
+        ]]></value></property></properties>
+    </rule>
+
+    <rule name="ClassNamesBecomeSelfFulfillingProphecies" language="apex" message="Service, Handler, Manager, Helper, Util and Wrapper names attract unrelated code" class="net.sourceforge.pmd.lang.rule.xpath.XPathRule">
+        <priority>3</priority>
+        <properties><property name="xpath"><value><![CDATA[
+
+            //UserClass[
+                matches(@Image, '.*(Service|Handler|Manager|Helper|Util|Wrapper)$')
+                and not(descendant::ModifierNode/Annotation[@Image='IsTest'])
+            ]
+
+        ]]></value></property></properties>
+    </rule>
+</ruleset>

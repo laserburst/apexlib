@@ -1,4 +1,4 @@
-@isTest
+@IsTest
 private with sharing class ExampleResponse_Test {
     @IsTest
     static void testErrorWithNullError() {

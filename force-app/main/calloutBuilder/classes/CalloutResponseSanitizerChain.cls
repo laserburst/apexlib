@@ -7,13 +7,11 @@ public with sharing class CalloutResponseSanitizerChain extends CalloutResponseS
     private final List<CalloutResponseSanitizer> sanitizers = new List<CalloutResponseSanitizer>();
     private Boolean running = false;
 
-    @SuppressWarnings('PMD.ApexDoc')
     public CalloutResponseSanitizerChain add(CalloutResponseSanitizer sanitizer) {
         this.sanitizers.add(sanitizer);
         return this;
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public CalloutResponseSanitizerChain addAll(List<CalloutResponseSanitizer> sanitizers) {
         this.sanitizers.addAll(sanitizers);
         return this;
@@ -27,7 +25,6 @@ public with sharing class CalloutResponseSanitizerChain extends CalloutResponseS
         return this.running;
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public override void sanitize(HttpResponse response) {
         this.running = true;
         try {
@@ -39,7 +36,6 @@ public with sharing class CalloutResponseSanitizerChain extends CalloutResponseS
         }
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public override void sanitize(Map<String, Object> body) {
         this.running = true;
         try {
@@ -51,7 +47,6 @@ public with sharing class CalloutResponseSanitizerChain extends CalloutResponseS
         }
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public override void sanitize(Object body, System.Type successType) {
         this.running = true;
         try {
@@ -63,7 +58,6 @@ public with sharing class CalloutResponseSanitizerChain extends CalloutResponseS
         }
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public override void sanitize(Dom.Document body) {
         this.running = true;
         try {

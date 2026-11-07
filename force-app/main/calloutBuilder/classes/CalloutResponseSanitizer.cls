@@ -7,22 +7,18 @@
 * @team Laserburst
 */
 public abstract with sharing class CalloutResponseSanitizer {
-    @SuppressWarnings('PMD.ApexDoc')
     public virtual void sanitize(HttpResponse response) {
         throw unsupported('HttpResponse');
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public virtual void sanitize(Map<String, Object> body) {
         throw unsupported('Map<String, Object>');
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public virtual void sanitize(Object body, System.Type successType) {
         throw unsupported(successType.getName());
     }
 
-    @SuppressWarnings('PMD.ApexDoc')
     public virtual void sanitize(Dom.Document body) {
         throw unsupported('Dom.Document');
     }

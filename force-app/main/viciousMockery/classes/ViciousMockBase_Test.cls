@@ -1,4 +1,4 @@
-@isTest
+@IsTest
 private with sharing class ViciousMockBase_Test {
 
     private class JsonBodyMock extends ViciousMockBase {

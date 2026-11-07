@@ -3,7 +3,7 @@
 > Reusable Apex
 
 ![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
-![API Version](https://img.shields.io/badge/API-67.0-lightgrey.svg)
+![API Version](https://img.shields.io/badge/API-68.0-lightgrey.svg)
 
 ## Components
 

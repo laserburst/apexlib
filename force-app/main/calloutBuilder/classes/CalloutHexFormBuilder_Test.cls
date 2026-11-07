@@ -1,6 +1,6 @@
 @IsTest
 private with sharing class CalloutHexFormBuilder_Test {
-    @isTest
+    @IsTest
     static void testFormDataBuild() {
         String fileName = 'file.png';
         String fileContent = '';
@@ -18,7 +18,7 @@ private with sharing class CalloutHexFormBuilder_Test {
         Assert.isTrue(expectedFormData == formData.toString(), 'Unexpected form data');
     }
 
-    @isTest
+    @IsTest
     static void testWriteFileBlobContent() {
         String fileName = 'file.png';
         Blob fileContent = Blob.valueOf('ABC');
@@ -35,7 +35,7 @@ private with sharing class CalloutHexFormBuilder_Test {
         Assert.isTrue(expectedFormData == formData.toString(), 'Unexpected form data');
     }
 
-    @isTest
+    @IsTest
     static void testJsonParameterBuild() {
         String fileName = 'doc.docx';
         String fileContent = '';

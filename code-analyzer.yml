@@ -1,0 +1,17 @@
+engines:
+  pmd:
+    custom_rulesets:
+      - pmd-ruleset.xml
+
+rules:
+  pmd:
+    ApexDoc:
+      disabled: true
+    ApexUnitTestClassShouldHaveRunAs:
+      disabled: true
+
+ignores:
+  # PMD can't parse ''' strings
+  files:
+    - "**/ExampleXmlApi.cls"
+    - "**/CalloutXmlBuilder_Test.cls"

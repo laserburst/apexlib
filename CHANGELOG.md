@@ -6,6 +6,10 @@
 
 - **`CalloutXmlBuilder` / `CalloutXmlSerializable`** — build an XML request body whose elements keep the order they are added in; `withBody()` sends a `CalloutXmlSerializable` object as XML ([CalloutXmlBuilder.cls](force-app/main/calloutBuilder/classes/CalloutXmlBuilder.cls), [CalloutXmlSerializable.cls](force-app/main/calloutBuilder/classes/CalloutXmlSerializable.cls))
 
+### Changed
+
+- **API version 68.0** — up from 67.0 ([sfdx-project.json](sfdx-project.json))
+
 ## October 2026
 
 ### Added

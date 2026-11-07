@@ -1,5 +1,8 @@
 @IsTest
 private class CalloutBuilder_Test {
+    private static List<String> guardrailLog = new List<String>();
+    private static List<Object> sanitized = new List<Object>();
+
     @IsTest
     static void testSuccessfulTypedResponse() {
         Test.startTest();
@@ -172,7 +175,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testWithQueryParametersGetSuccess() {
         Test.startTest();
             CalloutBuilder cb =
@@ -188,7 +191,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testWithQueryParametersPostSuccess() {
         CaptureMock mock = new CaptureMock();
         Test.startTest();
@@ -211,7 +214,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testWithQueryParametersJoinEndpointQueryString() {
         Test.startTest();
             CalloutBuilder cb =
@@ -226,7 +229,7 @@ private class CalloutBuilder_Test {
         );
     }
 
-    @isTest
+    @IsTest
     static void testBodyWinsOverQueryParametersForNonGet() {
         CaptureMock mock = new CaptureMock();
         DummyResponse body = new DummyResponse();
@@ -248,7 +251,7 @@ private class CalloutBuilder_Test {
         );
     }
 
-    @isTest
+    @IsTest
     static void testBodyFollowsContentType() {
         CaptureMock xmlMock = new CaptureMock();
         CaptureMock jsonMock = new CaptureMock();
@@ -325,7 +328,7 @@ private class CalloutBuilder_Test {
         );
     }
 
-    @isTest
+    @IsTest
     static void testWithQueryParameterError() {
         try {
             Test.startTest();
@@ -339,7 +342,7 @@ private class CalloutBuilder_Test {
         }
     }
 
-    @isTest
+    @IsTest
     static void testWithQueryParametersError() {
         try {
             Test.startTest();
@@ -352,7 +355,7 @@ private class CalloutBuilder_Test {
         }
     }
 
-    @isTest
+    @IsTest
     static void testWithEndpointManySlashes() {
         Test.startTest();
             CalloutBuilder cb =
@@ -398,7 +401,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('a b&c', search.getPathParameters().get('term'), 'getPathParameters should return raw values');
     }
 
-    @isTest
+    @IsTest
     static void testWithFile() {
         Test.startTest();
             CalloutBuilder cb =
@@ -411,7 +414,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testWithFilePlainAndJsonParameters() {
         Test.startTest();
             CalloutBuilder cb =
@@ -429,7 +432,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testWithFilePlainOnlyParameters() {
         Test.startTest();
             CalloutBuilder cb =
@@ -446,7 +449,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testGetResponseBodyAsBlob() {
         Test.startTest();
             CalloutBuilder cb =
@@ -458,7 +461,7 @@ private class CalloutBuilder_Test {
         Assert.isNotNull(responseBodyBlob, 'responseBodyBlob should not be null');
     }
 
-    @isTest
+    @IsTest
     static void testDebugMode() {
         Exception e;
         Test.startTest();
@@ -615,8 +618,6 @@ private class CalloutBuilder_Test {
             Assert.isNull(mock.capturedRequest, 'No request should be sent');
         }
     }
-
-    private static List<String> guardrailLog = new List<String>();
 
     private class RecordingGuardrail implements CalloutGuardrail {
         private final String name;
@@ -830,8 +831,6 @@ private class CalloutBuilder_Test {
             'Every response the caller sees passes sanitization, including a bypassed error response'
         );
     }
-
-    private static List<Object> sanitized = new List<Object>();
 
     private class AppendingSanitizer extends CalloutResponseSanitizer {
         private final String name;
