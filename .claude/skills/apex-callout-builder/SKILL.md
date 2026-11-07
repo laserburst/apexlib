@@ -205,6 +205,8 @@ try {
 
 The exception also carries `code` (HTTP status code) and `status` (HTTP status text); both are null when the exception is thrown before a callout is made, e.g. a builder configuration error.
 
+`System.CalloutException` (read timeout, missing Remote Site Setting or Named Credential, uncommitted DML) skips both `catch (CalloutBuilder.CalloutBuilderException)` and the retrier.
+
 Use `.withBypassResponseValidation(true)` only when you genuinely need to inspect error responses programmatically without an exception. This is rare — the `withErrorType` + `getError()` covers most cases.
 
 ---
