@@ -1,6 +1,6 @@
-@isTest
+@IsTest
 private class MimeType_Test {
-    @isTest
+    @IsTest
     static void testGetByFileNameWithExtension() {
         Test.startTest();
         String mimeType = MimeType.getByFileNameWithExtension('test.pdf');
@@ -8,7 +8,7 @@ private class MimeType_Test {
         Assert.areEqual('application/pdf', mimeType);
     }
 
-    @isTest
+    @IsTest
     static void testGetByExtension() {
         Test.startTest();
         String mimeType = MimeType.getByExtension('pdf');
@@ -16,7 +16,7 @@ private class MimeType_Test {
         Assert.areEqual('application/pdf', mimeType);
     }
 
-    @isTest
+    @IsTest
     static void testGetByExtensionWithUnknownExtension() {
         Test.startTest();
         String mimeType = MimeType.getByExtension('unknown');
@@ -24,7 +24,7 @@ private class MimeType_Test {
         Assert.areEqual('application/octet-stream', mimeType);
     }
 
-    @isTest
+    @IsTest
     static void testFileNameWithoutExtension() {
         Test.startTest();
         String mimeType = MimeType.getByFileNameWithExtension('LICENSE');
@@ -32,7 +32,7 @@ private class MimeType_Test {
         Assert.areEqual('application/octet-stream', mimeType);
     }
 
-    @isTest
+    @IsTest
     static void testCaps() {
         Test.startTest();
         String mimeType = MimeType.getByFileNameWithExtension('test.PDF');
@@ -40,7 +40,7 @@ private class MimeType_Test {
         Assert.areEqual('application/pdf', mimeType);
     }
 
-    @isTest
+    @IsTest
     static void testBlankFileName() {
         Test.startTest();
         try {

@@ -1,6 +1,6 @@
-@isTest
+@IsTest
 private with sharing class ConnectApiAdapter_Test {
-    @isTest
+    @IsTest
     static void testGetAppClientIdFromExternalAuthIdentityProvider() {
         Test.startTest();
             String result = ConnectApiAdapter.getAppClientIdFromExternalAuthIdentityProvider('test');
@@ -9,7 +9,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isTrue(result == null, 'App client id should be null as ConnectApi is not testable');
     }
 
-    @isTest
+    @IsTest
     static void testGetCalloutUrl() {
         Test.startTest();
             String result = ConnectApiAdapter.getCalloutUrl('test');
@@ -18,7 +18,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isTrue(result == null, 'URL should be null as ConnectApi is not testable');
     }
 
-    @isTest
+    @IsTest
     static void testRefreshToken() {
         Test.startTest();
             ConnectApiAdapter.refreshToken(null, null, null, null);
@@ -27,7 +27,7 @@ private with sharing class ConnectApiAdapter_Test {
         // nothing to assert
     }
 
-    @isTest
+    @IsTest
     static void testIsCredentialConfigured() {
         Boolean isConfigured;
         Test.startTest();
@@ -37,7 +37,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isTrue(isConfigured, 'Should return true');
     }
 
-    @isTest
+    @IsTest
     static void testGetNamedCredential() {
         Test.startTest();
             ConnectApi.NamedCredential result = ConnectApiAdapter.getNamedCredential('test');
@@ -46,7 +46,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isNull(result, 'Should be null as ConnectApi is not testable');
     }
 
-    @isTest
+    @IsTest
     static void testGetExternalCredential() {
         Test.startTest();
             ConnectApi.ExternalCredential result = ConnectApiAdapter.getExternalCredential('test');
@@ -55,7 +55,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isNull(result, 'Should be null as ConnectApi is not testable');
     }
 
-    @isTest
+    @IsTest
     static void testGetCredentialAuthenticationUrl() {
         Test.startTest();
             String result = ConnectApiAdapter.getCredentialAuthenticationUrl(
@@ -68,7 +68,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isNull(result, 'Should be null as ConnectApi is not testable');
     }
 
-    @isTest
+    @IsTest
     static void testRefreshTokenSingleParameter() {
         Test.startTest();
             ConnectApiAdapter.refreshToken('test');
@@ -77,7 +77,7 @@ private with sharing class ConnectApiAdapter_Test {
         // nothing to assert
     }
 
-    @isTest
+    @IsTest
     static void testIsCredentialConfiguredSingleParameter() {
         Boolean isConfigured;
         Test.startTest();
@@ -87,7 +87,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isTrue(isConfigured, 'Should return true');
     }
 
-    @isTest
+    @IsTest
     static void testGetCredentialAuthenticationUrlSingleParameter() {
         Test.startTest();
             String result = ConnectApiAdapter.getCredentialAuthenticationUrl('test');
@@ -96,7 +96,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isNull(result, 'Should be null as ConnectApi is not testable');
     }
 
-    @isTest
+    @IsTest
     static void testGetSinglePrincipal() {
         ConnectApi.ExternalCredentialPrincipal principal = new ConnectApi.ExternalCredentialPrincipal();
         principal.principalName = 'test';
@@ -110,7 +110,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.areEqual('test', result.principalName, 'Should return the only principal');
     }
 
-    @isTest
+    @IsTest
     static void testGetSinglePrincipalThrowsOnNullExternalCredential() {
         Test.startTest();
             try {
@@ -125,7 +125,7 @@ private with sharing class ConnectApiAdapter_Test {
         Test.stopTest();
     }
 
-    @isTest
+    @IsTest
     static void testGetSinglePrincipalThrowsOnNullPrincipals() {
         ConnectApi.ExternalCredential credential = new ConnectApi.ExternalCredential();
         credential.principals = null;
@@ -140,7 +140,7 @@ private with sharing class ConnectApiAdapter_Test {
         Test.stopTest();
     }
 
-    @isTest
+    @IsTest
     static void testGetSinglePrincipalThrowsOnZeroPrincipals() {
         ConnectApi.ExternalCredential credential = new ConnectApi.ExternalCredential();
         credential.principals = new List<ConnectApi.ExternalCredentialPrincipal>();
@@ -155,7 +155,7 @@ private with sharing class ConnectApiAdapter_Test {
         Test.stopTest();
     }
 
-    @isTest
+    @IsTest
     static void testGetClientId() {
         ConnectApi.ExternalAuthIdentityProviderCredential credential = new ConnectApi.ExternalAuthIdentityProviderCredential();
         credential.credentialName = 'clientId';
@@ -170,7 +170,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.areEqual('test', result, 'Should return the clientId credential value');
     }
 
-    @isTest
+    @IsTest
     static void testGetClientIdNoMatch() {
         ConnectApi.ExternalAuthIdentityProviderCredential credential = new ConnectApi.ExternalAuthIdentityProviderCredential();
         credential.credentialName = 'clientSecret';
@@ -185,7 +185,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isNull(result, 'Should be null when no clientId credential exists');
     }
 
-    @isTest
+    @IsTest
     static void testGetClientIdEmptyList() {
         Test.startTest();
             String result = ConnectApiAdapter.getClientId(new List<ConnectApi.ExternalAuthIdentityProviderCredential>());
@@ -194,7 +194,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isNull(result, 'Should be null for empty credentials');
     }
 
-    @isTest
+    @IsTest
     static void testGetClientIdNullList() {
         Test.startTest();
             String result = ConnectApiAdapter.getClientId(null);
@@ -203,7 +203,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.isNull(result, 'Should be null for null credentials');
     }
 
-    @isTest
+    @IsTest
     static void testGetAuthenticationProtocol() {
         ConnectApi.ExternalCredential credential = new ConnectApi.ExternalCredential();
         credential.authenticationProtocol = ConnectApi.CredentialAuthenticationProtocol.OAuth;
@@ -216,7 +216,7 @@ private with sharing class ConnectApiAdapter_Test {
         Assert.areEqual(ConnectApi.CredentialAuthenticationProtocol.OAuth, result, 'Should return the protocol');
     }
 
-    @isTest
+    @IsTest
     static void testGetAuthenticationProtocolThrowsOnNullProtocol() {
         ConnectApi.ExternalCredential credential = new ConnectApi.ExternalCredential();
 
@@ -233,7 +233,7 @@ private with sharing class ConnectApiAdapter_Test {
         Test.stopTest();
     }
 
-    @isTest
+    @IsTest
     static void testGetSinglePrincipalThrowsOnMultiplePrincipals() {
         ConnectApi.ExternalCredential credential = new ConnectApi.ExternalCredential();
         credential.principals = new List<ConnectApi.ExternalCredentialPrincipal>{

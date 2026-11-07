@@ -1,4 +1,4 @@
-@isTest
+@IsTest
 private with sharing class ViciousMockery_Test {
         
     @IsTest

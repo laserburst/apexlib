@@ -172,7 +172,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testWithQueryParametersGetSuccess() {
         Test.startTest();
             CalloutBuilder cb =
@@ -188,7 +188,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testWithQueryParametersPostSuccess() {
         CaptureMock mock = new CaptureMock();
         Test.startTest();
@@ -211,7 +211,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testWithQueryParametersJoinEndpointQueryString() {
         Test.startTest();
             CalloutBuilder cb =
@@ -226,7 +226,7 @@ private class CalloutBuilder_Test {
         );
     }
 
-    @isTest
+    @IsTest
     static void testBodyWinsOverQueryParametersForNonGet() {
         CaptureMock mock = new CaptureMock();
         DummyResponse body = new DummyResponse();
@@ -248,7 +248,7 @@ private class CalloutBuilder_Test {
         );
     }
 
-    @isTest
+    @IsTest
     static void testBodyFollowsContentType() {
         CaptureMock xmlMock = new CaptureMock();
         CaptureMock jsonMock = new CaptureMock();
@@ -325,7 +325,7 @@ private class CalloutBuilder_Test {
         );
     }
 
-    @isTest
+    @IsTest
     static void testWithQueryParameterError() {
         try {
             Test.startTest();
@@ -339,7 +339,7 @@ private class CalloutBuilder_Test {
         }
     }
 
-    @isTest
+    @IsTest
     static void testWithQueryParametersError() {
         try {
             Test.startTest();
@@ -352,7 +352,7 @@ private class CalloutBuilder_Test {
         }
     }
 
-    @isTest
+    @IsTest
     static void testWithEndpointManySlashes() {
         Test.startTest();
             CalloutBuilder cb =
@@ -398,7 +398,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('a b&c', search.getPathParameters().get('term'), 'getPathParameters should return raw values');
     }
 
-    @isTest
+    @IsTest
     static void testWithFile() {
         Test.startTest();
             CalloutBuilder cb =
@@ -411,7 +411,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testWithFilePlainAndJsonParameters() {
         Test.startTest();
             CalloutBuilder cb =
@@ -429,7 +429,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testWithFilePlainOnlyParameters() {
         Test.startTest();
             CalloutBuilder cb =
@@ -446,7 +446,7 @@ private class CalloutBuilder_Test {
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
-    @isTest
+    @IsTest
     static void testGetResponseBodyAsBlob() {
         Test.startTest();
             CalloutBuilder cb =
@@ -458,7 +458,7 @@ private class CalloutBuilder_Test {
         Assert.isNotNull(responseBodyBlob, 'responseBodyBlob should not be null');
     }
 
-    @isTest
+    @IsTest
     static void testDebugMode() {
         Exception e;
         Test.startTest();
