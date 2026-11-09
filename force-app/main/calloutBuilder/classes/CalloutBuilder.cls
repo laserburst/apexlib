@@ -272,9 +272,10 @@ public virtual with sharing class CalloutBuilder {
      * @return plain HttpResponse
      */
     public virtual HttpResponse getHttpResponse() {
-        this.rejectReentry();
+        this.validateBeforeCall();
+        this.bodyString = this.toBodyString();
         try {
-            this.validateBeforeCall();
+            this.enforceGuardrails();
             this.constructRequest();
         } finally {
             // a body in an HttpRequest doesn't count toward the heap limit; a String kept in a field does
@@ -414,20 +415,11 @@ public virtual with sharing class CalloutBuilder {
 
     // implementation details
 
-    // runs before any state is set, so a nested call from a guardrail or sanitizer leaves the outer call intact
-    private void rejectReentry() {
-        if (this.responseSanitizers.isRunning()) {
-            throw new CalloutBuilderException('A response sanitizer must not execute the callout it is sanitizing.');
-        }
-        if (this.enforcingGuardrails) {
-            throw new CalloutBuilderException('A guardrail must not execute the callout it is guarding.');
-        }
-    }
-
     /**
      * @description throws before the request is built if needed
      */
     private void validateBeforeCall() {
+        this.rejectReentry();
         if (String.isBlank(this.ncOrBaseUrl)) {
             throw new CalloutBuilderException('NC or base URL must be provided');
         }
@@ -435,8 +427,18 @@ public virtual with sharing class CalloutBuilder {
             throw new CalloutBuilderException('HTTP method must be provided');
         }
         this.endpoint.resolve(); // placeholders must resolve before guardrails read the endpoint
-        this.bodyString = this.toBodyString();
-        this.enforceGuardrails();
+    }
+
+    /**
+     * @description throws on a nested call from this builder's guardrail or sanitizer
+     */
+    private void rejectReentry() {
+        if (this.responseSanitizers.isRunning()) {
+            throw new CalloutBuilderException('A response sanitizer must not execute the callout it is sanitizing.');
+        }
+        if (this.enforcingGuardrails) {
+            throw new CalloutBuilderException('A guardrail must not execute the callout it is guarding.');
+        }
     }
 
     private void enforceGuardrails() {
