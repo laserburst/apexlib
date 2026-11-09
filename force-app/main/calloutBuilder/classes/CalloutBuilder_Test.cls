@@ -36,6 +36,19 @@ private class CalloutBuilder_Test {
     }
 
     @IsTest
+    static void testClientCertificateIsSetOnRequest() {
+        CalloutBuilder builder = new CalloutBuilder('callout:Test')
+            .withClientCertificate('MissingCertificate')
+            .withMockIfTest(new SuccessMock());
+        try {
+            builder.getHttpResponse();
+            Assert.fail('Expected the request to carry the certificate');
+        } catch (CalloutException e) {
+            Assert.isTrue(e.getMessage().contains('MissingCertificate'), 'Unexpected error message: ' + e.getMessage());
+        }
+    }
+
+    @IsTest
     static void testValidationFailsForMissingNC() {
         try {
             Test.startTest();

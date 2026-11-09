@@ -155,6 +155,10 @@ new CalloutBuilder('callout:MyNC')
 ### Timeouts 
 - `.withTimeout(milliseconds)` — default is 10 s; max is 120 000 ms.
 
+### Client certificate
+- `.withClientCertificate(certificateName)` — for an API that requires a client certificate (mutual TLS); pass the certificate's Unique Name. Don't build a raw `HttpRequest` for it.
+- The certificate must exist in the org, even when `withMockIfTest()` answers the callout; otherwise it throws `CalloutException`. A null name sends no certificate, so read the name from configuration that is empty in test and scratch orgs.
+
 ### Debug Mode
 - `.withDebugMode(true)` — logs full request/response to the debug log (skips binary content types). Safe to include during development; remove or control by custom metadata in production. False by default.
 

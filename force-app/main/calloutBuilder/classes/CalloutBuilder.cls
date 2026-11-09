@@ -29,6 +29,7 @@ public virtual with sharing class CalloutBuilder {
 
     private System.Type successType;
     private Integer timeout; // 120000 is the max timeout
+    private String clientCertificateName;
     private Map<String, String> headersMap = new Map<String, String>();
     private Boolean hasBlobBody = false;
     private Map<String, String> queryParameters = new Map<String, String>();
@@ -246,6 +247,17 @@ public virtual with sharing class CalloutBuilder {
         return this;
     }
 
+    /**
+     * @description withClientCertificate presents a client certificate for mutual TLS.
+     * The certificate must exist in the org, also for a mocked callout in a test,
+     * or the callout throws CalloutException before it is sent.
+     * @param certificateName the certificate's Unique Name in Certificate and Key Management, not its label
+     */
+    public CalloutBuilder withClientCertificate(String certificateName) {
+        this.clientCertificateName = certificateName;
+        return this;
+    }
+
     // execution variants
 
     /**
@@ -426,6 +438,9 @@ public virtual with sharing class CalloutBuilder {
         this.request.setMethod(this.method);
         if (this.timeout != null) {
             this.request.setTimeout(this.timeout);
+        }
+        if (this.clientCertificateName != null) {
+            this.request.setClientCertificateName(this.clientCertificateName);
         }
         this.attachBody();
         this.attachHeaders();
