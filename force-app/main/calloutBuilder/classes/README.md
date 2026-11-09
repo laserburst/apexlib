@@ -310,4 +310,4 @@ CalloutBuilder.BUILDER_TO_MOCK_OVERRIDE.put(mockTarget, new PaymentErrorMock());
 // even if it has its own .withMockIfTest() set.
 ```
 
-The override is matched by `constructFullEndpoint()` and `getMethod()`. Builders targeting different URLs or methods are unaffected.
+The override is matched by `constructFullEndpoint()` and `getMethod()`. The override stays installed after its callout, so later callouts to other URLs or methods need a mock of their own.

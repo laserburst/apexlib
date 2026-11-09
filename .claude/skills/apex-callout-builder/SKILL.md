@@ -363,7 +363,9 @@ static void testPaymentError() {
 }
 ```
 
-The override matches by resolved full URL + HTTP method: a key built with `withEndpoint('/charge/ch_1')` matches `withEndpoint('/charge/{id}').withPathParameter('id', 'ch_1')`. Builders targeting other endpoints are unaffected.
+The override matches by resolved full URL + HTTP method: a key built with `withEndpoint('/charge/ch_1')` matches `withEndpoint('/charge/{id}').withPathParameter('id', 'ch_1')`.
+
+The override is installed with `Test.setMock()`, so it replaces the test's mock and stays installed after its callout; Apex can't restore the earlier mock. A later callout without its own `withMockIfTest()` or override is answered by the override, so give every callout in such a test a mock or an override.
 
 ---
 
