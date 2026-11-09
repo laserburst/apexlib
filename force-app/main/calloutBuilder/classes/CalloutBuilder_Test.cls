@@ -227,6 +227,7 @@ private class CalloutBuilder_Test {
             mock.capturedRequest.getBody(),
             'Parameters should be the body instead'
         );
+        Assert.isNull(mock.capturedRequest.getHeader('Content-Type'), 'Parameters sent as the body should keep Salesforce\'s form default');
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
     }
 
@@ -294,6 +295,7 @@ private class CalloutBuilder_Test {
         CaptureMock formStringMock = new CaptureMock();
         Dom.Document document = new Dom.Document();
         document.createRootElement('item', null, null).addTextNode('kept');
+        Map<String, Object> formBody = new Map<String, Object>{ 'a' => new List<Object>{ 'x' } };
 
         Test.startTest();
             new CalloutBuilder('https://example.com')
@@ -334,13 +336,14 @@ private class CalloutBuilder_Test {
                 .withBlobBody(Blob.valueOf('x'))
                 .withMockIfTest(blobMock)
                 .getHttpResponse();
-            new CalloutBuilder('https://example.com')
+            CalloutBuilder formBuilder = new CalloutBuilder('https://example.com')
                 .withEndpoint('/test')
                 .withMethod('POST')
                 .withHeader('Content-Type', 'Application/X-WWW-Form-Urlencoded; charset=UTF-8')
-                .withBody(new Map<String, Object>{ 'a' => new List<Object>{ 'x' } })
-                .withMockIfTest(formMock)
-                .getHttpResponse();
+                .withBody(formBody)
+                .withGuardrail(new BodyStringGuardrail())
+                .withMockIfTest(formMock);
+            formBuilder.getHttpResponse();
             new CalloutBuilder('https://example.com')
                 .withEndpoint('/test')
                 .withMethod('POST')
@@ -374,6 +377,9 @@ private class CalloutBuilder_Test {
             'A blob body without a Content-Type should default to binary'
         );
         Assert.areEqual('a%5B0%5D=x', formMock.capturedRequest.getBody(), 'A Map body with a form Content-Type should be sent as form fields');
+        Assert.areEqual(new List<String>{ 'a%5B0%5D=x' }, guardrailLog, 'A guardrail should read the body that is sent');
+        Assert.areEqual('a%5B0%5D=x', formBuilder.getBodyAsString(), 'Outside the guardrails the body should be serialized again');
+        Assert.isTrue(formBuilder.getBody() === formBody, 'getBody() should return the object passed to withBody(), not a copy');
         Assert.areEqual('a=1&b=2', formStringMock.capturedRequest.getBody(), 'A String body with a form Content-Type should be sent as-is');
     }
 
@@ -692,6 +698,12 @@ private class CalloutBuilder_Test {
         }
     }
 
+    private class BodyStringGuardrail implements CalloutGuardrail {
+        public void enforce(CalloutBuilder builder) {
+            guardrailLog.add(builder.getBodyAsString());
+        }
+    }
+
     @IsTest
     static void testSanitizerMutatesTypedBody() {
         Test.startTest();
@@ -846,21 +858,44 @@ private class CalloutBuilder_Test {
     }
 
     @IsTest
-    static void testErrorResponseIsNotSanitized() {
+    static void testErrorResponseIsSanitizedOnlyWhenAsked() {
         Test.startTest();
-            try {
+            String rawMessage = errorMessageOf(
                 new CalloutBuilder('callout:ErrorTest')
                     .withEndpoint('/fail')
                     .withResponseSanitizer(new ScrubbingSanitizer())
                     .withMockIfTest(new ErrorMock())
-                    .getHttpResponse();
-                Assert.fail('Expected error not thrown');
-            } catch (CalloutBuilder.CalloutBuilderException e) {
-                Assert.isTrue(e.getMessage().contains('Something went wrong'), 'The error path should see the raw body');
-            }
+            );
+            String sanitizedMessage = errorMessageOf(
+                new CalloutBuilder('callout:ErrorTest')
+                    .withEndpoint('/fail')
+                    .withResponseSanitizer(
+                        new CalloutResponseSanitizerChain().add(new ScrubbingSanitizer()).add(new AppendingSanitizer('-x'))
+                    )
+                    .withMockIfTest(new ErrorMock())
+            );
+            String withheldMessage = errorMessageOf(
+                new CalloutBuilder('callout:ErrorTest')
+                    .withEndpoint('/fail')
+                    .withResponseSanitizer(new BlockingSanitizer())
+                    .withMockIfTest(new ErrorMock())
+            );
         Test.stopTest();
 
-        Assert.isTrue(sanitized.isEmpty(), 'Sanitizers should not run on a response that fails validation');
+        Assert.isTrue(rawMessage.contains('Something went wrong'), 'By default the error path should see the raw body');
+        Assert.isTrue(sanitized.isEmpty(), 'A sanitizer that does not sanitize errors should be skipped, in a nested chain too');
+        Assert.isTrue(sanitizedMessage.endsWith('-x'), 'The exception should be built from the sanitized body: ' + sanitizedMessage);
+        Assert.isNull(withheldMessage, 'A blocked error body should be withheld; the message falls back to the status text, which ErrorMock leaves unset');
+    }
+
+    private static String errorMessageOf(CalloutBuilder builder) {
+        try {
+            builder.getHttpResponse();
+        } catch (CalloutBuilder.CalloutBuilderException e) {
+            return e.getMessage();
+        }
+        Assert.fail('Expected CalloutBuilderException not thrown');
+        return null;
     }
 
     @IsTest
@@ -886,6 +921,10 @@ private class CalloutBuilder_Test {
 
         private AppendingSanitizer(String name) {
             this.name = name;
+        }
+
+        public override void sanitizeError(HttpResponse response) {
+            this.sanitize(response);
         }
 
         public override void sanitize(HttpResponse response) {
@@ -919,6 +958,10 @@ private class CalloutBuilder_Test {
     }
 
     private class BlockingSanitizer extends CalloutResponseSanitizer {
+        public override void sanitizeError(HttpResponse response) {
+            this.sanitize(response);
+        }
+
         public override void sanitize(HttpResponse response) {
             throw new CalloutResponseSanitizerException('Blocked by test sanitizer');
         }

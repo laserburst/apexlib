@@ -36,6 +36,17 @@ public with sharing class CalloutResponseSanitizerChain extends CalloutResponseS
         }
     }
 
+    public override void sanitizeError(HttpResponse response) {
+        this.running = true;
+        try {
+            for (CalloutResponseSanitizer sanitizer : this.sanitizers) {
+                sanitizer.sanitizeError(response);
+            }
+        } finally {
+            this.running = false;
+        }
+    }
+
     public override void sanitize(Map<String, Object> body) {
         this.running = true;
         try {

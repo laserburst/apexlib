@@ -7,6 +7,8 @@
 - **`CalloutBuilder.withClientCertificate()`** — presents a client certificate from Certificate and Key Management ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **`CalloutBuilder.withCompression()`** — sends the request body gzip-compressed ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **`CalloutXmlBuilder` / `CalloutXmlSerializable`** — build an XML request body whose elements keep the order they are added in; `withBody()` sends a `CalloutXmlSerializable` object as XML ([CalloutXmlBuilder.cls](force-app/main/calloutBuilder/classes/CalloutXmlBuilder.cls), [CalloutXmlSerializable.cls](force-app/main/calloutBuilder/classes/CalloutXmlSerializable.cls))
+- **`CalloutBuilder.getBody()` / `getBodyAsString()`** — return the request body as given to `withBody()` and as it will be sent, so a guardrail can check it ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **`CalloutResponseSanitizer.sanitizeError()`** — override it to sanitize an error response before `CalloutBuilderException` is built from it ([CalloutResponseSanitizer.cls](force-app/main/calloutBuilder/classes/CalloutResponseSanitizer.cls))
 
 ### Changed
 
