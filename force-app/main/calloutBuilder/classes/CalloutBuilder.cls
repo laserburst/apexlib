@@ -54,7 +54,6 @@ public virtual with sharing class CalloutBuilder {
     private System.Type errorResponseImplType;
     private CalloutErrorResponse error;
     private Boolean bypassResponseValidation = false;
-    private Boolean sanitizedErrors = false;
     private Boolean debugMode = false;
 
     public CalloutBuilder(String ncOrBaseUrl) {
@@ -174,17 +173,6 @@ public virtual with sharing class CalloutBuilder {
 
     public CalloutBuilder withBypassResponseValidation(Boolean bypassResponseValidation) {
         this.bypassResponseValidation = bypassResponseValidation;
-        return this;
-    }
-
-    /**
-     * @description withSanitizedErrors sends an error response through the sanitizers' sanitize(HttpResponse)
-     * before CalloutBuilderException is built from it, so its message and getError() come from the sanitized body.
-     * That overload then also receives error responses from every getter, blank and non-JSON bodies included;
-     * a CalloutResponseSanitizerException withholds the error body, and the exception keeps its code and status
-     */
-    public CalloutBuilder withSanitizedErrors(Boolean sanitizedErrors) {
-        this.sanitizedErrors = sanitizedErrors;
         return this;
     }
 
@@ -596,9 +584,7 @@ public virtual with sharing class CalloutBuilder {
             return;
         }
         if (this.response.getStatusCode() >= 400) {
-            if (this.sanitizedErrors) {
-                this.sanitizeErrorResponse();
-            }
+            this.sanitizeErrorResponse();
             CalloutBuilderException ex = new CalloutBuilderException(
                 this.response,
                 this.errorResponseImplType,
@@ -612,7 +598,7 @@ public virtual with sharing class CalloutBuilder {
     // a blocked error body is withheld, so the caller still gets CalloutBuilderException with its code and status
     private void sanitizeErrorResponse() {
         try {
-            this.responseSanitizers.sanitize(this.response);
+            this.responseSanitizers.sanitizeError(this.response);
         } catch (CalloutResponseSanitizerException e) {
             this.response.setBody('');
         }

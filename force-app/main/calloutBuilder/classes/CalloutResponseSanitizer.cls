@@ -7,6 +7,15 @@
 * @team Laserburst
 */
 public abstract with sharing class CalloutResponseSanitizer {
+    /**
+     * @description receives an error response before CalloutBuilderException is built from it, so its message and
+     * getError() come from the sanitized body; it gets error responses from every getter, blank and non-JSON bodies
+     * included. A CalloutResponseSanitizerException withholds the error body, and the exception keeps its code and
+     * status. Not overridden, it lets the error response through as is
+     */
+    public virtual void sanitizeError(HttpResponse response) {
+    }
+
     public virtual void sanitize(HttpResponse response) {
         throw unsupported('HttpResponse');
     }

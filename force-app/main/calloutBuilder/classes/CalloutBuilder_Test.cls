@@ -869,21 +869,21 @@ private class CalloutBuilder_Test {
             String sanitizedMessage = errorMessageOf(
                 new CalloutBuilder('callout:ErrorTest')
                     .withEndpoint('/fail')
-                    .withSanitizedErrors(true)
-                    .withResponseSanitizer(new AppendingSanitizer('-x'))
+                    .withResponseSanitizer(
+                        new CalloutResponseSanitizerChain().add(new ScrubbingSanitizer()).add(new AppendingSanitizer('-x'))
+                    )
                     .withMockIfTest(new ErrorMock())
             );
             String withheldMessage = errorMessageOf(
                 new CalloutBuilder('callout:ErrorTest')
                     .withEndpoint('/fail')
-                    .withSanitizedErrors(true)
-                    .withResponseSanitizer(new UnsupportingSanitizer())
+                    .withResponseSanitizer(new BlockingSanitizer())
                     .withMockIfTest(new ErrorMock())
             );
         Test.stopTest();
 
         Assert.isTrue(rawMessage.contains('Something went wrong'), 'By default the error path should see the raw body');
-        Assert.isTrue(sanitized.isEmpty(), 'By default sanitizers should not run on a response that fails validation');
+        Assert.isTrue(sanitized.isEmpty(), 'A sanitizer that does not sanitize errors should be skipped, in a nested chain too');
         Assert.isTrue(sanitizedMessage.endsWith('-x'), 'The exception should be built from the sanitized body: ' + sanitizedMessage);
         Assert.isNull(withheldMessage, 'A blocked error body should be withheld; the message falls back to the status text, which ErrorMock leaves unset');
     }
@@ -923,6 +923,10 @@ private class CalloutBuilder_Test {
             this.name = name;
         }
 
+        public override void sanitizeError(HttpResponse response) {
+            this.sanitize(response);
+        }
+
         public override void sanitize(HttpResponse response) {
             response.setBody(response.getBody() + this.name);
         }
@@ -954,6 +958,10 @@ private class CalloutBuilder_Test {
     }
 
     private class BlockingSanitizer extends CalloutResponseSanitizer {
+        public override void sanitizeError(HttpResponse response) {
+            this.sanitize(response);
+        }
+
         public override void sanitize(HttpResponse response) {
             throw new CalloutResponseSanitizerException('Blocked by test sanitizer');
         }

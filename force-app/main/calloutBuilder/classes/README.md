@@ -270,7 +270,7 @@ new CalloutBuilder('callout:MyService')
     .getResponseBodyMap();
 ```
 
-Sanitizers run after validation, so the retrier and `withDebugMode(true)` see the raw response — sanitizing is not log redaction. The `>= 400` error path sees it too, unless `withSanitizedErrors(true)` sends the error response through `sanitize(HttpResponse)` before the exception is built from it, or `withBypassResponseValidation(true)` lets it through as a success. Throw rather than return quietly on a body the sanitizer cannot handle. A binary response needs `setBodyAsBlob()` in the `HttpResponse` overload, and a sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilderException`.
+Sanitizers run after validation, so the retrier and `withDebugMode(true)` see the raw response — sanitizing is not log redaction. The `>= 400` error path sees it too, except for a sanitizer that overrides `sanitizeError(HttpResponse)`, which gets the error response before the exception is built from it, or when `withBypassResponseValidation(true)` lets it through as a success. Throw rather than return quietly on a body the sanitizer cannot handle. A binary response needs `setBodyAsBlob()` in the `HttpResponse` overload, and a sanitizer must not execute the builder it is sanitizing; doing so throws `CalloutBuilderException`.
 
 ---
 
