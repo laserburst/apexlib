@@ -5,6 +5,7 @@ private class CalloutBuilder_Test {
 
     @IsTest
     static void testSuccessfulTypedResponse() {
+        CaptureMock mock = new CaptureMock();
         Test.startTest();
             CalloutBuilder cb =
                 new CalloutBuilder('callout:Test')
@@ -13,14 +14,16 @@ private class CalloutBuilder_Test {
                     .withHeaders(new Map<String, String>{ 'key_2' => 'value_2' })
                     .withBody('test body')
                     .withTimeout(1000)
+                    .withCompression(true)
                     .withSuppressApexObjectNulls(false)
                     .withSuccessType(DummyResponse.class)
-                    .withMockIfTest(new SuccessMock());
+                    .withMockIfTest(mock);
 
             DummyResponse res = (DummyResponse) cb.getTypedResponseBody();
         Test.stopTest();
 
         Assert.areEqual('Success', res.value, 'Unexpected res.value');
+        Assert.isTrue(mock.capturedRequest.getCompressed(), 'The request should be compressed');
     }
 
     @IsTest
@@ -33,6 +36,19 @@ private class CalloutBuilder_Test {
         Test.stopTest();
 
         Assert.areEqual('Success', (String) resMap.get('value'), 'Unexpected res.value');
+    }
+
+    @IsTest
+    static void testClientCertificateIsSetOnRequest() {
+        CalloutBuilder builder = new CalloutBuilder('callout:Test')
+            .withClientCertificate('MissingCertificate')
+            .withMockIfTest(new SuccessMock());
+        try {
+            builder.getHttpResponse();
+            Assert.fail('Expected the request to carry the certificate');
+        } catch (CalloutException e) {
+            Assert.isTrue(e.getMessage().contains('MissingCertificate'), 'Unexpected error message: ' + e.getMessage());
+        }
     }
 
     @IsTest
@@ -204,7 +220,7 @@ private class CalloutBuilder_Test {
                     .withMockIfTest(mock);
             Map<String, Object> resMap = cb.getResponseBodyMap();
         Test.stopTest();
-        String expectedUrl = 'https://example.com/test'; // POST requests do not include query parameters in the URL
+        String expectedUrl = 'https://example.com/test'; // a POST without a body sends them as the body
         Assert.areEqual(expectedUrl, cb.constructFullEndpoint(), 'Unexpected endpoint URL');
         Assert.areEqual(
             'param1=value1&param2=value2&param3=value3',
@@ -259,6 +275,11 @@ private class CalloutBuilder_Test {
             '{"value":"kept"}',
             mock.capturedRequest.getBody(),
             'An object body should be serialized and win over query parameters'
+        );
+        Assert.areEqual(
+            'https://example.com/test?param1=value1',
+            mock.capturedRequest.getEndpoint(),
+            'Query parameters of a non-GET request with a body should go to the URL'
         );
     }
 
