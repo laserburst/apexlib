@@ -30,6 +30,7 @@ public virtual with sharing class CalloutBuilder {
     private System.Type successType;
     private Integer timeout; // 120000 is the max timeout
     private String clientCertificateName;
+    private Boolean compressed = false;
     private Map<String, String> headersMap = new Map<String, String>();
     private Boolean hasBlobBody = false;
     private Map<String, String> queryParameters = new Map<String, String>();
@@ -258,6 +259,14 @@ public virtual with sharing class CalloutBuilder {
         return this;
     }
 
+    /**
+     * @description withCompression sends the body gzip-compressed; the API must accept a compressed body
+     */
+    public CalloutBuilder withCompression(Boolean compressed) {
+        this.compressed = compressed;
+        return this;
+    }
+
     // execution variants
 
     /**
@@ -442,6 +451,7 @@ public virtual with sharing class CalloutBuilder {
         if (this.clientCertificateName != null) {
             this.request.setClientCertificateName(this.clientCertificateName);
         }
+        this.request.setCompressed(this.compressed);
         this.attachBody();
         this.attachHeaders();
     }

@@ -5,6 +5,7 @@ private class CalloutBuilder_Test {
 
     @IsTest
     static void testSuccessfulTypedResponse() {
+        CaptureMock mock = new CaptureMock();
         Test.startTest();
             CalloutBuilder cb =
                 new CalloutBuilder('callout:Test')
@@ -13,14 +14,16 @@ private class CalloutBuilder_Test {
                     .withHeaders(new Map<String, String>{ 'key_2' => 'value_2' })
                     .withBody('test body')
                     .withTimeout(1000)
+                    .withCompression(true)
                     .withSuppressApexObjectNulls(false)
                     .withSuccessType(DummyResponse.class)
-                    .withMockIfTest(new SuccessMock());
+                    .withMockIfTest(mock);
 
             DummyResponse res = (DummyResponse) cb.getTypedResponseBody();
         Test.stopTest();
 
         Assert.areEqual('Success', res.value, 'Unexpected res.value');
+        Assert.isTrue(mock.capturedRequest.getCompressed(), 'The request should be compressed');
     }
 
     @IsTest
