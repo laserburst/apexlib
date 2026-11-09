@@ -425,8 +425,8 @@ public virtual with sharing class CalloutBuilder {
     }
 
     /**
-    * @description it checks if required fields are set.
-    */
+     * @description throws before the request is built if needed
+     */
     private void validateBeforeCall() {
         if (String.isBlank(this.ncOrBaseUrl)) {
             throw new CalloutBuilderException('NC or base URL must be provided');
