@@ -29,6 +29,8 @@ public virtual with sharing class CalloutBuilder {
 
     private System.Type successType;
     private Integer timeout; // 120000 is the max timeout
+    private String clientCertificateName;
+    private Boolean compressed = false;
     private Map<String, String> headersMap = new Map<String, String>();
     private Boolean hasBlobBody = false;
     private Map<String, String> queryParameters = new Map<String, String>();
@@ -202,10 +204,9 @@ public virtual with sharing class CalloutBuilder {
     }
 
     /**
-     * @description withQueryParameter sets query parameter for the callout
-     * Note: If the method is GET, query parameters are added to the URL.
-     * If the method is not GET, query parameters are added to the body
-     * (if the body is null). A null value leaves the parameter out.
+     * @description withQueryParameter sets query parameter for the callout.
+     * It goes to the URL for GET or a request with a body; a non-GET request
+     * without a body sends the query parameters as its body. A null value leaves the parameter out.
      */
     public CalloutBuilder withQueryParameter(String key, String value) {
         if (String.isBlank(key)) {
@@ -243,6 +244,25 @@ public virtual with sharing class CalloutBuilder {
 
     public CalloutBuilder withTimeout(Integer timeout) {
         this.timeout = timeout;
+        return this;
+    }
+
+    /**
+     * @description withClientCertificate presents a client certificate for mutual TLS.
+     * The certificate must exist in the org, also for a mocked callout in a test,
+     * or the callout throws CalloutException before it is sent.
+     * @param certificateName the certificate's Unique Name in Certificate and Key Management, not its label
+     */
+    public CalloutBuilder withClientCertificate(String certificateName) {
+        this.clientCertificateName = certificateName;
+        return this;
+    }
+
+    /**
+     * @description withCompression sends the body gzip-compressed; the API must accept a compressed body
+     */
+    public CalloutBuilder withCompression(Boolean compressed) {
+        this.compressed = compressed;
         return this;
     }
 
@@ -323,11 +343,11 @@ public virtual with sharing class CalloutBuilder {
 
     /**
      * @description constructFullEndpoint returns full URL for the callout
-     * @return base URL + endpoint + query parameters (if any and if GET method)
+     * @return base URL + endpoint + query parameters (if any, for GET or a request with a body)
      */
     public String constructFullEndpoint() {
         String fullEndpoint = this.endpoint.joinTo(this.ncOrBaseUrl);
-        if (this.method != 'GET') {
+        if (this.isQueryInBody()) {
             return fullEndpoint;
         }
         String query = this.getEncodedQueryParameters();
@@ -427,8 +447,16 @@ public virtual with sharing class CalloutBuilder {
         if (this.timeout != null) {
             this.request.setTimeout(this.timeout);
         }
+        if (this.clientCertificateName != null) {
+            this.request.setClientCertificateName(this.clientCertificateName);
+        }
+        this.request.setCompressed(this.compressed);
         this.attachBody();
         this.attachHeaders();
+    }
+
+    private Boolean isQueryInBody() {
+        return this.method != 'GET' && this.body == null;
     }
 
     private String getEncodedQueryParameters() {
@@ -443,7 +471,7 @@ public virtual with sharing class CalloutBuilder {
      * 1. blob
      * 2. XML (Dom.Document or CalloutXmlSerializable)
      * 3. any other body, by Content-Type: a String as-is, form fields or JSON
-     *    (a body always wins over query parameters)
+     *    (query parameters then go to the URL)
      * 4. query parameters (if any and if method is not GET)
      */
     private void attachBody() {
@@ -461,7 +489,7 @@ public virtual with sharing class CalloutBuilder {
         } else if (this.body != null) {
             this.request.setBody(this.toTextBody());
             this.defaultContentType('application/json');
-        } else if (!this.queryParameters.isEmpty() && this.method != 'GET') {
+        } else if (!this.queryParameters.isEmpty() && this.isQueryInBody()) {
             this.request.setBody(this.getEncodedQueryParameters());
         }
     }

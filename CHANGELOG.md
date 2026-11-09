@@ -4,6 +4,8 @@
 
 ### Added
 
+- **`CalloutBuilder.withClientCertificate()`** — presents a client certificate from Certificate and Key Management ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **`CalloutBuilder.withCompression()`** — sends the request body gzip-compressed ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 - **`CalloutXmlBuilder` / `CalloutXmlSerializable`** — build an XML request body whose elements keep the order they are added in; `withBody()` sends a `CalloutXmlSerializable` object as XML ([CalloutXmlBuilder.cls](force-app/main/calloutBuilder/classes/CalloutXmlBuilder.cls), [CalloutXmlSerializable.cls](force-app/main/calloutBuilder/classes/CalloutXmlSerializable.cls))
 
 ### Changed
@@ -11,6 +13,7 @@
 - **API version 68.0** — up from 67.0 ([sfdx-project.json](sfdx-project.json))
 - **Form bodies** — with an `application/x-www-form-urlencoded` Content-Type, `withBody()` sends a Map or an object as form fields with bracket keys (`items[0][sku]=A1`) instead of JSON, and throws for any other non-String body ([CalloutUrlEncodedForm.cls](force-app/main/calloutBuilder/classes/CalloutUrlEncodedForm.cls))
 - **Null query parameters** — a null `withQueryParameter()` value is left out instead of throwing `NullPointerException` ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
+- **Query parameters with a body** — a non-GET request with a body sends `withQueryParameter()` parameters in the URL instead of dropping them ([CalloutBuilder.cls](force-app/main/calloutBuilder/classes/CalloutBuilder.cls))
 
 ## October 2026
 

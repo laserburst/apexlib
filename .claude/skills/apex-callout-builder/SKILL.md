@@ -87,7 +87,7 @@ new CalloutBuilder('callout:MyNC')
     .getResponseBodyMap();
 ```
 
-Every placeholder needs a parameter and every parameter a placeholder; a mismatch, or a blank, `.` or `..` value, throws `CalloutBuilder.CalloutBuilderException` before the callout. A placeholder also works in the endpoint's own query string (`'/search?q={term}'`), which is the only encoded URL query for non-GET methods.
+Every placeholder needs a parameter and every parameter a placeholder; a mismatch, or a blank, `.` or `..` value, throws `CalloutBuilder.CalloutBuilderException` before the callout. A placeholder also works in the endpoint's own query string (`'/search?q={term}'`), which is the only encoded URL query for a non-GET request without a body.
 
 ### Body serialization
 
@@ -148,12 +148,19 @@ new CalloutBuilder('callout:MyNC')
     .withQueryParameters(new Map<String, String>{ 'page' => '1' })
     .getResponseBodyMap();
 
-// POST + withBody() + withQueryParameters(): body wins, query params are silently
-// dropped from the body. They still appear in the URL only for GET requests.
+// POST without withBody(): query params are the form-encoded body.
+// POST + withBody(): query params go to the URL.
 ```
 
 ### Timeouts 
 - `.withTimeout(milliseconds)` — default is 10 s; max is 120 000 ms.
+
+### Client certificate
+- `.withClientCertificate(certificateName)` — for an API that requires a client certificate (mutual TLS); pass the certificate's Unique Name. Don't build a raw `HttpRequest` for it.
+- The certificate must exist in the org, even when `withMockIfTest()` answers the callout; otherwise it throws `CalloutException`. A null name sends no certificate, so read the name from configuration that is empty in test and scratch orgs.
+
+### Compression
+- `.withCompression(true)` — sends the body gzip-compressed whether or not the API accepts it; enable it only when the API documents gzip request bodies. Off by default.
 
 ### Debug Mode
 - `.withDebugMode(true)` — logs full request/response to the debug log (skips binary content types). Safe to include during development; remove or control by custom metadata in production. False by default.
@@ -356,7 +363,9 @@ static void testPaymentError() {
 }
 ```
 
-The override matches by resolved full URL + HTTP method: a key built with `withEndpoint('/charge/ch_1')` matches `withEndpoint('/charge/{id}').withPathParameter('id', 'ch_1')`. Builders targeting other endpoints are unaffected.
+The override matches by resolved full URL + HTTP method: a key built with `withEndpoint('/charge/ch_1')` matches `withEndpoint('/charge/{id}').withPathParameter('id', 'ch_1')`.
+
+The override is installed with `Test.setMock()`, so it replaces the test's mock and stays installed after its callout; Apex can't restore the earlier mock. A later callout without its own `withMockIfTest()` or override is answered by the override, so give every callout in such a test a mock or an override.
 
 ---
 
@@ -458,7 +467,7 @@ When generating response types:
 
 - For `GET` requests, query parameters _(UTF-8 encoded)_ are appended to the URL: `https://example.com/test?param1=value1&param2=value2&param3=value3`
 
-- For other HTTP methods (e.g., `POST`), parameters are included in the body instead, and the URL remains: `https://example.com/test`
+- For other HTTP methods (e.g., `POST`), parameters are the body when no body is set, and the URL remains: `https://example.com/test`. With a body, they go to the URL as for `GET`.
 
 - An endpoint that already carries a query string is extended with `&`, not a second `?`: `withEndpoint('/test?a=1')` + `withQueryParameter('b', '2')` → `https://example.com/test?a=1&b=2`
 
