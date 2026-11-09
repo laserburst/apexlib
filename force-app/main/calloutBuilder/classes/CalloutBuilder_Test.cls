@@ -220,7 +220,7 @@ private class CalloutBuilder_Test {
                     .withMockIfTest(mock);
             Map<String, Object> resMap = cb.getResponseBodyMap();
         Test.stopTest();
-        String expectedUrl = 'https://example.com/test'; // POST requests do not include query parameters in the URL
+        String expectedUrl = 'https://example.com/test'; // a POST without a body sends them as the body
         Assert.areEqual(expectedUrl, cb.constructFullEndpoint(), 'Unexpected endpoint URL');
         Assert.areEqual(
             'param1=value1&param2=value2&param3=value3',
@@ -274,6 +274,11 @@ private class CalloutBuilder_Test {
             '{"value":"kept"}',
             mock.capturedRequest.getBody(),
             'An object body should be serialized and win over query parameters'
+        );
+        Assert.areEqual(
+            'https://example.com/test?param1=value1',
+            mock.capturedRequest.getEndpoint(),
+            'Query parameters of a non-GET request with a body should go to the URL'
         );
     }
 

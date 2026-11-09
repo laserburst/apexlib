@@ -204,10 +204,9 @@ public virtual with sharing class CalloutBuilder {
     }
 
     /**
-     * @description withQueryParameter sets query parameter for the callout
-     * Note: If the method is GET, query parameters are added to the URL.
-     * If the method is not GET, query parameters are added to the body
-     * (if the body is null). A null value leaves the parameter out.
+     * @description withQueryParameter sets query parameter for the callout.
+     * It goes to the URL for GET or a request with a body; a non-GET request
+     * without a body sends the query parameters as its body. A null value leaves the parameter out.
      */
     public CalloutBuilder withQueryParameter(String key, String value) {
         if (String.isBlank(key)) {
@@ -344,11 +343,11 @@ public virtual with sharing class CalloutBuilder {
 
     /**
      * @description constructFullEndpoint returns full URL for the callout
-     * @return base URL + endpoint + query parameters (if any and if GET method)
+     * @return base URL + endpoint + query parameters (if any, for GET or a request with a body)
      */
     public String constructFullEndpoint() {
         String fullEndpoint = this.endpoint.joinTo(this.ncOrBaseUrl);
-        if (this.method != 'GET') {
+        if (this.isQueryInBody()) {
             return fullEndpoint;
         }
         String query = this.getEncodedQueryParameters();
@@ -456,6 +455,10 @@ public virtual with sharing class CalloutBuilder {
         this.attachHeaders();
     }
 
+    private Boolean isQueryInBody() {
+        return this.method != 'GET' && this.body == null;
+    }
+
     private String getEncodedQueryParameters() {
         if (this.queryParameters.isEmpty()) {
             return '';
@@ -468,7 +471,7 @@ public virtual with sharing class CalloutBuilder {
      * 1. blob
      * 2. XML (Dom.Document or CalloutXmlSerializable)
      * 3. any other body, by Content-Type: a String as-is, form fields or JSON
-     *    (a body always wins over query parameters)
+     *    (query parameters then go to the URL)
      * 4. query parameters (if any and if method is not GET)
      */
     private void attachBody() {
@@ -486,7 +489,7 @@ public virtual with sharing class CalloutBuilder {
         } else if (this.body != null) {
             this.request.setBody(this.toTextBody());
             this.defaultContentType('application/json');
-        } else if (!this.queryParameters.isEmpty() && this.method != 'GET') {
+        } else if (!this.queryParameters.isEmpty() && this.isQueryInBody()) {
             this.request.setBody(this.getEncodedQueryParameters());
         }
     }

@@ -102,13 +102,13 @@ Map<String, Object> responseBody = cb.getResponseBodyMap();
 
 - For `GET` requests, query parameters _(UTF-8 encoded)_ are appended to the URL: `https://example.com/test?param1=value1&param2=value2&param3=value3`
 
-- For other HTTP methods (e.g., `POST`), parameters are included in the body instead, and the URL remains: `https://example.com/test`
+- For other HTTP methods (e.g., `POST`), parameters are the body when no body is set, and the URL remains: `https://example.com/test`. With a body, they go to the URL as for `GET`.
 
 - When the endpoint already carries a query string, parameters extend it with `&` rather than starting a second one: `withEndpoint('/test?a=1')` + `withQueryParameter('b', '2')` → `https://example.com/test?a=1&b=2`
 
 #### Request Body Note
 
-If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters — whatever the body's type. A `String` body is sent as-is when a non-JSON Content-Type is set.
+If you set a body using `.withBody()`, it _will not be overwritten_ by query parameters — whatever the body's type; they go to the URL instead. A `String` body is sent as-is when a non-JSON Content-Type is set.
 
 ### Form Bodies
 
