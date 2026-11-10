@@ -907,12 +907,23 @@ private class CalloutBuilder_Test {
                 .withResponseSanitizer(new ScrubbingSanitizer())
                 .withMockIfTest(new ErrorMock())
                 .getResponseBodyMap();
+            HttpResponse bypassed = new CalloutBuilder('callout:ErrorTest')
+                .withEndpoint('/fail')
+                .withBypassResponseValidation(true)
+                .withResponseSanitizer(new MarkingSanitizer())
+                .withMockIfTest(new ErrorMock())
+                .getHttpResponse();
         Test.stopTest();
 
         Assert.areEqual(
             'scrubbed',
             (String) resMap.get('message'),
             'Every response the caller sees passes sanitization, including a bypassed error response'
+        );
+        Assert.areEqual(
+            '{"message": "Something went wrong"} [error] [success]',
+            bypassed.getBody(),
+            'A bypassed error response should pass sanitizeError(), then sanitize()'
         );
     }
 
@@ -929,6 +940,16 @@ private class CalloutBuilder_Test {
 
         public override void sanitize(HttpResponse response) {
             response.setBody(response.getBody() + this.name);
+        }
+    }
+
+    private class MarkingSanitizer extends CalloutResponseSanitizer {
+        public override void sanitizeError(HttpResponse response) {
+            response.setBody(response.getBody() + ' [error]');
+        }
+
+        public override void sanitize(HttpResponse response) {
+            response.setBody(response.getBody() + ' [success]');
         }
     }
 

@@ -597,19 +597,21 @@ public virtual with sharing class CalloutBuilder {
         if (this.debugMode) {
             CalloutDebug.log(this.response);
         }
+        if (this.response.getStatusCode() < 400) {
+            return;
+        }
+        // before the bypass: a bypassed error response reaches the caller, so its body must be sanitized or withheld
+        this.sanitizeErrorResponse();
         if (this.bypassResponseValidation) {
             return;
         }
-        if (this.response.getStatusCode() >= 400) {
-            this.sanitizeErrorResponse();
-            CalloutBuilderException ex = new CalloutBuilderException(
-                this.response,
-                this.errorResponseImplType,
-                this.getParser(this.response)
-            );
-            this.error = ex.getError();
-            throw ex;
-        }
+        CalloutBuilderException ex = new CalloutBuilderException(
+            this.response,
+            this.errorResponseImplType,
+            this.getParser(this.response)
+        );
+        this.error = ex.getError();
+        throw ex;
     }
 
     // a blocked error body is withheld, so the caller still gets CalloutBuilderException with its code and status
