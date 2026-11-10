@@ -4,7 +4,7 @@
  * @team Laserburst
  */
 public class CalloutEndpointPattern implements Comparable {
-    private static final Pattern BLOCKED_CHARACTER = Pattern.compile('[\\\\;%\\p{Cc}]');
+    private static final Pattern BLOCKED_CHARACTER = Pattern.compile('[/\\\\;%\\p{Cc}]');
     private static final String TRAILING_WILDCARD = '/*';
 
     // declared from least to most specific, because toRank() reads ordinal()
@@ -102,6 +102,17 @@ public class CalloutEndpointPattern implements Comparable {
         return 0;
     }
 
+    /**
+     * @description isBlockedSegment is the path rule for one decoded segment: true when it is empty, "." or "..",
+     * or contains "/", "\", ";", "%" or a control character
+     */
+    public static Boolean isBlockedSegment(String segment) {
+        return String.isEmpty(segment)
+            || segment == '.'
+            || segment == '..'
+            || BLOCKED_CHARACTER.matcher(segment).find();
+    }
+
     // drops one trailing "/"; any other empty segment is kept, so isBlockedSegment() sees it
     private List<String> toSegmentTexts(String path) {
         String trimmed = path?.removeEnd('/');
@@ -128,7 +139,7 @@ public class CalloutEndpointPattern implements Comparable {
         }
         // the path rule blocks such a segment in every path, so a pattern with one would never match
         // and its policy's checks would never run
-        if (this.isBlockedSegment(text)) {
+        if (isBlockedSegment(text)) {
             throw new CalloutBuilder.CalloutBuilderException(
                 'Endpoint pattern must not contain an empty or dot segment, "\\", ";", "%" or a control character'
             );
@@ -146,10 +157,6 @@ public class CalloutEndpointPattern implements Comparable {
 
     private String toPlaceholderName(String text) {
         return text.substring(1, text.length() - 1);
-    }
-
-    private Boolean isBlockedSegment(String text) {
-        return String.isEmpty(text) || text == '.' || text == '..' || BLOCKED_CHARACTER.matcher(text).find();
     }
 
     private Boolean isMatchingDepth(Integer depth) {
