@@ -20,6 +20,11 @@ public class CalloutEndpointPattern implements Comparable {
     private final Set<String> parameterNames = new Set<String>();
     private final Boolean coversSubtree;
 
+    /**
+     * @description throws CalloutBuilderException for a pattern that doesn't start with "/", has "?" or "#",
+     * has a "*" other than a trailing "/*", has a placeholder that isn't a whole segment or is used twice,
+     * or has a literal the path rule blocks
+     */
     public CalloutEndpointPattern(String endpoint) {
         if (endpoint?.startsWith('/') != true) {
             throw new CalloutBuilder.CalloutBuilderException('Endpoint pattern must start with "/"');
@@ -77,6 +82,9 @@ public class CalloutEndpointPattern implements Comparable {
         return parameters;
     }
 
+    /**
+     * @return true when the pattern has this {name}, compared exactly
+     */
     public Boolean hasParameter(String name) {
         return this.parameterNames.contains(name);
     }

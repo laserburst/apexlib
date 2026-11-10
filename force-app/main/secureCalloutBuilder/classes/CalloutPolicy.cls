@@ -28,11 +28,18 @@ public class CalloutPolicy implements Comparable {
         this.ncOrBaseUrl = ncOrBaseUrl;
     }
 
+    /**
+     * @description withMethod makes the policy allow callouts with this method on its endpoint
+     * @param method compared in upper case
+     */
     public CalloutPolicy withMethod(String method) {
         this.methods.add(method.toUpperCase());
         return this;
     }
 
+    /**
+     * @param methods each added as by withMethod()
+     */
     public CalloutPolicy withMethods(Set<String> methods) {
         for (String method : methods) {
             this.withMethod(method);
@@ -85,6 +92,9 @@ public class CalloutPolicy implements Comparable {
         return this;
     }
 
+    /**
+     * @description withBlobBodies grants a Blob body, which no check can read
+     */
     public CalloutPolicy withBlobBodies() {
         this.grants.allowBlobBodies();
         return this;
@@ -111,30 +121,50 @@ public class CalloutPolicy implements Comparable {
         return this;
     }
 
+    /**
+     * @description withGuardrail adds a check for every callout the policy applies to, run before the fixed
+     * rules and the grant checks; it blocks by throwing
+     */
     public CalloutPolicy withGuardrail(CalloutGuardrail guardrail) {
         this.guardrails.add(guardrail);
         return this;
     }
 
+    /**
+     * @param guardrails each added as by withGuardrail()
+     */
     public CalloutPolicy withGuardrails(List<CalloutGuardrail> guardrails) {
         this.guardrails.addAll(guardrails);
         return this;
     }
 
+    /**
+     * @description withResponseSanitizer adds a sanitizer for the response to every callout the policy
+     * applies to; an error body reaches its sanitizeError() only if the policy calls withErrorBodies()
+     */
     public CalloutPolicy withResponseSanitizer(CalloutResponseSanitizer sanitizer) {
         this.sanitizers.add(sanitizer);
         return this;
     }
 
+    /**
+     * @param sanitizers each added as by withResponseSanitizer()
+     */
     public CalloutPolicy withResponseSanitizers(List<CalloutResponseSanitizer> sanitizers) {
         this.sanitizers.addAll(sanitizers);
         return this;
     }
 
+    /**
+     * @return the scope as written
+     */
     public String getNcOrBaseUrl() {
         return this.ncOrBaseUrl;
     }
 
+    /**
+     * @return a copy, in upper case; empty for a policy that only adds rules
+     */
     public Set<String> getMethods() {
         return new Set<String>(this.methods);
     }
@@ -155,10 +185,16 @@ public class CalloutPolicy implements Comparable {
         return copy;
     }
 
+    /**
+     * @return a copy, in the order added
+     */
     public List<CalloutResponseSanitizer> getResponseSanitizers() {
         return new List<CalloutResponseSanitizer>(this.sanitizers);
     }
 
+    /**
+     * @description isAllowing is true when the policy names a method; a policy without one only adds rules
+     */
     public Boolean isAllowing() {
         return !this.methods.isEmpty();
     }
@@ -171,6 +207,9 @@ public class CalloutPolicy implements Comparable {
         return this.isApplicable(callout, new CalloutRequestSnapshot(callout));
     }
 
+    /**
+     * @description isApplicable reads the request from the snapshot, so many policies share one decoded path
+     */
     public Boolean isApplicable(CalloutBuilder callout, CalloutRequestSnapshot snapshot) {
         return this.isMethodNamed(snapshot.getMethod()) && this.isInScope(snapshot) && this.areConditionsMet(callout);
     }

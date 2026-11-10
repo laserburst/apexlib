@@ -63,6 +63,9 @@ public class CalloutRequestSnapshot {
         return this.path;
     }
 
+    /**
+     * @return a copy of the headers as set, without the Content-Type CB adds by default
+     */
     public Map<String, String> getHeaders() {
         return new Map<String, String>(this.headers);
     }
@@ -78,6 +81,9 @@ public class CalloutRequestSnapshot {
         return names;
     }
 
+    /**
+     * @description isBlobBody is true for a body set with withBlobBody(), which no check can read
+     */
     public Boolean isBlobBody() {
         return this.hasBlobBody;
     }

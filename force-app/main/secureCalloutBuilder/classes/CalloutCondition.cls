@@ -4,5 +4,8 @@
  * @team Laserburst
  */
 public abstract class CalloutCondition {
+    /**
+     * @return true when the policy applies to this callout; must not execute or change the builder
+     */
     public abstract Boolean isMet(CalloutBuilder callout);
 }

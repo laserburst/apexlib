@@ -10,28 +10,47 @@ public class CalloutGrants {
     private Boolean blobBodies = false;
     private Boolean errorBodies = false;
 
+    /**
+     * @param names compared without case
+     */
     public void addHeaders(Set<String> names) {
         for (String name : names) {
             this.lowerCaseHeaders.add(name.toLowerCase());
         }
     }
 
+    /**
+     * @param names compared exactly
+     */
     public void addQueryParameters(Set<String> names) {
         this.queryParameters.addAll(names);
     }
 
+    /**
+     * @description addHeaderFormula grants the header with this exact value only
+     */
     public void addHeaderFormula(String name, String formula) {
         this.formulaHeaderLines.add(this.toHeaderLine(name, formula));
     }
 
+    /**
+     * @description allowBlobBodies grants a Blob body, which no check can read
+     */
     public void allowBlobBodies() {
         this.blobBodies = true;
     }
 
+    /**
+     * @description allowErrorBodies consents to error bodies; CalloutEffectivePolicy.getResponseSanitizer() says
+     * when that is enough
+     */
     public void allowErrorBodies() {
         this.errorBodies = true;
     }
 
+    /**
+     * @description addAll adds the other grants to these; nothing is taken away
+     */
     public void addAll(CalloutGrants other) {
         this.lowerCaseHeaders.addAll(other.lowerCaseHeaders);
         this.queryParameters.addAll(other.queryParameters);
@@ -40,6 +59,9 @@ public class CalloutGrants {
         this.errorBodies |= other.errorBodies;
     }
 
+    /**
+     * @return true when allowErrorBodies() was called here or on grants added with addAll()
+     */
     public Boolean allowsErrorBodies() {
         return this.errorBodies;
     }
