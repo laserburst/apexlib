@@ -352,7 +352,7 @@ public virtual with sharing class CalloutBuilder {
      */
     public String constructFullEndpoint() {
         String fullEndpoint = this.endpoint.joinTo(this.ncOrBaseUrl);
-        if (this.isQueryInBody()) {
+        if (this.isQuerySentAsBody()) {
             return fullEndpoint;
         }
         String query = this.getEncodedQueryParameters();
@@ -407,6 +407,34 @@ public virtual with sharing class CalloutBuilder {
             return this.bodyString; // serialized once per execution, before the guardrails run
         }
         return this.toBodyString();
+    }
+
+    /**
+     * @description getContentType returns the Content-Type header as set, its name matched ignoring case;
+     * null when none is set, and the request then gets the body's default
+     */
+    public String getContentType() {
+        for (String header : this.headersMap.keySet()) {
+            if (header.equalsIgnoreCase('Content-Type')) {
+                return this.headersMap.get(header);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @description isQuerySentAsBody is true when the query parameters, if any, go in the body, not the URL:
+     * for a non-GET request without a body
+     */
+    public Boolean isQuerySentAsBody() {
+        return this.method != 'GET' && this.body.isEmpty();
+    }
+
+    /**
+     * @description isBlobBody is true for a body set with withBlobBody(), which getBodyAsString() can't return
+     */
+    public Boolean isBlobBody() {
+        return this.body.isBlob();
     }
 
     public CalloutErrorResponse getError() {
@@ -483,10 +511,6 @@ public virtual with sharing class CalloutBuilder {
         this.attachHeaders();
     }
 
-    private Boolean isQueryInBody() {
-        return this.method != 'GET' && this.body.isEmpty();
-    }
-
     private String getEncodedQueryParameters() {
         if (this.queryParameters.isEmpty()) {
             return '';
@@ -509,7 +533,7 @@ public virtual with sharing class CalloutBuilder {
         if (!this.body.isEmpty()) {
             return this.body.toText(this.getContentType());
         }
-        if (!this.queryParameters.isEmpty() && this.isQueryInBody()) {
+        if (!this.queryParameters.isEmpty() && this.isQuerySentAsBody()) {
             return this.getEncodedQueryParameters();
         }
         return null;
@@ -521,15 +545,6 @@ public virtual with sharing class CalloutBuilder {
         if (mediaType != null && this.getContentType() == null) {
             this.request.setHeader('Content-Type', mediaType);
         }
-    }
-
-    private String getContentType() {
-        for (String header : this.headersMap.keySet()) {
-            if (header.equalsIgnoreCase('Content-Type')) {
-                return this.headersMap.get(header);
-            }
-        }
-        return null;
     }
 
     private void attachHeaders() {
