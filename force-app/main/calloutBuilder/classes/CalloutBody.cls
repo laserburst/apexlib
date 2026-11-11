@@ -46,11 +46,10 @@ public class CalloutBody {
         if (this.isXml()) {
             return this.toXml();
         }
-        String mediaType = this.toMediaType(contentType);
-        if (this.value instanceof String && !this.isJson(mediaType)) {
+        if (this.value instanceof String && !isJson(contentType)) {
             return (String) this.value;
         }
-        if (this.isForm(mediaType)) {
+        if (this.isForm(contentType)) {
             return new CalloutUrlEncodedForm(this.value).toString();
         }
         return JSON.serialize(this.value, this.suppressApexObjectNulls);
@@ -84,16 +83,20 @@ public class CalloutBody {
         return ((CalloutXmlSerializable) this.value).toXmlBuilder().toXmlString();
     }
 
-    private String toMediaType(String contentType) {
-        return contentType?.substringBefore(';').trim().toLowerCase();
-    }
-
-    // no Content-Type means JSON
-    private Boolean isJson(String mediaType) {
+    /**
+     * @description isJson is true when a String body is sent JSON-serialized under this Content-Type: none,
+     * application/json or a +json type
+     */
+    public static Boolean isJson(String contentType) {
+        String mediaType = toMediaType(contentType);
         return mediaType == null || mediaType == 'application/json' || mediaType.endsWith('+json');
     }
 
-    private Boolean isForm(String mediaType) {
-        return mediaType == 'application/x-www-form-urlencoded';
+    private static String toMediaType(String contentType) {
+        return contentType?.substringBefore(';').trim().toLowerCase();
+    }
+
+    private Boolean isForm(String contentType) {
+        return toMediaType(contentType) == 'application/x-www-form-urlencoded';
     }
 }
