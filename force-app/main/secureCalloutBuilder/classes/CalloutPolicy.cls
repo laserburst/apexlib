@@ -77,6 +77,17 @@ public class CalloutPolicy implements Comparable {
     }
 
     /**
+     * @description withAllowedResponseHeaders lets these response headers come back with their values; any other
+     * header whose name contains cookie, token, secret, session, password, credential, authorization, api-key or
+     * apikey comes back blank
+     * @param names compared without case
+     */
+    public CalloutPolicy withAllowedResponseHeaders(Set<String> names) {
+        this.grants.addResponseHeaders(names);
+        return this;
+    }
+
+    /**
      * @param names compared exactly, so expand doesn't grant Expand
      */
     public CalloutPolicy withAllowedQueryParameters(Set<String> names) {

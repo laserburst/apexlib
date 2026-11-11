@@ -33,7 +33,7 @@ public class CalloutEffectivePolicy {
         if (!allowed) {
             throw this.snapshot.toException(CalloutPolicyRule.METHOD, 'method is not allowed on this path');
         }
-        this.sanitizer = new EffectiveSanitizer(this.applicablePolicies, this.isWithholdingErrorBodies());
+        this.sanitizer = new EffectiveSanitizer(this);
     }
 
     /**
@@ -90,17 +90,21 @@ public class CalloutEffectivePolicy {
 
     private class EffectiveSanitizer extends CalloutResponseSanitizer {
         private final CalloutResponseSanitizerChain chain = new CalloutResponseSanitizerChain();
+        private final CalloutGrants grants;
         private final Boolean withholdsErrorBodies;
 
-        public EffectiveSanitizer(List<CalloutPolicy> policies, Boolean withholdsErrorBodies) {
-            for (CalloutPolicy policy : policies) {
+        // copies what it needs: holding the effective policy would keep its request snapshot alive with the response
+        public EffectiveSanitizer(CalloutEffectivePolicy effectivePolicy) {
+            for (CalloutPolicy policy : effectivePolicy.applicablePolicies) {
                 this.chain.addAll(policy.getResponseSanitizers());
             }
-            this.withholdsErrorBodies = withholdsErrorBodies;
+            this.grants = effectivePolicy.grants;
+            this.withholdsErrorBodies = effectivePolicy.isWithholdingErrorBodies();
         }
 
         // CB blanks a withheld body and throws CalloutBuilderException with the code and this status
         public override void sanitizeError(HttpResponse response) {
+            this.grants.blankCredentialHeaders(response);
             if (this.withholdsErrorBodies) {
                 response.setStatus(WITHHELD);
                 throw new CalloutResponseSanitizerException(WITHHELD);
@@ -109,6 +113,7 @@ public class CalloutEffectivePolicy {
         }
 
         public override void sanitize(HttpResponse response) {
+            this.grants.blankCredentialHeaders(response);
             this.chain.sanitize(response);
         }
 

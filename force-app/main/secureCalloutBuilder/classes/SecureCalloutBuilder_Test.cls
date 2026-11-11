@@ -49,7 +49,7 @@ private class SecureCalloutBuilder_Test {
             );
 
         Test.startTest();
-        secured.getHttpResponse();
+        HttpResponse response = secured.getHttpResponse();
         secured.getResponseBodyAsBlob();
         secured.getResponseBodyMap();
         secured.getTypedResponseBody();
@@ -65,6 +65,7 @@ private class SecureCalloutBuilder_Test {
             'Each getter should reach the policies\' sanitizers through its own overload'
         );
         Assert.areEqual('METHOD', reExecuted, 'A builder executed again should be checked again');
+        Assert.areEqual('', response.getHeader('Set-Cookie'), 'A credential header should come back blank');
     }
 
     @IsTest
@@ -133,6 +134,10 @@ private class SecureCalloutBuilder_Test {
     }
 
     private class JsonMock extends ViciousMockery {
+        {
+            this.headers.put('Set-Cookie', 'sid=abc');
+        }
+
         public override String getBodyString() {
             return '{"id": 5}';
         }

@@ -49,6 +49,36 @@ private class CalloutGrants_Test {
         Assert.areEqual(ALLOWED, combinedOutcome, 'Grants should add up');
     }
 
+    @IsTest
+    static void testBlankCredentialHeaders() {
+        CalloutGrants grants = new CalloutGrants();
+        grants.addResponseHeaders(new Set<String>{ 'x-auth-token' });
+        HttpResponse response = new HttpResponse();
+        response.setHeader('Set-Cookie', 'sid=abc');
+        response.setHeader('X-Api-Key', 'key');
+        response.setHeader('X-Auth-Token', 'granted');
+        response.setHeader('X-RateLimit-Remaining', '9');
+
+        Test.startTest();
+        grants.blankCredentialHeaders(response);
+        Test.stopTest();
+
+        Map<String, String> valueByKey = new Map<String, String>();
+        for (String key : response.getHeaderKeys()) {
+            valueByKey.put(key, response.getHeader(key));
+        }
+        Assert.areEqual(
+            new Map<String, String>{
+                'Set-Cookie' => '',
+                'X-Api-Key' => '',
+                'X-Auth-Token' => 'granted',
+                'X-RateLimit-Remaining' => '9'
+            },
+            valueByKey,
+            'A header that may carry a credential should come back blank unless it is granted'
+        );
+    }
+
     private static CalloutBuilder toCallout(String method) {
         return new CalloutBuilder('callout:Api').withMethod(method).withEndpoint('/items');
     }
