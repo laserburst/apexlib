@@ -44,6 +44,21 @@ try {
 }
 ```
 
+### [Named Credentials MCP](force-app/main/namedCredentialsMcp/classes/README.md)
+
+Lets an agent call an API through a Named Credential, from a Salesforce hosted MCP server, under the API's policies.
+
+```java
+public class ItemsApiPolicies implements ncMcp_CalloutPolicies {
+    public List<CalloutPolicy> getPolicies() {
+        return new List<CalloutPolicy>{
+            new CalloutPolicy('callout:Api').withMethod('GET').withEndpoint('/items/*')
+        };
+    }
+}
+// the agent's listCredentials, describe and sendRequest tools now reach callout:Api, GET /items/* only
+```
+
 ### [ViciousMockery](force-app/main/viciousMockery/classes/README.md)
 
 HTTP mock template. `ViciousMockBase` lets you define mock families using instance initializer blocks; `ViciousMockery` is a drop-in mock for any status code.

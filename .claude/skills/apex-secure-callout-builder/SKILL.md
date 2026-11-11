@@ -5,7 +5,8 @@ description: >-
   what its policies allow. Use it whenever a callout carries values the Apex code didn't choose: a path, header,
   query parameter or body from an MCP tool, an Agentforce action, a Flow or a user. Trigger on "SecureCalloutBuilder",
   "CalloutPolicy", "withPolicy", "withPolicies", "CalloutPolicyException", "CalloutPolicyRule", "CalloutCondition",
-  "allow-list an API", "restrict which endpoints", "block callouts", or a review of an agent tool that calls out.
+  "allow-list an API", "restrict which endpoints", "block callouts", "ncMcp_CalloutPolicies", "ncMcp_PolicyFactory",
+  "Named Credentials MCP", or a review of an agent tool that calls out.
   It builds on apex-callout-builder, which covers the CalloutBuilder itself.
 ---
 
@@ -39,7 +40,8 @@ The wrapper attaches its enforcer to the builder itself, so `cb.getHttpResponse(
 4. **Grants add up, like permission sets.** They come from every applicable policy without a method, plus the route's policies that allow the callout. A losing route grants nothing. Nothing is allowed until it is granted:
    - headers: `withAllowedHeaders()`, or one exact value with `withHeaderFormula()` (`HEADER`);
    - query parameters, in the URL and sent as the body: `withAllowedQueryParameters()` (`QUERY_PARAMETER`);
-   - a Blob body: `withBlobBodies()` (`BLOB_BODY`).
+   - a Blob body: `withBlobBodies()` (`BLOB_BODY`);
+   - a response header whose name contains `cookie`, `token`, `secret`, `session`, `password`, `credential`, `authorization`, `api-key` or `apikey`: `withAllowedResponseHeaders()`. Without the grant, the header comes back blank in the `HttpResponse`, also for an error response under `withBypassResponseValidation(true)`.
 5. **Checks all run, like restriction rules.** Every applicable policy's guardrails and path parameter patterns run, losing routes included (`PATH_PARAMETER` when a whole `{name}` value doesn't match). Every applicable policy's sanitizers see the response.
 6. **Fixed rules.** No grant lifts these:
    - a header set in two cases (`HEADER`);
@@ -130,3 +132,44 @@ The syntax of `withEndpoint()`, plus a trailing `/*`:
 ### Tests
 
 - Unit-test a policy list without callouts: `new CalloutEffectivePolicy(policies, cb).enforce(cb)` throws the same `CalloutPolicyException` a callout would.
+
+---
+
+## Exposing an API to Named Credentials MCP
+
+The `namedCredentialsMcp` module's tools apply every policy that the org's `ncMcp_CalloutPolicies` classes return:
+
+```apex
+public class ItemsApiPolicies implements ncMcp_CalloutPolicies {
+    public List<CalloutPolicy> getPolicies() {
+        return new List<CalloutPolicy>{
+            new CalloutPolicy('callout:Api').withMethod('GET').withEndpoint('/items/*')
+        };
+    }
+}
+```
+
+- A Named Credential is exposed when a policy scoped `callout:<name>` names a method. Write the scope without a path: `callout:Api/v2` throws, because the tools never call it.
+- Make the class public, with a public no-argument constructor. Private classes aren't found.
+- Declare test classes private. An implementation inside a public test class is found and applied in production too.
+- Keep an API's policies without a method in the same class as its routes, so one can't be left behind.
+- Sanitizers from different classes run in class name order.
+- One class that fails to load makes every tool throw, so a missing check can't go unnoticed.
+- To produce the policies another way, write one public class that implements `ncMcp_PolicyFactory`. It replaces `ncMcp_DefaultPolicyFactory`, and it may extend it and call `super.getPolicies()`. A second one makes every tool throw.
+- Write the API's purpose in the Named Credential's Description, which the agent reads.
+
+### Responses
+
+- The tools read the raw response, so only `sanitize(HttpResponse)` and `sanitizeError()` run. Override `sanitize(HttpResponse)`: a sanitizer with only the Map overload blocks every response.
+- `sanitize(HttpResponse)` also gets error responses, whose body is blank when withheld.
+- The agent gets every response header, except the credential headers that Secure CB blanks unless a policy calls `withAllowedResponseHeaders()`.
+- To hide another header, blank it with `setHeader(key, '')`, using the key exactly as `getHeaderKeys()` returns it:
+
+  ```apex
+  for (String key : response.getHeaderKeys()) {
+      if (key != null && key.equalsIgnoreCase('X-Internal-Id')) {
+          response.setHeader(key, '');
+      }
+  }
+  ```
+- An endpoint that echoes the request, such as a debug or echo route, returns the credential the Named Credential added. Don't allow it, or sanitize its body.
